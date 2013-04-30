@@ -1,0 +1,2 @@
+em-rec.o: em-rec.cpp em-rec.h ../config.h ../util.h ../util.h md5.h \
+ GPSSensor.h Sensor.h StateMachine.h ADSensor.h RFIDSensor.h

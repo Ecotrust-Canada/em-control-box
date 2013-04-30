@@ -1,0 +1,57 @@
+!!! 5
+html
+  head
+    link(rel='stylesheet', href='/css/style.css')
+    link(rel='stylesheet', href='/css/screen.css')
+    script(src='/js/jquery-1.4.2.min.js')
+    script
+      var state = "#{state}";
+      function getClass(index) {
+        if(state < 4) {
+          if(index == state) return "fullscreen";
+          else return "screen hidden";
+        } else {
+          return "screen";
+        }
+      }
+  body.cameras
+    #camtab.camtab
+      embed(src='/dev/cam0', type='video/raw', width='640', height='480')
+      //img(src='/cam/1?#{new Date()}')
+      //img(src='/cam/2?#{new Date()}')
+      //img(src='/cam/3?#{new Date()}')
+    script
+      $('.camtab embed').each(function(item,i){
+        $(this).addClass(getClass(i));
+      });
+    
+      $(function() {
+        window.full = 4;
+        for(i = 0; i < 4; i++) {
+          name = '#camtab embed:eq(' + i + ')';
+          if($(name).hasClass('fullscreen')) {
+            window.full = i;
+            break;
+          }
+        }
+    
+        $('#camtab embed').click(function(evt) {
+          if (!$(this).hasClass('fullscreen')) {
+            $('#camtab embed').hide();
+            $(this).addClass('fullscreen').show();
+            for(i = 0; i < 4; i++) {
+              name = '#camtab embed:eq(' + i + ')';
+              if($(name).hasClass('fullscreen')) {
+                window.full = i;
+                break;
+              }
+            }
+          } else {
+            $('#camtab embed').attr('class','');
+            $('#camtab embed').addClass('screen');
+            $('#camtab embed').show();
+            window.full = 4;
+          }
+        });
+      });
+

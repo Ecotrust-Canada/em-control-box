@@ -1,0 +1,2 @@
+GPSSensor.o: GPSSensor.cpp GPSSensor.h Sensor.h StateMachine.h em-rec.h \
+ ../config.h ../util.h

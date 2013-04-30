@@ -1,0 +1,2 @@
+RFIDSensor.o: RFIDSensor.cpp RFIDSensor.h Sensor.h StateMachine.h \
+ em-rec.h ../config.h ../util.h

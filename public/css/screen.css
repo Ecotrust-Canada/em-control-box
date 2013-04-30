@@ -1,0 +1,180 @@
+ /**
+  * VMS Application Styles
+  * @author Clark
+  */
+
+html {
+    overflow: hidden;
+}
+
+body {
+	margin: 0; font-family: Arial, sans-serif;
+	color:white;
+    background-color:black;
+    background-image: url(/wood_07.JPG);
+    overflow: hidden;
+}
+
+#header {
+    background-color:black;
+    height:27px;
+    position: absolute;
+    right: 255px;
+    left: 0px;
+}
+#tabs-wrapper {
+    background-color:black;
+    border-bottom: 4px solid white; height:27px;
+}
+
+#errors-wrapper {width: 250px; bottom:0; overflow: auto; position:absolute; right:20px; top:10px; bottom:10px; opacity:0.5; color:black; background-color:white; padding:1em;}
+
+h2 { cursor:pointer; text-decoration:underline;}
+
+.homePortMsg {z-index:5;position:absolute;top:0;right:0}
+
+/* layout */
+.layout-block { width: 450px; float:left; margin-left:1em;}
+
+/* tabs */
+.tabs {display:block; margin:0; background-color:black;}
+.tabs li { float:left; width:90px; list-style: none; padding: 0.2em;
+	text-decoration: underline; font-size: 18px; text-transform: uppercase; margin:0;
+cursor: pointer; font-weight:bold; }
+
+.tab-body {overflow:auto; bottom:0px; top:32px; left:0px; right:250px; position:absolute; display:none}
+.tab-details table td {
+     padding: 3px;
+}
+
+.img-tab {
+    overflow: hidden !important;
+}
+
+.elog-page, .elog-header {
+   border: 1px solid #ddd;
+}
+
+.tab-details td.label {
+    font-weight:bold
+}
+.border td, .border th{
+    padding:3px;
+    border: 1px dotted #eee;
+}
+
+.active { background: url(/wood_07.JPG);
+    border-top: 4px solid white;
+    border-left: 4px solid white;
+    border-right: 4px solid white;
+}
+#main-panel {
+    width:250px;
+    position:absolute;
+    right:0px;
+    top:0px;
+    background-color:black;
+    border-left: 4px solid white;
+    bottom:0px;
+}
+#main-panel span {
+    display:block; float:left;
+}
+#main-panel .label {
+    font-weight:bold;
+    width:60px;
+    margin-top: 1px;
+    height:25px;
+    font-size: 18px;
+}
+#main-panel .value, #main-panel .value-field {
+    background-color:white;
+    font-size: 16px;
+    padding: 3px 3px 3px 3px;
+    margin:1px;
+    color:black;
+}
+#main-panel .label-field {
+    font-weight:bold;
+    font-size: 16px;
+}
+#main-panel .value {
+    width:170px;
+    font-size:18px;
+}
+#main-panel #trip_scans, #main-panel #string_scans {
+    width:35px;
+}
+#main-panel>div {
+    margin: 1px 0 0 0;
+    padding: 1px;
+}
+#main-panel .status {
+    font-size:16px;
+    clear:both;
+    font-weight:bold;
+}
+/* video */
+.screen {height:auto; float:left} 
+.fullscreen { display:block; width:100%; height:auto; max-height:100%;}
+.hidden {display:none;}
+
+body.cameras {
+    background-color: black;
+    background-image:none;
+}
+#camtab img, .tabs {
+   -moz-user-select: -moz-none;
+   -khtml-user-select: none;
+   -webkit-user-select: none;
+    user-select: none;
+}
+
+/* table row status indicators */
+.ok { background-color: #008800; }
+.fail { background-color: #CC0000;}
+.warn { background-color: #AAAA00;}
+
+/* svg container */
+#holder {
+    top: 100px;
+    height: 110px;
+    width: 500px;
+}
+
+.center{text-align:center; }
+
+.search_result {text-align:center; }
+
+#set_home_port {display:none;}
+
+#search_rfid_error {display:none;}
+
+#no_response {font-size:150%; display:none;}
+
+#inside_ferry_area {font-size:150%; display:none;}
+
+#iframe iframe {position:absolute; left:0; top:0}
+
+.elog {border:0.5px solid #888; }
+.elog td {padding:1px}
+
+#tab-elog {overflow: auto !important; right:0 !important; font-size:12px;}
+
+.margin {margin-right:25px; margin-left:5px;}
+
+#elog_table {position:absolute; left:20px;}
+#elog_table th {text-align: left;}
+#tab-elog td,label {color: #DDDDDD;}
+.fullwidth {width:98%; }
+
+.elog_title {font-size:200%; }
+
+.gray {background-color:#AAAAAA; }
+
+#elog_top_error {display:none; }
+#another_bait_type {display:none; }
+#overall {display:none; position:absolute; top: 0px; width: 255px; right:0px; height:31px; font-size:15px;}
+.version {position:absolute; top:3px; right:7px;}
+
+input {border:0; }

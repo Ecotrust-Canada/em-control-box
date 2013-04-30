@@ -1,0 +1,334 @@
+extends layout
+
+block content
+  #main-panel
+    .GPS
+        p
+          span.label GPS
+          span.value(style='font-size: 16px;') initializing
+        p#gps_holder(style='margin: 3px;')
+        p
+          span.label TIME
+          span.value-field.dtime initializing
+        p.status
+    .RFID
+      span.label RFID
+      span.value no scan
+      p.SCANS_TRIP
+        span  # string
+        span#string_scans.value-field 0
+        span
+          button#reset_string x
+        span     # trip
+        span#trip_scans.value-field 0
+        span
+          button#reset_trip x
+      p.status no scan
+    .PSI
+      p
+        span.label PSI
+        span#psi_holder
+      p.status
+    .DISK
+      p
+        span.label DISK #
+          !=driveNumber
+        span#disk_holder
+      p(style='clear: both;')
+        span.label-field rec time left: 
+        span.value-field.available calculating
+      p.status
+    #no_response
+      h1.fail NO RESPONSE FROM SERVER
+    #inside_ferry_area
+      h1.fail INSIDE THE FERRY LANE
+    #homePortMsg(style='display: none;')
+      h1.warn VIDEO RECORDING PAUSED.
+
+  #overall.OVERALL
+    | Sensor Status:
+    span.status(colspan='2') OK
+  .page-container
+    #header
+      #tabs-wrapper
+        ul.tabs
+          li Cams
+          li Details
+          li Report
+          li Search
+          li Elog
+        br(style='clear: both;')
+        .version 
+          !=versions
+    .tab-body.img-tab
+      embed(src='file:///dev/cam0', type='video/raw', width='640', height='480')
+    .tab-body.tab-details
+      #holder
+      div
+        button#toggle_brightness(type='button') night mode
+        br
+        br
+      table#detail_table.subsystems(cellpadding='5')
+        tr.VIDEO
+          td.label VIDEO
+          td.status Not Up
+          td.value n/a
+        tr.CPU
+          td CPU (% usage)
+          td.status not up
+          td.value n/a
+        tr.MEM
+          td mem (k free)
+          td.status not up
+          td.value n/a
+        tr.OSDISK
+          td OS disk (% used)
+          td.status not up
+          td.value n/a
+        tr.TEMP
+          td temp
+          td.status waiting
+          td.value n/a
+      #errors-wrapper
+        h2 Error Log
+        #errors
+    .tab-body
+      form.report
+        h3 Compliance Report Form
+        p
+          label(for='') Category (select one from list)
+          select(name='issue')
+            option(value='1') Monitoring equipment issue
+            option(value='2') RFID tag scan issue
+            option(value='3') Gear tangled with other traps
+            option(value='4') Retrieved another vessel's gear
+            option(value='5') Fished another vessel's gear
+            option(value='6') Cut another vessel's gear
+            option(value='7') Witnessed illegal activity
+            option(value='8') Missing gear
+            option(value='9') Suspect vandalism of this vessel's gear
+            option(value='10') Picked up stray traps owned by this vessel
+            option(value='99') Other
+        p
+          label(for='description') Description
+        p
+          textarea(name='description', cols='65', rows='10')
+      button.submit_report Submit Report
+    .tab-body.tab-search
+      form.search_rfid
+        h3 Search for RFID
+        p
+          | List tags scanned
+          input(name='days', type='text', size='5')
+          | days ago.
+          label#search_rfid_error.fail Please input a positive integer.
+      button.submit_rfid Search
+      br
+      br
+      table.search_result.border
+        tr
+          th RFID
+          th Location
+          th Date
+          th Soak Time
+    #tab-elog.tab-body
+      form.elog
+        h1.elog_title.center CRAB TRAP HARVEST LOG
+        p
+          | (This page is just to test the concept of electronic logbooks. You may try it out, but please continue to use your paper logbooks at this time. Let us know if you have suggestions!)
+        .elog-header
+          b V.R.N.:
+          label#vrn.margin VRN HERE
+          b Vessel:
+          label#vessel.margin VESSEL NAME
+          b Skipper:
+          input#skipper.margin(size='20')
+          b F.I.N.:
+          input#fin.margin(size='7')
+          b Year:
+          label#year.margin YEAR
+          br
+          br
+          table#elog_table.fullwidth(border='0')
+            tr
+              th Fishing Method:
+              th Bait Fastener:
+              th Bait Type:
+              th Depths:
+              th Catch Weights:
+            tr
+              td(display='to_disappear') (check all that apply)
+              td(display='to_disappear') (check all that apply)
+              td#td_bait_type
+                select#bait_type
+                  option(value='QID(Squid)') QID(Squid)
+                  option(value='CLA(Clams)') CLA(Clams)
+                  option(value='GEO(Geoducks)') GEO(Geoducks)
+                  option(value='DOG(Dogfish)') DOG(Dogfish)
+                  option(value='TIN(Tinned Fish)') TIN(Tinned Fish)
+                  option(value='AST(Fish Paste)') AST(Fish Paste)
+                  option(value='OCT(Octopus)') OCT(Octopus)
+                  option(value='ROC(Whole Rockfish)') ROC(Whole Rockfish)
+                  option(value='FRA(Fish Frames(not Salmon))') FRA(Fish Frames(not Salmon))
+                  option(value='MIX(Mixed Fish Species(and offal and scraps))') MIX(Mixed Fish Species(and offal and scraps))
+                  option(value='UNK(Unknown)') UNK(Unknown)
+                  option(value='HER(Herring)') HER(Herring)
+                  option(value='ZOR(Razor Clams)') ZOR(Razor Clams)
+                  option(value='PEL(Pellets)') PEL(Pellets)
+                  option(value='EUL(Eulachons(all Smelt species))') EUL(Eulachons(all Smelt species))
+                  option(value='SAL(Salmon(all species+heads+frames))') SAL(Salmon(all species+heads+frames))
+                  option(value='KKK(Hake)') KKK(Hake)
+                  option(value='XXX(Experimental)') XXX(Experimental)
+                  option(value='YYY(Other)') YYY(Other)
+              td(display='to_disappear') (check one)
+              td(display='to_disappear') (check one)
+            tr
+              td
+                input#grounding_lines(type='checkbox', name='fishing_method')
+                | Grounding lines
+              td
+                input#jars(type='checkbox', name='bait_fastener')
+                | Jars
+              td#td_compound
+                select#compound
+                  option(value='Single Bait Type') Single Bait Type
+                  option(value='Mixture of Two Baits') Mixture of Two Baits
+                  option(value='Distinct Bait Types') Two Distinct Bait Types
+              td#depths1
+                input(type='radio', name='depths', value='Fathoms')
+                | Fathoms
+              td#catch_weights1
+                input(type='radio', name='catch_weights', value='Pounds')
+                | Pounds
+            tr
+              td
+                input#singles(type='checkbox', name='fishing_method')
+                | Singles
+              td
+                input#clips(type='checkbox', name='bait_fastener')
+                | Clips / hooks
+              td#td_bait_type2
+                select#another_bait_type
+                  option(value='QID(Squid)') QID(Squid)
+                  option(value='CLA(Clams)') CLA(Clams)
+                  option(value='GEO(Geoducks)') GEO(Geoducks)
+                  option(value='DOG(Dogfish)') DOG(Dogfish)
+                  option(value='TIN(Tinned Fish)') TIN(Tinned Fish)
+                  option(value='AST(Fish Paste)') AST(Fish Paste)
+                  option(value='OCT(Octopus)') OCT(Octopus)
+                  option(value='ROC(Whole Rockfish)') ROC(Whole Rockfish)
+                  option(value='FRA(Fish Frames(not Salmon))') FRA(Fish Frames(not Salmon))
+                  option(value='MIX(Mixed Fish Species(and offal and scraps))') MIX(Mixed Fish Species(and offal and scraps))
+                  option(value='UNK(Unknown)') UNK(Unknown)
+                  option(value='HER(Herring)') HER(Herring)
+                  option(value='ZOR(Razor Clams)') ZOR(Razor Clams)
+                  option(value='PEL(Pellets)') PEL(Pellets)
+                  option(value='EUL(Eulachons(all Smelt species))') EUL(Eulachons(all Smelt species))
+                  option(value='SAL(Salmon(all species+heads+frames))') SAL(Salmon(all species+heads+frames))
+                  option(value='KKK(Hake)') KKK(Hake)
+                  option(value='XXX(Experimental)') XXX(Experimental)
+                  option(value='YYY(Other)') YYY(Other)
+              td#depths2
+                input(type='radio', name='depths', value='Meters')
+                | Meters
+              td#catch_weights2
+                input(type='radio', name='catch_weights', value='Kilograms')
+                | Kilograms
+            tr
+              td
+              td
+                input#cages(type='checkbox', name='bait_fastener')
+                | Cages
+          div(style='margin-top: 90px;')
+            button#save_top(type='button') Apply
+            label#elog_top_error.fail
+      br
+      .elog-page
+        table.fullwidth.border.elog
+          tbody#elog_data_table
+            tr
+              td(colspan='4') TIME HAULED
+              td(colspan='2') DEPTH
+              td(rowspan='2') SPECIES
+              td(colspan='2') CATCH INFORMATION
+              td(colspan='4') Octopus
+              td(rowspan='2') PBS Code
+              td(rowspan='2') REMARKS
+            tr
+              td(colspan='4') (m d, h:m)
+              td Min.
+              td Max.
+              td # pieces
+              td Wt. Catch
+              td(colspan='2') Released
+              td(colspan='2') Kept
+            tr
+              td.gray(colspan='4')
+              td.gray
+              td.gray
+              td.gray
+              td.gray
+              td.gray
+              td #
+              td Wt.
+              td #
+              td Wt.
+              td.gray
+              td.gray
+            tr#elog_table_row
+              td(colspan='4')
+                select#date_hauled_month
+                  option(value='01') Jan
+                  option(value='02') Feb
+                  option(value='03') Mar
+                  option(value='04') Apr
+                  option(value='05') May
+                  option(value='06') Jun
+                  option(value='07') Jul
+                  option(value='08') Aug
+                  option(value='09') Sep
+                  option(value='10') Oct
+                  option(value='11') Nov
+                  option(value='12') Dec
+                input#date_hauled_day(size='1')
+                br
+                input#date_hauled_hour(size='1')
+                | :
+                input#date_hauled_minute(size='1')
+              td
+                input#depth_min(size='2')
+              td
+                input#depth_max(size='2')
+              td
+                select#species(style='max-width: 85px;')
+                  option(value='XKG') Dungeness
+                  option(value='XLA') Red Rock
+                  option(value='VIA') King Crab
+                  option(value='VNH') Red King
+                  option(value='VMC') Brown (Golden) King
+                  option(value='ZAD') Tanner Crab
+              td
+                input#number_of_pieces(size='3')
+              td
+                input#weight_of_catch(size='3')
+              td
+                input#released_num(size='1')
+              td
+                input#released_wt(size='2')
+              td
+                input#kept_num(size='1')
+              td
+                input#kept_wt(size='2')
+              td
+                input#pbs_code(size='5')
+              td
+                input#remarks(size='7')
+        button#import_date(type='button') Use Current
+        button#add_elog_row(type='button') Save Entry
+  script(src='/js/jquery-1.4.2.min.js')
+  script(src='/js/util.js')
+  script(src='/js/vms.js')
+  script(src='/js/sensors.js')
+  script(src='/js/raphael-min.js')
+  script(src='/js/dial.js')
+  script(src='/js/plugins.js?v=1')
