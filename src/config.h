@@ -45,7 +45,9 @@ typedef struct {
 			framerate[4],
 #endif
 			DATA_MNT[32],
-			BACKUP_DATA_MNT[32];
+			BACKUP_DATA_MNT[32],
+			HOMEPORT_DATA[48],
+			FERRY_DATA[48];
 } CONFIG_TYPE;
 
 /**

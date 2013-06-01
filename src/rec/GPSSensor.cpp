@@ -21,115 +21,273 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
+#include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+//#include <cmath>
 #include "GPSSensor.h"
-#include "libgpsmm.h"
+
 using namespace std;
 
-GPSSensor::GPSSensor(unsigned long int* _state):Sensor("GPS", _state, GPS_NO_CONNECTION, GPS_NO_DATA) {}
+GPSSensor::GPSSensor(EM_DATA_TYPE* _em_data):Sensor("GPS", &_em_data->GPS_state, GPS_NO_CONNECTION, GPS_NO_DATA) {
+    em_data = _em_data;
+}
 
 int GPSSensor::Connect() {
-    if (_gpsmm == NULL || *state & GPS_NO_CONNECTION) {
-        if(_gpsmm != NULL) ((gpsmm*)_gpsmm)->~gpsmm();
-        _gpsmm = new gpsmm("localhost", DEFAULT_GPSD_PORT);
+    static bool silenceConnectErrors = false;
+
+    if(GPS_DATA.privdata != NULL && PRIVATE(GPS_DATA)->shmseg != NULL) {
+        D("In GPSSensor::Connect() but shmseg set, doing gps_close()");
+        gps_close(&GPS_DATA);
     }
     
-    if (((gpsmm*)_gpsmm)->stream(WATCH_ENABLE|WATCH_JSON) == NULL) {
-        cerr << "GPS: Failed to talk to gpsd (not running?)" << endl;
-        UnsetAllErrorStates();
+    if (gps_open(GPSD_SHARED_MEMORY, 0, &GPS_DATA) != 0) {
+        if(!silenceConnectErrors || OVERRIDE_SILENCE) {
+            cerr << "GPS: Failed to attach to GPSd shared memory segment (is GPSd running?); will keep at it but silencing further Connect() errors" << endl;
+            silenceConnectErrors = true;
+        }
+        
+        //UnsetAllErrorStates();
         SetErrorState(GPS_NO_CONNECTION);
-        return 1;
+        return -1;
     }
-
+    
     UnsetErrorState(GPS_NO_CONNECTION);
     cout << name << ": Connected" << endl;
+
+    if(!(*state & GPS_NO_HOME_PORT_DATA) && num_home_ports == 0) {
+        if((num_home_ports = LoadKML(em_data->GPS_homePortDataFile, home_ports, num_home_port_edges)) == 0) {
+            SetErrorState(GPS_NO_HOME_PORT_DATA);
+        }
+    }
+
+    if(!(*state & GPS_NO_FERRY_DATA) && num_ferry_lanes == 0) {
+        if((num_ferry_lanes = LoadKML(em_data->GPS_ferryDataFile, ferry_lanes, num_ferry_lane_edges)) == 0) {
+            SetErrorState(GPS_NO_FERRY_DATA);
+        }
+    }
 
     return 0;
 }
 
-int GPSSensor::Receive(EM_DATA_TYPE* em_data) {
-    if (*state & GPS_NO_CONNECTION) {
-        if(Connect())
-            // couldn't connect
-            return 1;
+int GPSSensor::Receive() {
+    static timestamp_t last_online;
+
+    if (*state & GPS_NO_CONNECTION && Connect() != 0) {
+        D("Tried to GPSSensor::Receive() but not connected and Connect() failed");
+        return -1;
     }
-    
-    // wait only half a second
-    if(((gpsmm*)_gpsmm)->waiting(850000)) {
-        if((GPS_DATA = ((gpsmm*)_gpsmm)->read()) == NULL) {
-            UnsetAllErrorStates();
+
+    if (isConnected()) {
+        if(!gps_read(&GPS_DATA)) {
+            D("gps_read() didn't succeed");
+            //UnsetAllErrorStates();
             SetErrorState(GPS_NO_CONNECTION);
-            //cerr << "nothing to read" << endl;
-            return 1;
+            return -1;
         }
-        //cerr << em_data->iterationTimer << " : READ something" << endl;
-        UnsetErrorState(GPS_NO_DATA);
-        //if(isConnected()) {
-            //cerr << "CONNECTED" << endl;
 
-            if (GPS_DATA->set & STATUS_SET) {
-                //cerr << em_data->iterationTimer << " : STATUS_SET true" << endl;
-                if(GPS_DATA->status == 0) {
-                    SetErrorState(GPS_NO_DATA);
-                    UnsetErrorState(GPS_ESTIMATED);
-                    //cerr << em_data->iterationTimer << " : No data in STATUS_SET" << endl;
-                } else if(GPS_DATA->status == 6) {
-                    SetErrorState(GPS_ESTIMATED);
-                    UnsetErrorState(GPS_NO_DATA);
-                } else { // 
-                    UnsetErrorState(GPS_NO_DATA);
-                    UnsetErrorState(GPS_ESTIMATED);
-                }
+        if(GPS_DATA.online == last_online) {
+            D("GPS data hasn't been updated, setting GPS_NO_DATA with delay");
+            SetErrorState(GPS_NO_DATA, GPS_NO_DATA_DELAY);
+        } else {
+            UnsetErrorState(GPS_NO_DATA);
+        }
 
-                //cerr << em_data->iterationTimer << " : Setting status: " << GPS_DATA->status << endl;
-                em_data->GPS_satquality = GPS_DATA->status;
-            }
+        if(GPS_DATA.status == 0 || GPS_DATA.satellites_visible == 0 || GPS_DATA.satellites_used == 0) {
+            SetErrorState(GPS_NO_FIX);
+        } else if(GPS_DATA.status == 6) {
+            SetErrorState(GPS_ESTIMATED);
+        } else {
+            UnsetErrorState(GPS_NO_FIX);
+            UnsetErrorState(GPS_ESTIMATED);
+        }
 
-            if (GPS_DATA->set & SATELLITE_SET) {
-                if (GPS_DATA->satellites_visible == 0) {
-                    SetErrorState(GPS_NO_SAT_IN_VIEW);
-                } else {
-                    UnsetErrorState(GPS_NO_SAT_IN_VIEW);
-                }
+        em_data->GPS_time = GPS_DATA.fix.time;
+        em_data->GPS_satQuality = GPS_DATA.status;
+        em_data->GPS_satsUsed = GPS_DATA.satellites_used;
+        em_data->GPS_latitude = GPS_DATA.fix.latitude;
+        em_data->GPS_longitude = GPS_DATA.fix.longitude;
+        em_data->GPS_speed = GPS_DATA.fix.speed * MPS_TO_KNOTS;
+        em_data->GPS_heading = GPS_DATA.fix.track;
+        em_data->GPS_hdop = GPS_DATA.dop.hdop;
+        em_data->GPS_eph = EMIX(GPS_DATA.fix.epx, GPS_DATA.fix.epy);
 
-                if (GPS_DATA->satellites_used == 0) {
-                    SetErrorState(GPS_NO_SAT_IN_USE);
-                } else { 
-                    UnsetErrorState(GPS_NO_SAT_IN_USE);
-                }
-
-                em_data->GPS_satsused = GPS_DATA->satellites_used;
-                //cerr << "SATS: " << GPS_DATA->satellites_visible << "/" << GPS_DATA->satellites_used << endl;
-            }
-
-            if(GPS_DATA->set & LATLON_SET) {
-                em_data->GPS_latitude = GPS_DATA->fix.latitude;
-                em_data->GPS_longitude = GPS_DATA->fix.longitude;
-            }
-
-            if(GPS_DATA->set & SPEED_SET) {
-                em_data->GPS_speed = GPS_DATA->fix.speed * MPS_TO_KNOTS;
-            }
-
-            if(GPS_DATA->set & TRACK_SET) {
-                em_data->GPS_heading = GPS_DATA->fix.track;
-            }
-
-            if(GPS_DATA->set & DOP_SET) {
-                //cerr << "HDOP: " << GPS_DATA->dop.hdop << endl;
-                em_data->GPS_hdop = GPS_DATA->dop.hdop;
-            }
-
-            if(GPS_DATA->set & HERR_SET) {
-                //cerr << "EPX: " << GPS_DATA->fix.epx << "  EPY: " << GPS_DATA->fix.epy << "  EPE: " << GPS_DATA->epe << endl;
-                em_data->GPS_epe = GPS_DATA->fix.epx;
-            }
-        //} else { cerr << "NOT CONNECTED" << endl; }
-    } else {
-        SetErrorState(GPS_NO_DATA);
-        cerr << em_data->iterationTimer << " : No data in main loop" << endl;
-        return 1;
+        last_online = GPS_DATA.online;
     }
+
+    //D("GPS_DATA.set = " << GPS_DATA.set);
+    //D("GPS_DATA.online       = " << fixed << GPS_DATA.online);
+    //D("GPS_DATA.fix.time     = " << fixed << GPS_DATA.fix.time);
+    //D("GPS_DATA.status       = " << GPS_DATA.status);
+    //D("GPS_DATA.fix.mode     = " << GPS_DATA.fix.mode);
+    D("GPS_DATA.fix.latitude = " << GPS_DATA.fix.latitude);
+    D("GPS_DATA.fix.longitude = " << GPS_DATA.fix.longitude);
+    //D("GPS_DATA.sats_visible = " << GPS_DATA.satellites_visible);
+    //D("GPS_DATA.sats_used    = " << GPS_DATA.satellites_used);
+    //D("GPS_DATA.dop.hdop = " << GPS_DATA.dop.hdop);
+    //D("GPS_DATA.eph = " << EMIX(GPS_DATA.fix.epx, GPS_DATA.fix.epy));
+    //D("GPS_DATA.fix.epx = " << GPS_DATA.fix.epx);
+    //D("GPS_DATA.fix.epy = " << GPS_DATA.fix.epy);
 
     return 0;
+}
+
+void GPSSensor::Close() {
+    if(GPS_DATA.privdata != NULL && PRIVATE(GPS_DATA)->shmseg != NULL) {
+        D("gps_close() on shutdown");
+        gps_close(&GPS_DATA);
+    }
+}
+
+unsigned short GPSSensor::LoadKML(char *file, POINT polygons[MAX_POLYS][MAX_POINTS], unsigned short *num_edges) {
+    unsigned short num_polys_found = 0;
+    size_t s_index = 0, e_index = 0;
+    char tmp_c;
+    double x, y;
+    stringstream buffer;
+    string contents;
+
+    D("Loading KML file " << file);
+    
+    ifstream in(file);
+    if(in.fail()) {
+        cerr << "ERROR: Couldn't load KML file " << file << endl;
+        return 0;
+    }
+
+    buffer << in.rdbuf();
+    in.close();
+    contents = buffer.str();
+
+    while(true) {
+        stringstream coordinates;
+
+        if((s_index = contents.find("<coordinates>", s_index)) == string::npos) {
+            D("KML - didn't find any more <coordinates>, breaking loop");
+            break;
+        }
+
+        s_index += 13; // get rid of <coordinates>
+
+        if((e_index = contents.find("</coordinates>", s_index)) == string::npos) {
+            D("KML - didn't find matching </coordinates>");
+            break;
+        }
+
+        if(s_index > e_index) {
+            D("KML - malformed data, closing </coordinates> with no matching opening");
+            break;
+        }
+
+        coordinates << contents.substr(s_index, e_index - s_index);
+        //D("Working with this data:" << endl << contents.substr(s_index, e_index - s_index));
+
+        num_edges[num_polys_found] = 0;
+        while(coordinates >> x >> tmp_c >> y) {
+            polygons[num_polys_found][num_edges[num_polys_found]].x = x;
+            polygons[num_polys_found][num_edges[num_polys_found]].y = y;
+            num_edges[num_polys_found]++;
+            D("Found x,y = " << x << ", " << y << " -- now have " << num_edges[num_polys_found] << " edges");
+
+            // there can be an optional ,altitude value in <coordinates>; eat it if necessary
+            if(coordinates.peek() == ',') {
+                coordinates >> tmp_c >> x;
+            }
+        }
+
+        num_polys_found++;
+    }
+
+    cout << "GPS: Loaded " << num_polys_found << " polygons from " << file << endl;
+
+    return num_polys_found;
+}
+
+// Copyright 2000 softSurfer, 2012 Dan Sunday
+// This code may be freely used and modified for any purpose
+// providing that this copyright notice is included with it.
+// SoftSurfer makes no warranty for this code, and cannot be held
+// liable for any real or imagined damage resulting from its use.
+// Users of this code must verify correctness for their application.
+
+// tests if a point is Left|On|Right of an infinite line.
+//    Input:  three points P0, P1, and P2
+//    Return: >0 for P2 left of the line through P0 and P1
+//            =0 for P2  on the line
+//            <0 for P2  right of the line
+//    See: Algorithm 1 "Area of Triangles and Polygons"
+inline double IsLeft(const POINT &P0, const POINT &P1, const POINT &P2) {
+    return ((P1.x - P0.x) * (P2.y - P0.y) - (P2.x -  P0.x) * (P1.y - P0.y));
+}
+
+// winding number test for a point in a polygon
+//      Input:   P = a point,
+//               V[] = vertex points of a polygon V[n+1] with V[n]=V[0]
+//      Return:  wn = the winding number (=0 only when P is outside)
+short GPSSensor::IsPointInsidePoly(const POINT &P, const POINT *V, unsigned short n) {
+    short wn = 0; // the  winding number counter
+
+    // loop through all edges of the polygon
+    for(int i = 0; i < n; i++) {   // edge from V[i] to  V[i+1]
+        D("P.y=" << P.y << "  V[i].y=" << V[i].y);
+        if(V[i].y <= P.y) {          // start y <= P.y
+            D("Less than/equal to P");
+            if(V[i + 1].y > P.y) {      // an upward crossing
+                D("Upward crossing")
+                if (IsLeft(V[i], V[i + 1], P) > 0)  {// P left of  edge
+                    D("Left of edge");
+                    ++wn;            // have  a valid up intersect
+                    D("++wn");
+                } else {
+                    D("Was right of or on edge");
+                }
+            }
+        } else {                        // start y > P.y (no test needed)
+            D("More than P");
+            if(V[i + 1].y <= P.y) {     // a downward crossing
+                D("Downward crossing");
+                if(IsLeft(V[i], V[i + 1], P) < 0) { // P right of  edge
+                    D("Right of edge");
+                    --wn;            // have  a valid down intersect
+                    D("--wn");
+                } else {
+                    D("Was left of or on edge");
+                }
+            }
+        }
+    }
+
+    return wn;
+}
+
+void GPSSensor::CheckSpecialAreas() {
+    UnsetErrorState(GPS_INSIDE_HOME_PORT);
+    UnsetErrorState(GPS_INSIDE_FERRY_LANE);
+
+    if(*state & GPS_NO_FIX || *state & GPS_NO_DATA) {
+        D("Not bothering to check poly because GPS data isn't useful");
+    } else {
+        if(!(*state & GPS_NO_HOME_PORT_DATA)) {
+            for (unsigned int k = 0; k < num_home_ports; k++) {
+                D("Checking if in home port " << k);
+                if (IsPointInsidePoly((POINT){em_data->GPS_longitude, em_data->GPS_latitude}, home_ports[k], num_home_port_edges[k] - 1)) {
+                    D("IN SPECIAL AREA: home port");
+                    SetErrorState(GPS_INSIDE_HOME_PORT);
+                    break;
+                }
+            }
+        }
+
+        if(!(*state & GPS_NO_FERRY_DATA)) {
+            for (unsigned int k = 0; k < num_ferry_lanes; k++) {
+                D("Checking if in ferry lane " << k);
+                if (IsPointInsidePoly((POINT){em_data->GPS_longitude, em_data->GPS_latitude}, ferry_lanes[k], num_ferry_lane_edges[k] - 1)) {
+                    D("IN SPECIAL AREA: ferry lane");
+                    SetErrorState(GPS_INSIDE_FERRY_LANE);
+                    break;
+                }
+            }
+        }
+    }
 }

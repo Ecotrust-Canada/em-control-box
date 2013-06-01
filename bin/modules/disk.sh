@@ -53,7 +53,7 @@ clear_start() {
 		sudo -u user rm ${EM_RESOLUTION} &&
 		echo -e ${OK}
 
-		echo -ne "	${STAR} Clearing data drive ... " &&
+		echo -ne "	${STAR} Clearing data disk ... " &&
 		rm -Rf ${DATA_MNT}/* &&
 		echo -e ${OK}
 

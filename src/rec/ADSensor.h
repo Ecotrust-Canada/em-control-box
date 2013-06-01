@@ -50,6 +50,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
  */
 class ADSensor: public Sensor {
 	private:
+        EM_DATA_TYPE *em_data;
 		void SetADCType();
 		double psi_input_vmax;
 		double psi_vmin;
@@ -57,10 +58,10 @@ class ADSensor: public Sensor {
 		double battery_scale;
 
     public:
-        ADSensor(unsigned long int*);
+        ADSensor(EM_DATA_TYPE*);
         int Connect();
-        int Receive(EM_DATA_TYPE*);
-        void HonkMyHorn(EM_DATA_TYPE*);
+        int Receive();
+        void HonkMyHorn();
 };
 
 #endif

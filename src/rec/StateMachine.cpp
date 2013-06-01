@@ -21,27 +21,56 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
-//#include <cstdio>
-//#include <iostream>
-//#include <string>
+#include <cstdio>
+#include <iostream>
+#include <string>
 #include "StateMachine.h"
 
 using namespace std;
 
-StateMachine::StateMachine(unsigned long int* aState) {
+static signed long futureIterations[sizeof(long int)*8] = { -1 };
+
+StateMachine::StateMachine(unsigned long* aState) {
     state = aState;
     *state = 0;
 }
 
-void StateMachine::SetErrorState(long errorFlag) {
+unsigned short StateMachine::bitmaskIndex(unsigned long b) {
+    unsigned short i = 0;
+    while (b >>= 1) i++;
+    return i;
+}
+
+void StateMachine::SetErrorState(unsigned long errorFlag, unsigned short futureIteration) {
+    unsigned short flagIndex = bitmaskIndex(errorFlag);
+    //cout << "!!! stateDelay for this error flag " << errorFlag << " is " << stateDelays[flagIndex] << endl;
+
+    if(futureIteration) {
+        if(futureIterations[flagIndex] >= futureIteration) {
+            futureIterations[flagIndex] = 0;
+            D("Reached delayed error state in state machine, restarting");
+        } else {
+            futureIterations[flagIndex]++;
+            return;
+        }
+    } else {
+        futureIterations[flagIndex] = 0;
+    }
+    
     *state = *state | errorFlag;
 }
 
-void StateMachine::UnsetErrorState(long errorFlag) {
+void StateMachine::UnsetErrorState(unsigned long errorFlag) {
     *state = *state & (~ errorFlag);
+    futureIterations[bitmaskIndex(errorFlag)] = 0;
+    //D("Unsetting state " << errorFlag);
 }
 
 void StateMachine::UnsetAllErrorStates() {
+    for(unsigned int i = 0; i < sizeof(futureIterations) / sizeof(futureIterations[0]); i++) {
+        futureIterations[i] = 0;
+    }
+
     *state = 0;
 }
 

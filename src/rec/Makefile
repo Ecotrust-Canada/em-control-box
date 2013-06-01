@@ -1,5 +1,4 @@
 TARGET := ../../bin/em-rec
-#SRCS := ../config.cpp StateMachine.cpp Sensor.cpp GPSSensor.cpp ADSensor.cpp RFIDSensor.cpp ComplianceState.cpp md5.cpp em-rec.cpp
 SRCS := ../config.cpp StateMachine.cpp Sensor.cpp GPSSensor.cpp ADSensor.cpp RFIDSensor.cpp md5.cpp em-rec.cpp
 OBJS := ${SRCS:.cpp=.o} 
 DEPS := ${SRCS:.cpp=.dep} 

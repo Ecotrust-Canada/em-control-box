@@ -28,6 +28,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include <termios.h>
 #include <cstring>
 #include "Sensor.h"
+
 using namespace std;
 
 Sensor::Sensor(const char* aName, unsigned long int* _state, unsigned long int _NO_CONNECTION, unsigned long int _NO_DATA):StateMachine(_state) {
@@ -124,8 +125,8 @@ int Sensor::Connect() {
         cout << name << ": Connected" << endl;
     }
 
-    if(*state & NO_CONNECTION && !silenceConnectErrors) {
-        cerr << name << ": Failed to connect after " << MAX_TRY_COUNT << " tries; will keep at it but silencing further errors" << endl;
+    if(*state & NO_CONNECTION && (!silenceConnectErrors || OVERRIDE_SILENCE)) {
+        cerr << name << ": Failed to connect after " << MAX_TRY_COUNT << " tries; will keep at it but silencing further Connect() errors" << endl;
         silenceConnectErrors = true;
         return -1;
     }
@@ -146,7 +147,12 @@ int Sensor::Send(const char* cmd) {
 }
 
 int Sensor::Receive(char buf[], int min, int max, bool set_no_data) {
-    if(*state & NO_CONNECTION) Connect();
+    if(*state & NO_CONNECTION) {
+        if(Connect() != 0) {
+            // couldn't connect
+            return -1;
+        }
+    }
 
     int bytesToRead = 0, bytesRead = 0;
     int status = ioctl(serialHandle, FIONREAD, &bytesToRead); // check how many bytes are waiting to be read

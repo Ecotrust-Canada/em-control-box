@@ -87,7 +87,7 @@ class Sensor: public StateMachine {
         /**
          * Close the handle.
          */
-        void Close();
+        virtual void Close();
 
         /**
          * Connect to the serial port and set the serial handle.

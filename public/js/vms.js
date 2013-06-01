@@ -332,7 +332,7 @@ $(function (undef) {
         });
     });
 
-    var _components = ["PSI", "RFID", "GPS", "VIDEO", "CPU", "MEM", "OSDISK", "DISK", "BATTERY", "TEMP"];
+    var _components = ["AD", "RFID", "GPS", "VIDEO", "CPU", "MEM", "OSDISK", "DISK", "BATTERY", "TEMP"];
     $.each(_components, function (i, sys) {
         VMS[sys] = new(VMS.SENSOR_CLASSES[sys] || VMS.Component)({
             name: sys
@@ -354,20 +354,21 @@ $(function (undef) {
     setInterval(function () {
 	// TODO: check for memory leaks
         $.getJSON('/em_state.json', function (status) {
+            console.log (status);
             var out, err;
             if (status) {
                 noResponseCount = 0;
                 $('#no_response').hide();
-                var overall = 'OK';
+                var overall = 0;
                 var ferry = false;
-                if (status.sensors) {
-                    for (var sensor in status.sensors) {
+                if (1) {
+                    for (var sensor in {'AD':0, 'GPS':0, 'RFID':0}) {
                         if (_components.indexOf(sensor) != -1) {
-                            VMS[sensor].update(status.sensors[sensor]);
-                            if(sensor != 'BATTERY' && status.sensors[sensor].status && status.sensors[sensor].status!= 'OK')
-                                overall = sensor + ':' + status.sensors[sensor].status;
+                            VMS[sensor].update(status[sensor]);
+                            if(status[sensor].state)
+                                overall = overall & status[sensor].state;
                         }
-                        if (sensor == "FERRY" && status.sensors[sensor].status)
+                        if (sensor == "FERRY" && sensors[sensor].state)
                         {
                             outFerryAreaCount = 0;
                             ferry = true;
@@ -390,8 +391,8 @@ $(function (undef) {
                 }
                 if (status.video) {
                     VMS.VIDEO.update(status.video);
-                    if(status.video.status && status.video.status != 'OK')
-                        overall = 'VID:' + status.video.status;
+                    if(status.video.state)
+                        overall = overall | status.video.state;
                     if(!status.video.awayFromHomePort)
                     {
                         $('#homePortMsg').show();
@@ -402,9 +403,10 @@ $(function (undef) {
                         $('#homePortMsg').hide();
                     }
                 }
-                OVERALL.update({status:overall});
+                OVERALL.update({state:overall});
                 
                 // system-wide errors.
+                /*
                 if (status.sensors.errors) {
                     for(k in status.sensors.errors)
                     {
@@ -424,7 +426,7 @@ $(function (undef) {
                         }
                         
                     }
-                }
+                }*/
             }
             else
             {
@@ -514,10 +516,10 @@ $(function (undef) {
 		tick_size: 90
 	})).draw();
 
-	VMS.PSI.dial = Dial($.extend({},MED_DIAL,{
+	VMS.AD.dial = Dial($.extend({},MED_DIAL,{
         x:20,
         paper: psi_paper,
-        //label_text:"PSI",
+        //label_text:"AD",
 		range: 2500,
 		danger: 2000,
 		tick_size: 2500

@@ -38,7 +38,9 @@ char sum[2];
 unsigned long int lastScanTime = -301; //Used to detect two same RFID tag scans in a short period.
 char rfid_out[15];
 
-RFIDSensor::RFIDSensor(unsigned long int* _state):Sensor("RFID", _state, RFID_NO_CONNECTION, RFID_NO_DATA) {}
+RFIDSensor::RFIDSensor(EM_DATA_TYPE* _em_data):Sensor("RFID", &_em_data->RFID_state, RFID_NO_CONNECTION, RFID_NO_DATA) {
+    em_data = _em_data;
+}
 
 int RFIDSensor::Connect() {
     /* Experiment; we don't use this anymore
@@ -52,10 +54,10 @@ int RFIDSensor::Connect() {
         cout << "RFID: Loaded /mnt/data/TAG_LIST" << endl;
     } */
 
-	return Sensor::Connect();
+    return Sensor::Connect();
 }
 
-int RFIDSensor::Receive(EM_DATA_TYPE* em_data) {
+int RFIDSensor::Receive() {
 	char RFID_BUF[RFID_BUF_SIZE] = { '\0' };
 
     int bytesRead = Sensor::Receive(RFID_BUF, RFID_BYTES_MIN, RFID_BUF_SIZE, false);
@@ -105,6 +107,8 @@ int RFIDSensor::Receive(EM_DATA_TYPE* em_data) {
                 // only save if RECORD_SCAN_INTERVAL time has gone by since the last scan, or the tag is different from the last one saved
                 if(em_data->iterationTimer - em_data->RFID_lastSaveIteration >= RECORD_SCAN_INTERVAL || em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {
             	   em_data->RFID_saveFlag = true;
+                   em_data->RFID_stringScans++;
+                   em_data->RFID_tripScans++;
                 }
 
                 // only make noise if NOTIFY_SCAN_INTERVAL time has gone by since the last scan, or the tag is different from the last one saved
@@ -144,7 +148,7 @@ unsigned int RFIDSensor::DecodeChecksum(char a1, char a2) {
 }
 
 unsigned long long int RFIDSensor::hexToInt(char* hexStr) {
-	stringstream ss;
+    stringstream ss;
     unsigned long long int tmp;
 
     ss << hexStr;
@@ -155,4 +159,12 @@ unsigned long long int RFIDSensor::hexToInt(char* hexStr) {
     ss >> dec >> tmp;
 
     return tmp;
+}
+
+void RFIDSensor::resetStringScans() {
+    em_data->RFID_stringScans = 0;
+}
+
+void RFIDSensor::resetTripScans() {
+    em_data->RFID_tripScans = 0;
 }

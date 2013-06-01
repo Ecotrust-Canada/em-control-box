@@ -24,7 +24,7 @@ resetgps_start() {
 	echo -ne "	${STAR} Sending sensor configuration ... " &&
 	echo -ne '$PGRMC,A,,,,,,,,A,3,1,,,*49\r\n' > ${GPS_DEV}
 	sleep 2
-	echo -ne '$PGRMC1,1,1,2,,,,2,W,N,1,1,1*52\r\n' > ${GPS_DEV}
+	echo -ne '$PGRMC1,1,1,1,,,,2,W,N,1,1,1*51\r\n' > ${GPS_DEV}
 	sleep 2
 	echo -e ${OK}
 

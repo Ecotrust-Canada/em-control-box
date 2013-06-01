@@ -23,29 +23,29 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #ifndef STATEMACHINE_H
 #define STATEMACHINE_H
+#include "em-rec.h"
 
-#define GPS_NO_CONNECTION 1
-#define GPS_NO_DATA 2
-#define GPS_NO_SAT_IN_VIEW 4
-#define GPS_NO_SAT_IN_USE 8
-#define GPS_ESTIMATED 16
+#define GPS_NO_CONNECTION       0x0001
+#define GPS_NO_DATA             0x0002 // shared memory area is not being updated (GPSd not running?) -OR- GPS is not feeding data
+#define GPS_NO_FIX              0x0004 // you can still be getting data but have no fix
+#define GPS_ESTIMATED           0x0008
+#define GPS_NO_FERRY_DATA       0x0010
+#define GPS_NO_HOME_PORT_DATA   0x0020
+#define GPS_INSIDE_FERRY_LANE   0x0040
+#define GPS_INSIDE_HOME_PORT    0x0080
 
-#define AD_NO_CONNECTION 32
-#define AD_NO_DATA 64
-#define AD_PSI_LOW_OR_ZERO 128 // pressure is too low or reading 0
-#define AD_BATTERY_LOW 256
-#define AD_BATTERY_HIGH 512
+#define AD_NO_CONNECTION        0x0100
+#define AD_NO_DATA              0x0200
+#define AD_PSI_LOW_OR_ZERO      0x0400 // pressure is too low or reading 0
+#define AD_BATTERY_LOW          0x0800
+#define AD_BATTERY_HIGH         0x1000
 
-#define RFID_NO_CONNECTION 1024
-#define RFID_NO_DATA 2048
-#define RFID_CHECKSUM_FAILED 4096
+#define RFID_NO_CONNECTION      0x2000
+#define RFID_NO_DATA            0x4000
+#define RFID_CHECKSUM_FAILED    0x8000
 
-/*
-#define COMPLIANCE_NO_FERRY_AREA_DATA 512
-#define COMPLIANCE_NO_HOMEPORT_DATA 1024
-#define COMPLIANCE_INSIDE_FERRY_LANE 2048
-#define COMPLIANCE_NEAR_HOMEPORT 4096
-*/
+#define GPS_NO_DATA_DELAY       3      // how many times must NO_DATA be set before it's exposed
+                                       // when checking for updated GPS info
 
 /**
  */
@@ -65,12 +65,12 @@ class StateMachine {
         /**
          * Set the error flag.
          */
-        void SetErrorState(long);
+        void SetErrorState(unsigned long, unsigned short = 0);
 
         /**
          * Reset the error flag.
          */
-        void UnsetErrorState(long);
+        void UnsetErrorState(unsigned long);
 
         /**
          * Reset all the error states.
@@ -80,6 +80,10 @@ class StateMachine {
         void PrintState();
 
         unsigned long int GetErrorState();
+
+    private:
+        unsigned short bitmaskIndex(unsigned long);
+
 };
 
 #endif

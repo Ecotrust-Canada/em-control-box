@@ -30,10 +30,12 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-ADSensor::ADSensor(unsigned long int* _state):Sensor("AD", _state, AD_NO_CONNECTION, AD_NO_DATA) {}
+ADSensor::ADSensor(EM_DATA_TYPE* _em_data):Sensor("AD", &_em_data->AD_state, AD_NO_CONNECTION, AD_NO_DATA) {
+    em_data = _em_data;
+}
 
 int ADSensor::Connect() {
-    SetADCType();
+    if(battery_scale == 0) SetADCType();
     return Sensor::Connect();
 }
 
@@ -65,7 +67,7 @@ void ADSensor::SetADCType() {
     }
 }
 
-int ADSensor::Receive(EM_DATA_TYPE* em_data) {
+int ADSensor::Receive() {
     char AD_BUF[AD_BUF_SIZE] = { '\0' };
 
     int bytesRead = Sensor::Receive(AD_BUF, AD_BYTES_MIN, AD_BUF_SIZE);
@@ -145,7 +147,7 @@ int ADSensor::Receive(EM_DATA_TYPE* em_data) {
     return -1;
 }
 
-void ADSensor::HonkMyHorn(EM_DATA_TYPE* em_data) {
+void ADSensor::HonkMyHorn() {
     switch(em_data->AD_honkSound) {
         case HONK_SCAN_SUCCESS:
             Send("F600D500E\n");

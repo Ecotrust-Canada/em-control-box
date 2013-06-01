@@ -25,8 +25,25 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define GPS_SENSOR_H
 #include "Sensor.h"
 #include "em-rec.h"
+#include "gps.h"
 
+#define MAX_POLYS   10
+#define MAX_POINTS  20
+
+struct POINT {
+    double x;
+    double y;
+};
+
+// these are from GPSd code
+#define PRIVATE(GPS_DATA) ((struct privdata_t *)GPS_DATA.privdata)
+#define EMIX(x, y) (((x) > (y)) ? (x) : (y))
 #define MPS_TO_KNOTS 1.9438445
+
+struct privdata_t {
+    void *shmseg;
+    int tick;
+};
 
 /**
  * @class GPSSensor
@@ -38,24 +55,23 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
  */
 class GPSSensor: public Sensor {
     private:
-        void *_gpsmm;
-        struct gps_data_t *GPS_DATA;
+        EM_DATA_TYPE *em_data;
+        struct gps_data_t GPS_DATA;
+        POINT home_ports[MAX_POLYS][MAX_POINTS];
+        POINT ferry_lanes[MAX_POLYS][MAX_POINTS];
+        unsigned short num_home_ports,  num_home_port_edges[MAX_POLYS];
+        unsigned short num_ferry_lanes, num_ferry_lane_edges[MAX_POLYS];
+
+        unsigned short LoadKML(char *, POINT[MAX_POLYS][MAX_POINTS], unsigned short *);
+        //inline int IsLeft(const POINT &, const POINT &, const POINT &);
+        short IsPointInsidePoly(const POINT &, const POINT *, unsigned short);
 
     public:
-        /**
-         * A Constructor. 
-         * The serialHandle will be initialized when Connect function is called.
-         * 
-         * All error flags will be reset.
-         */
-        GPSSensor(unsigned long int*);
-
-        /**
-         * Connect to the serial port and set the serial handle.
-         * @return 0 if succeeded, positive integer otherwise.
-         */
+        GPSSensor(EM_DATA_TYPE*);
+        void CheckSpecialAreas();
         int Connect();
-        int Receive(EM_DATA_TYPE*);
+        int Receive();
+        void Close();
 };
 
 #endif

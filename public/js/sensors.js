@@ -22,11 +22,11 @@ You may contact Ecotrust Canada via our websitehttp://ecotrust.ca
 */
 
 VMS.Component = function (props) {
-	this.$= $('.' + props.name);
-	this.$value= $('.' + props.name + ' .value');
-	this.$status= $('.' + props.name + '>.status');
+    this.$= $('.' + props.name);
+    this.$value= $('.' + props.name + ' .value');
+    this.$status= $('.' + props.name + '>.status');
 
-	$.extend(this, props);
+    $.extend(this, props);
 };
 VMS.Component.prototype.update = function (opts) {
 
@@ -42,7 +42,7 @@ VMS.Component.prototype.update = function (opts) {
                 if (m != null && m[2] != null) count = parseInt(m[2]) + 1;
                 $('#errors p:last').html(content + "(" + count + ")");
             } else {
-            	$('#errors').append("<p>" + content + "</p>");
+                $('#errors').append("<p>" + content + "</p>");
             }
             if($('#errors').text().length > 5000)
             {
@@ -56,11 +56,11 @@ VMS.Component.prototype.update = function (opts) {
         this.$value.text(opts.value);
 
         if (this.dial) {
-	    this.dial.update(parseInt(''+opts.value));
+        this.dial.update(parseInt(''+opts.value));
         }
     }
 
-    this.$.addClass(opts.status === "OK" ? "ok" : "fail").removeClass(opts.status === "OK" ? "fail" : "ok");
+    this.$.removeClass("ok").removeClass("fail").addClass(opts.state === 0 ? "ok" : "fail");
 }
 
 VMS.SENSOR_CLASSES = {};
@@ -69,14 +69,15 @@ VMS.SENSOR_CLASSES = {};
  * RFID sensor client
  */
 VMS.SENSOR_CLASSES.RFID = function(){
-	VMS.Component.apply(this, arguments);
-	this.$trip_scans = $('#trip_scans');
-	this.$string_scans = $('#string_scans');
+    VMS.Component.apply(this, arguments);
+    this.$trip_scans = $('#trip_scans');
+    this.$string_scans = $('#string_scans');
 }
 VMS.SENSOR_CLASSES.RFID.prototype = new VMS.Component({
-	name: 'RFID'
+    name: 'RFID'
 });
 VMS.SENSOR_CLASSES.RFID.prototype.update = function (opts) {
+    opts.value = opts.lastScannedTag; 
     VMS.Component.prototype.update.apply(this, [opts]);
     /* also update the scan counters */
     if (opts.string_scans) {
@@ -88,16 +89,16 @@ VMS.SENSOR_CLASSES.RFID.prototype.update = function (opts) {
 };
 
 
-VMS.SENSOR_CLASSES.PSI = function () {
-	VMS.Component.apply(this, arguments);
+VMS.SENSOR_CLASSES.AD = function () {
+    VMS.Component.apply(this, arguments);
 };
 
-VMS.SENSOR_CLASSES.PSI.prototype = new VMS.Component({
-	name: 'PSI'
+VMS.SENSOR_CLASSES.AD.prototype = new VMS.Component({
+    name: 'AD'
 });
 
-VMS.SENSOR_CLASSES.PSI.prototype.update = function (opts) {
-    opts.value = Math.max(0,parseFloat(opts.value));
+VMS.SENSOR_CLASSES.AD.prototype.update = function (opts) {
+    opts.value = Math.max(0,parseFloat(opts.psi));
     VMS.Component.prototype.update.apply(this, [opts]);
 };
 
@@ -105,65 +106,66 @@ VMS.SENSOR_CLASSES.PSI.prototype.update = function (opts) {
  * GPS sensor client
  */
 VMS.SENSOR_CLASSES.GPS = function () {
-	VMS.Component.apply(this, arguments);
-	this.$heading = $('.GPS .heading');
-	this.$speed = $('.GPS .speed');
-	this.$dtime = $('.GPS .dtime');
+    VMS.Component.apply(this, arguments);
+    this.$heading = $('.GPS .heading');
+    this.$speed = $('.GPS .speed');
+    this.$dtime = $('.GPS .dtime');
 };
 
 VMS.SENSOR_CLASSES.GPS.prototype = new VMS.Component({
-	name: 'GPS'
+    name: 'GPS'
 });
 VMS.SENSOR_CLASSES.GPS.prototype.update = function (opts) {
-	VMS.Component.prototype.update.apply(this, [opts]);
-	if (opts.heading) {
-		    this.$heading.text(opts.heading);
-		    if (this.compass) this.compass.update(Math.floor(opts.heading));
-	    }
-	if (opts.speed) {
-		    this.$speed.text(opts.speed);
-		    if (this.speedometer) this.speedometer.update(Math.floor(opts.speed));
-	    }
-	if (opts.dtime) {
-	    this.$dtime.text(opts.dtime);
-	}
+        opts.value = opts.latitude + "," + opts.longitude
+    VMS.Component.prototype.update.apply(this, [opts]);
+    if (opts.heading) {
+            this.$heading.text(opts.heading);
+            if (this.compass) this.compass.update(Math.floor(opts.heading));
+    }
+    if (opts.speed) {
+            this.$speed.text(opts.speed);
+            if (this.speedometer) this.speedometer.update(Math.floor(opts.speed));
+    }
+    if (opts.dtime) {
+        this.$dtime.text(opts.dtime);
+    }
 };
 
 VMS.SENSOR_CLASSES.DISK = function () {
-	VMS.Component.apply(this, arguments);
-	this.$available = $('.DISK .available');
+    VMS.Component.apply(this, arguments);
+    this.$available = $('.DISK .available');
 };
 
 VMS.SENSOR_CLASSES.DISK.prototype = new VMS.Component({
-	name: 'DISK'
+    name: 'DISK'
 });
 VMS.SENSOR_CLASSES.DISK.prototype.update = function (opts) {
-	VMS.Component.prototype.update.apply(this, [opts]);
-	if (opts.available) {
-	    if(this.last_available)
-	    {
-		if(this.last_available - opts.available <= 100)
-		{
-		    this.$available.text("calculating");
-		}
-		else
-		{
-		    var dif = this.last_available - opts.available;
-		    var minutes = Math.ceil(parseFloat(opts.available) /dif *7 /60);
-		    var hours = Math.floor(minutes / 60) || 0;
-		    minutes = minutes - hours * 60;
-		    var days = Math.floor(hours /24);
-		    hours = hours - days * 24;
-		    if(days != 0)
-		        this.$available.text('' + days + 'd ' + hours + 'h ' + minutes + ' m');
-		    else if(hours != 0)
-		        this.$available.text('' + hours + 'h ' + minutes + 'm');
-		    else if(minutes < 30)
-		        this.$available.text("< 30m");
-		    else
-		        this.$available.text('' + minutes + 'm');
-		}
-	    }
-	    this.last_available = opts.available;
-	}
+    VMS.Component.prototype.update.apply(this, [opts]);
+    if (opts.available) {
+        if(this.last_available)
+        {
+        if(this.last_available - opts.available <= 100)
+        {
+            this.$available.text("calculating");
+        }
+        else
+        {
+            var dif = this.last_available - opts.available;
+            var minutes = Math.ceil(parseFloat(opts.available) /dif *7 /60);
+            var hours = Math.floor(minutes / 60) || 0;
+            minutes = minutes - hours * 60;
+            var days = Math.floor(hours /24);
+            hours = hours - days * 24;
+            if(days != 0)
+                this.$available.text('' + days + 'd ' + hours + 'h ' + minutes + ' m');
+            else if(hours != 0)
+                this.$available.text('' + hours + 'h ' + minutes + 'm');
+            else if(minutes < 30)
+                this.$available.text("< 30m");
+            else
+                this.$available.text('' + minutes + 'm');
+        }
+        }
+        this.last_available = opts.available;
+    }
 };

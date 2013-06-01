@@ -43,16 +43,19 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
  *
  */
 class RFIDSensor: public Sensor {
-	private:
-		//set<unsigned long long int> MY_TAGS;
-		unsigned int ASCIIToHex(char);
-		unsigned int DecodeChecksum(char, char);
-		unsigned long long int hexToInt(char*);
+    private:
+        EM_DATA_TYPE *em_data;
+        //set<unsigned long long int> MY_TAGS;
+        unsigned int ASCIIToHex(char);
+        unsigned int DecodeChecksum(char, char);
+        unsigned long long int hexToInt(char*);
 
     public:
-        RFIDSensor(unsigned long int*);
+        RFIDSensor(EM_DATA_TYPE*);
         int Connect();
-        int Receive(EM_DATA_TYPE*);
+        int Receive();
+        void resetStringScans();
+        void resetTripScans();
 };
 
 #endif

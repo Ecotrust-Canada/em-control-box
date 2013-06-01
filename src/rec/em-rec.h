@@ -31,7 +31,11 @@ using namespace std;
 
 #define VERSION "2.0.0"
 
-#define POLL_PERIOD 1 * 1000000 // how many microseconds
+#define STATE_RUNNING true
+#define STATE_NOT_RUNNING false
+
+#define POLL_PERIOD 1000000 // how many microseconds
+#define STATS_COLLECTION_INTERVAL 10       // how many POLL_PERIODs before something different happens
 #define USE_WARNING_HONK 0
 #define HONK_SCAN_SUCCESS 1 
 #define HONK_SCAN_DUPLICATE 2
@@ -41,50 +45,84 @@ using namespace std;
 #define REMOVE_DELAY 0
 #define MD5_SALT "1535bc9732a631bb91f113bcf454c7e8"
 
+#define DEBUG
+
+#ifdef DEBUG
+	#define D(s) cerr << "DEBUG: " s << endl;
+	#define OVERRIDE_SILENCE true
+#else
+	#define D(s)
+	#define OVERRIDE_SILENCE false
+#endif
+
 typedef struct {
-	char currentDateTime[32];
-	unsigned long int iterationTimer;
-	bool dataDrivePresent;
-	char *dataDriveLabel;
-	
+	unsigned long iterationTimer;
+    unsigned short runState;
+    char currentDateTime[32];
+
 	list<string> SENSOR_DATA_files;
-	string SENSOR_DATA_lastHash;
-
 	list<string> RFID_DATA_files;
+	string SENSOR_DATA_lastHash;
 	string RFID_DATA_lastHash;
+	
+	bool SYS_dataDiskPresent;
+	char *SYS_dataDiskLabel;
 
-	unsigned long int GPS_state;
-	float GPS_latitude;
-	float GPS_longitude;
-	float GPS_heading;
-	float GPS_speed;
-	unsigned short int GPS_satquality;
-	unsigned short int GPS_satsused;
+	char SYS_uptime[16];
+	char SYS_load[24];
+	double SYS_cpuPercent;
+	unsigned long long SYS_ramFreeKB;
+	unsigned long long SYS_ramTotalKB;
+	unsigned short SYS_tempCore0;
+	unsigned short SYS_tempCore1;
+	unsigned long SYS_osDiskFreeBlocks;
+	unsigned long SYS_osDiskTotalBlocks;
+	unsigned long SYS_osDiskMinutesLeft;
+	unsigned long SYS_dataDiskFreeBlocks;
+	unsigned long SYS_dataDiskTotalBlocks;
+	unsigned long SYS_dataDiskMinutesLeft;
+
+	unsigned long GPS_state;
+	char GPS_homePortDataFile[48];
+	char GPS_ferryDataFile[48];
+	unsigned long GPS_time;
+	double GPS_latitude;
+	double GPS_longitude;
+	double GPS_heading;
+	double GPS_speed;
+	unsigned short GPS_satQuality;
+	unsigned short GPS_satsUsed;
 	double GPS_hdop;
-	float GPS_epe;
+	double GPS_eph;
 
-	unsigned long int RFID_state;
-	unsigned long long int RFID_lastScannedTag;
-	unsigned long long int RFID_lastSavedTag;
-	unsigned long int RFID_lastSaveIteration;
+	unsigned long RFID_state;
+	unsigned long long RFID_lastScannedTag;
+	unsigned long long RFID_lastSavedTag;
+	unsigned long RFID_lastSaveIteration;
+        unsigned long RFID_stringScans;
+        unsigned long RFID_tripScans;
 	bool RFID_saveFlag;
 
-	unsigned long int AD_state;
+	unsigned long AD_state;
 	float AD_psi;
 	float AD_battery;
-	unsigned short int AD_honkSound;
-	unsigned long int AD_lastHonkIteration;
+	unsigned short AD_honkSound;
+	unsigned long AD_lastHonkIteration;
 
-	unsigned long int COMPLIANCE_state;
+	//unsigned long int COMPLIANCE_state;
 } EM_DATA_TYPE;
 
 extern CONFIG_TYPE CONFIG;
 //extern EM_DATA_TYPE EM_DATA;
 
 int main(int, char**);
+void reset_string_scans_handler(int);
+void reset_trip_scans_handler(int);
+void exit_handler(int);
 void recordLoop();
 void writeLogs(EM_DATA_TYPE*);
 string appendLogWithMD5(string, list<string>, string);
+void computeSystemStats(EM_DATA_TYPE*, unsigned short);
 void writeJSONState(EM_DATA_TYPE*);
 
 #endif

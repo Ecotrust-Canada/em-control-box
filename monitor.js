@@ -45,7 +45,7 @@ EM_STATE.releaseVersion = fs.readFileSync('/em-release');
 EM_STATE.serverVersion = SERVER_VERSION;
 
 server.set('views', path.join(__dirname, 'views'));
-server.use(express.static(path.join(__dirname, 'static')));
+server.use(express.static(path.join(__dirname, 'public')));
 server.use(express.bodyParser());
 server.use(server.router);
 
