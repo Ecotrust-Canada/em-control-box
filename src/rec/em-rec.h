@@ -21,47 +21,60 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
-#include <list>
-#include "../config.h"
-
 using namespace std; 
 
 #ifndef EM_REC_H
 #define EM_REC_H
 
-#define VERSION "2.0.0"
+#define VERSION "2.1.0"
 
-#define STATE_RUNNING true
-#define STATE_NOT_RUNNING false
+#define CONFIG_FILENAME				"/etc/em.conf"
+#define SCAN_COUNT_FILENAME			"scan_count.dat"
+#define POLL_PERIOD 				1000000 // how many microseconds (default 1 sec)
+#define STATS_COLLECTION_INTERVAL	5       // how many POLL_PERIODs before something different happens (all intervals in units of POLL_PERIOD)
+#define NOTIFY_SCAN_INTERVAL		6	 	// wait this many between honks
+#define RECORD_SCAN_INTERVAL		300		// 5 minutes
+#define USE_WARNING_HONK			false
+#define DATA_DISK_FAKE_DAYS_START	21
 
-#define POLL_PERIOD 1000000 // how many microseconds
-#define STATS_COLLECTION_INTERVAL 10       // how many POLL_PERIODs before something different happens
-#define USE_WARNING_HONK 0
-#define HONK_SCAN_SUCCESS 1 
-#define HONK_SCAN_DUPLICATE 2
-#define HONK_SCAN_WARNING 3
-#define NOTIFY_SCAN_INTERVAL 6 // # of POLL_PERIODS (which are by default 1s)
-#define RECORD_SCAN_INTERVAL 300 // 5 minutes
-#define REMOVE_DELAY 0
+// debugging flags
+//#define DEBUG // comment out to disable debug output
+#define REMOVE_DELAY				false
+
+// DON'T CHANGE ANYTHING PAST THIS POINT
+////////////////////////////////////////
+#define HONK_SCAN_SUCCESS			1
+#define HONK_SCAN_DUPLICATE			2
+#define HONK_SCAN_WARNING			3
+
 #define MD5_SALT "1535bc9732a631bb91f113bcf454c7e8"
 
-#define DEBUG
+#define STATE_RUNNING 				true
+#define STATE_NOT_RUNNING			false
+
+#define STATE_ENCODING_UNDEFINED	-1
+#define STATE_ENCODING_PAUSED		0
+#define STATE_ENCODING_RUNNING		1
 
 #ifdef DEBUG
 	#define D(s) cerr << "DEBUG: " s << endl;
-	#define OVERRIDE_SILENCE true
+	#define OVERRIDE_SILENCE 		true
 #else
 	#define D(s)
-	#define OVERRIDE_SILENCE false
+	#define OVERRIDE_SILENCE 		false
 #endif
+
+#include <string>
+#include <list>
 
 typedef struct {
 	unsigned long iterationTimer;
-    unsigned short runState;
-    char currentDateTime[32];
+	unsigned short runState;
+	char currentDateTime[32];
 
 	list<string> SENSOR_DATA_files;
 	list<string> RFID_DATA_files;
+        list<string> SYSTEM_DATA_files;
 	string SENSOR_DATA_lastHash;
 	string RFID_DATA_lastHash;
 	
@@ -81,6 +94,7 @@ typedef struct {
 	unsigned long SYS_dataDiskFreeBlocks;
 	unsigned long SYS_dataDiskTotalBlocks;
 	unsigned long SYS_dataDiskMinutesLeft;
+	unsigned long SYS_dataDiskMinutesLeftFake;
 
 	unsigned long GPS_state;
 	char GPS_homePortDataFile[48];
@@ -108,12 +122,7 @@ typedef struct {
 	float AD_battery;
 	unsigned short AD_honkSound;
 	unsigned long AD_lastHonkIteration;
-
-	//unsigned long int COMPLIANCE_state;
 } EM_DATA_TYPE;
-
-extern CONFIG_TYPE CONFIG;
-//extern EM_DATA_TYPE EM_DATA;
 
 int main(int, char**);
 void reset_string_scans_handler(int);
@@ -122,7 +131,8 @@ void exit_handler(int);
 void recordLoop();
 void writeLogs(EM_DATA_TYPE*);
 string appendLogWithMD5(string, list<string>, string);
-void computeSystemStats(EM_DATA_TYPE*, unsigned short);
+void computeAndLogSystemStats(EM_DATA_TYPE*, unsigned short);
 void writeJSONState(EM_DATA_TYPE*);
+bool shouldTakeScreenshot(EM_DATA_TYPE*);
 
 #endif

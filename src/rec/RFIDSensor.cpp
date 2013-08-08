@@ -21,22 +21,13 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
-#include <set>
-#include <sstream>
-#include <cstring>
-#include <fstream>
-#include <iostream>
 #include "RFIDSensor.h"
+#include <iostream>
+#include <sstream>
 
 using namespace std;
 
-// FIXME
 char RFID_BUF[RFID_BUF_SIZE];
-char LAST_RFID_TAG[RFID_BUF_SIZE];
-
-char sum[2];
-unsigned long int lastScanTime = -301; //Used to detect two same RFID tag scans in a short period.
-char rfid_out[15];
 
 RFIDSensor::RFIDSensor(EM_DATA_TYPE* _em_data):Sensor("RFID", &_em_data->RFID_state, RFID_NO_CONNECTION, RFID_NO_DATA) {
     em_data = _em_data;

@@ -1,2 +1,2 @@
-ADSensor.o: ADSensor.cpp ADSensor.h Sensor.h StateMachine.h em-rec.h \
- ../config.h ../util.h
+ADSensor.o: ADSensor.cpp ADSensor.h em-rec.h Sensor.h StateMachine.h \
+ states.h

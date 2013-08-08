@@ -21,10 +21,8 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
-#include <cstdio>
-#include <iostream>
-#include <string>
 #include "StateMachine.h"
+#include <iostream>
 
 using namespace std;
 
@@ -43,7 +41,6 @@ unsigned short StateMachine::bitmaskIndex(unsigned long b) {
 
 void StateMachine::SetErrorState(unsigned long errorFlag, unsigned short futureIteration) {
     unsigned short flagIndex = bitmaskIndex(errorFlag);
-    //cout << "!!! stateDelay for this error flag " << errorFlag << " is " << stateDelays[flagIndex] << endl;
 
     if(futureIteration) {
         if(futureIterations[flagIndex] >= futureIteration) {
@@ -61,9 +58,8 @@ void StateMachine::SetErrorState(unsigned long errorFlag, unsigned short futureI
 }
 
 void StateMachine::UnsetErrorState(unsigned long errorFlag) {
-    *state = *state & (~ errorFlag);
+    *state = *state & (~errorFlag);
     futureIterations[bitmaskIndex(errorFlag)] = 0;
-    //D("Unsetting state " << errorFlag);
 }
 
 void StateMachine::UnsetAllErrorStates() {

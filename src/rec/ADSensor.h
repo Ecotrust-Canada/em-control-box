@@ -23,8 +23,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #ifndef AD_SENSOR_H
 #define AD_SENSOR_H
-#include "Sensor.h"
 #include "em-rec.h"
+#include "Sensor.h"
 
 /**
  * Buffer for AD microcontroller messages
@@ -37,11 +37,14 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define PSI_RAW_MAX		1023
 #define PSI_VOLT_MAX	5.0
 
-#define BATTERY_MAX		11.73
-#define BATTERY_RAW_MAX	460
+#define BATTERY_MAX		11.73 // old arduino setup
+#define BATTERY_RAW_MAX	460   // like Area A
+
+#define NG_BAT_MAX      24.9  // Maine setup with diode, new
+#define NG_BAT_RAW_MAX  1023  // arduino and 10/49 divider
 
 #define BATTERY_LOW_THRESH 11
-#define BATTERY_HIGH_THRESH 14
+#define BATTERY_HIGH_THRESH 14.8
 
 /**
  * @class ADSensor
@@ -51,16 +54,18 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 class ADSensor: public Sensor {
 	private:
         EM_DATA_TYPE *em_data;
-		void SetADCType();
-		double psi_input_vmax;
+		double arduino_vmax;
 		double psi_vmin;
 		double psi_vmax;
-		double battery_scale;
+		double bat_scale;
+        double bat_max;
+        double bat_raw_max;
 
     public:
         ADSensor(EM_DATA_TYPE*);
         int Connect();
         int Receive();
+        void SetADCType(char*, char*);
         void HonkMyHorn();
 };
 

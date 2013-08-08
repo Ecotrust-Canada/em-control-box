@@ -21,12 +21,13 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
-#include <cstdio>
+#include "ADSensor.h"
 #include <iostream>
-#include <cstring>
+#include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
-#include "ADSensor.h"
+
+#include <iomanip>
 
 using namespace std;
 
@@ -35,23 +36,22 @@ ADSensor::ADSensor(EM_DATA_TYPE* _em_data):Sensor("AD", &_em_data->AD_state, AD_
 }
 
 int ADSensor::Connect() {
-    if(battery_scale == 0) SetADCType();
     return Sensor::Connect();
 }
 
-void ADSensor::SetADCType() {
+void ADSensor::SetADCType(char *_arduino_type, char *_psi_vmin) {
     char divider = '\0';
     psi_vmin = 0;
     psi_vmax = (double)PSI_VOLT_MAX;
 
-    sscanf(CONFIG.arduino, "%lfV%c", &psi_input_vmax, &divider);
-    sscanf(CONFIG.psi_vmin, "%lf", &psi_vmin);
+    sscanf(_arduino_type, "%lfV%c", &arduino_vmax, &divider);
+    sscanf(_psi_vmin, "%lf", &psi_vmin);
 
-    if(psi_input_vmax == 3.3) {
-        battery_scale = 3.3/5.0;
+    if(arduino_vmax == 3.3) {
+        bat_scale = 3.3/5.0;
         cout << "AD: Setting 3.3V Arduino ";
-    } else if(psi_input_vmax == 5.0) {
-        battery_scale = 1.0;
+    } else if(arduino_vmax == 5.0) {
+        bat_scale = 1.0;
         cout << "AD: Setting 5.0V Arduino ";
     } else {
         cerr << "ERROR: Arduino configuration bad; please check /etc/em.conf" << endl;
@@ -59,11 +59,21 @@ void ADSensor::SetADCType() {
     }
 
     if(!divider) {
+        bat_max = BATTERY_MAX;
+        bat_raw_max = BATTERY_RAW_MAX;
         cout << "WITHOUT voltage divider" << endl;
     } else if(divider == 'D') {
         psi_vmin /= 2;
         psi_vmax /= 2;
+        bat_max = BATTERY_MAX;
+        bat_raw_max = BATTERY_RAW_MAX;
         cout << "WITH voltage divider" << endl;
+    } else if(divider == 'P') { // Pro Micro, Maine
+        psi_vmin = psi_vmin * ((double)10 / 49);
+        psi_vmax = psi_vmax * ((double)10 / 49);
+        bat_max = NG_BAT_MAX;
+        bat_raw_max = NG_BAT_RAW_MAX;
+        cout << "Pro Micro WITH 10/49 voltage divider" << endl;
     }
 }
 
@@ -79,7 +89,9 @@ int ADSensor::Receive() {
         while(*ch != AD_START_BYTE && ch < &AD_BUF[bytesRead]) ch++;
 
         if(*ch == AD_START_BYTE) {
-            float avgRawPSI = 0.0, avgRawBat = 0.0;
+            UnsetErrorState(AD_NO_DATA);
+
+            double avgRawPSI = 0.0, avgRawBat = 0.0;
             int p = 0, b = 0;
 
             // go through buffer and collect total sum of raw PSI and Bat values
@@ -99,39 +111,43 @@ int ADSensor::Receive() {
 
             // if we collected any PSI values
             if(p >= 1) {
+                UnsetErrorState(AD_NO_DATA);
+
                 if(p > 1) avgRawPSI /= p; // get average
 
                 if(avgRawPSI == 0) {
                     em_data->AD_psi = 0;
-                    SetErrorState(AD_PSI_LOW_OR_ZERO);
+                    SetErrorState(AD_PSI_LOW_OR_ZERO, AD_PSI_LOW_OR_ZERO_DELAY);
                 } else if(avgRawPSI > 0) {
-                    double rawVolts = avgRawPSI / PSI_RAW_MAX * psi_input_vmax;
+                    double rawVolts = avgRawPSI / PSI_RAW_MAX * arduino_vmax;
 
-                    UnsetErrorState(AD_PSI_LOW_OR_ZERO);
                     if(rawVolts < psi_vmin) {
                         em_data->AD_psi = 0;
-                        if(rawVolts < psi_vmin * 0.9) SetErrorState(AD_PSI_LOW_OR_ZERO);
+                        if(rawVolts < psi_vmin * 0.9) SetErrorState(AD_PSI_LOW_OR_ZERO, AD_PSI_LOW_OR_ZERO_DELAY);
                     } else {
                         em_data->AD_psi = (rawVolts - psi_vmin) / (psi_vmax - psi_vmin) * PSI_MAX; // remove the 1V base signal
+                        UnsetErrorState(AD_PSI_LOW_OR_ZERO);
                     }
                 }
+            } else {
+                SetErrorState(AD_NO_DATA);
             }
 
             // if we collected any bat values
             if(b >= 1) {
                 if(b > 1) avgRawBat /= b; 
 
-                avgRawBat *= battery_scale;
+                avgRawBat *= bat_scale;
 
                 if(avgRawBat == 0) {
                     em_data->AD_battery = 0;
                 } else if(avgRawBat > 0) {
-                    em_data->AD_battery = avgRawBat * (BATTERY_MAX / BATTERY_RAW_MAX);
+                    em_data->AD_battery = avgRawBat * (bat_max / bat_raw_max);
                     if(em_data->AD_battery <= BATTERY_LOW_THRESH) {
-                        SetErrorState(AD_BATTERY_LOW);
+                        SetErrorState(AD_BATTERY_LOW, AD_PSI_LOW_OR_ZERO_DELAY);
                         UnsetErrorState(AD_BATTERY_HIGH);
                     } else if(em_data->AD_battery >= BATTERY_HIGH_THRESH) {
-                        SetErrorState(AD_BATTERY_HIGH);
+                        SetErrorState(AD_BATTERY_HIGH, AD_PSI_LOW_OR_ZERO_DELAY);
                         UnsetErrorState(AD_BATTERY_LOW);
                     } else {
                         UnsetErrorState(AD_BATTERY_LOW);
@@ -139,6 +155,8 @@ int ADSensor::Receive() {
                     }
                 }
             }
+        } else {
+            SetErrorState(AD_NO_DATA);
         }
 
         return bytesRead;

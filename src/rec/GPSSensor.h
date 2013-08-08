@@ -23,12 +23,14 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #ifndef GPS_SENSOR_H
 #define GPS_SENSOR_H
-#include "Sensor.h"
 #include "em-rec.h"
+#include "Sensor.h"
 #include "gps.h"
 
-#define MAX_POLYS   10
-#define MAX_POINTS  20
+#define GPS_WARMUP_PERIOD	10
+#define MAX_POLYS           10
+#define MAX_POINTS          20
+//#define MAXTAGLEN           8 
 
 struct POINT {
     double x;
@@ -63,12 +65,11 @@ class GPSSensor: public Sensor {
         unsigned short num_ferry_lanes, num_ferry_lane_edges[MAX_POLYS];
 
         unsigned short LoadKML(char *, POINT[MAX_POLYS][MAX_POINTS], unsigned short *);
-        //inline int IsLeft(const POINT &, const POINT &, const POINT &);
         short IsPointInsidePoly(const POINT &, const POINT *, unsigned short);
 
     public:
         GPSSensor(EM_DATA_TYPE*);
-        void CheckSpecialAreas();
+        int CheckSpecialAreas();
         int Connect();
         int Receive();
         void Close();

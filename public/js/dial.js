@@ -53,11 +53,10 @@ window.Dial = function(config) {
 		o.__proto__ = Dial;
 
 		o.vlen = (''+o.range).length;
-		o.markfontsize = 14;
+		o.markfontsize = 15;
 		return o;
 
 	} else {
-        console.log(config);
 		throw "Missing required argument to Dial class.";
 	}
 }
@@ -81,18 +80,17 @@ Dial.draw = function() {
 	// draw value ticks.
 	var tick = 0;
 	while (tick <= this.range) {
-	
 	    (function (t) {
 		var a = this.angle0 + this.arange*tick/this.range
 		that.paper.path(
-				"M" + pt(0,-1)
-			  	+"L" + pt(0,-(this.r-5)/this.r)
-			)
-			.attr({stroke: t>this.danger ? '#f00' : this.rim_attrs.stroke, rotation: a + " " + pt(0,0)})
+			"M" + pt(0,-1)
+			+"L" + pt(0,-(this.r-5)/this.r)
+		).attr({stroke: t>this.danger ? '#f00' : this.rim_attrs.stroke, rotation: a + " " + pt(0,0)})
 
 		if (a<this.angle0+360) that.paper.text(this.center.x, this.center.y - this.r + this.markfontsize + 5, tick, this.vlen)
 			.attr({
 				'font-size': this.markfontsize,
+				'font-family':'Arial,sans-serif',
 				rotation: Math.floor(a /*((''+tick).length) * this.markfontsize / 3*/) + " " + pt(0,0)
 			})
 
@@ -100,19 +98,23 @@ Dial.draw = function() {
 	    tick += this.tick_size;
 	}
 
-	this.text = this.paper.text(this.center.x, this.center.y - this.r*0.2, 0);
     if (this.label_text) {
         this.label = this.paper.text(this.center.x, this.center.y + this.r*0.3, this.label_text);
 
         this.label.attr({
             'font-weight':'bold',
+            'font-family':'Arial,sans-serif',
             'font-size':Math.floor((this.r+100)/10)
         });
     }
-	this.text.attr({
+
+    //this.text = this.paper.text(this.center.x, this.center.y - this.r*0.2, 0);
+
+	/*this.text.attr({
         'font-weight':'bold',
-		'font-size':Math.floor((this.r+100)/9)
-	});
+        'font-family':'Arial,sans-serif',
+		'font-size': Math.floor((this.r+100)/9)
+	});*/
 
 	/**
 	 * Draw the needle.
@@ -141,12 +143,12 @@ Dial.draw = function() {
  * @chainable
  */
 Dial.update = function(vl) {
-	vl = Math.min(vl, this.range)
+	vl = Math.min(vl, this.range);
 	var a = this.angle0 + this.arange*vl/this.range;
 	this.needle.animate({
 		rotation: (180+a) + " " + this.center.x + " " + this.center.y
 	},1);
-	this.text.node.textContent = zpad(vl, this.vlen);
+	//this.text.node.textContent = zpad(vl, this.vlen);
 	return this;
 }
 

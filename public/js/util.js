@@ -42,3 +42,37 @@ function tryParseInt(val) {
 		return 0;
 	}
 }
+
+function gpsKit() {};
+
+gpsKit.NORTH = 'N';
+gpsKit.SOUTH = 'S';
+gpsKit.EAST = 'E';
+gpsKit.WEST = 'W';
+
+gpsKit.roundToDecimal = function( inputNum, numPoints ) {
+	var multiplier = Math.pow( 10, numPoints );
+	return Math.round( inputNum * multiplier ) / multiplier;
+};
+
+gpsKit.decimalToDMS = function( location, hemisphere ){
+	if( location < 0 ) location *= -1; // strip dash '-'
+
+	var degrees = Math.floor( location );          // strip decimal remainer for degrees
+	var minutesFromRemainder = ( location - degrees ) * 60;       // multiply the remainer by 60
+	var minutes = Math.floor( minutesFromRemainder );       // get minutes from integer
+	var secondsFromRemainder = ( minutesFromRemainder - minutes ) * 60;   // multiply the remainer by 60
+	var seconds = gpsKit.roundToDecimal( secondsFromRemainder, 2 ); // get minutes by rounding to integer
+
+	return degrees + '°' + minutes + "'" + seconds + '"' + hemisphere;
+};
+
+gpsKit.decimalLatToDMS = function( location ){
+	var hemisphere = ( location < 0 ) ? gpsKit.SOUTH : gpsKit.NORTH; // south if negative
+	return gpsKit.decimalToDMS( location, hemisphere );
+};
+
+gpsKit.decimalLongToDMS = function( location ){
+	var hemisphere = ( location < 0 ) ? gpsKit.WEST : gpsKit.EAST;  // west if negative
+	return gpsKit.decimalToDMS( location, hemisphere );
+};

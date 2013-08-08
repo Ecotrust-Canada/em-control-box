@@ -1,2 +1,1 @@
-StateMachine.o: StateMachine.cpp StateMachine.h em-rec.h ../config.h \
- ../util.h
+StateMachine.o: StateMachine.cpp StateMachine.h em-rec.h states.h

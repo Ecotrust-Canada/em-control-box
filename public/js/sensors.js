@@ -24,73 +24,129 @@ You may contact Ecotrust Canada via our websitehttp://ecotrust.ca
 VMS.Component = function (props) {
     this.$= $('.' + props.name);
     this.$value= $('.' + props.name + ' .value');
-    this.$status= $('.' + props.name + '>.status');
 
     $.extend(this, props);
 };
+
 VMS.Component.prototype.update = function (opts) {
-
-    if (opts.errors && opts.errors.length) {
-        opts.status = opts.status || "Error";
-        for(k in opts.errors)
-        {
-            var content = opts.errors[k];
-            var lastError = $('#errors p:last').text();
-            var m = lastError.match(/(.*)\((\d+)\)$/);
-            if (lastError == content || (m != null && m[1] == content)) {
-                var count = 2;
-                if (m != null && m[2] != null) count = parseInt(m[2]) + 1;
-                $('#errors p:last').html(content + "(" + count + ")");
-            } else {
-                $('#errors').append("<p>" + content + "</p>");
-            }
-            if($('#errors').text().length > 5000)
-            {
-                $('#errors p').slice(0, Math.floor($('#errors p').length/2)).remove();
+    // states that will invalidate data being shown; thus the else if
+    if(opts.state) {
+        for(var e in VMS.sensorStates) {
+            if(VMS.sensorStates[e].flag & opts.state) {
+                this.$value.text(VMS.sensorStates[e].msg.toUpperCase());
+                break;
             }
         }
+    } else if (typeof(opts.value) !== 'undefined' && this.$value.text() != opts.value) {
+        this.$value.html(opts.value);
+        if (this.dial) { this.dial.update(parseInt('' + opts.value)); }
     }
 
-    this.$status.text(opts.status == "OK" ? "OK" : opts.status);
-    if (opts.value) {
-        this.$value.text(opts.value);
-
-        if (this.dial) {
-        this.dial.update(parseInt(''+opts.value));
-        }
-    }
-
-    this.$.removeClass("ok").removeClass("fail").addClass(opts.state === 0 ? "ok" : "fail");
+    this.$.removeClass('ok').removeClass('fail').addClass(opts.state === 0 ? "ok" : "fail");
 }
 
 VMS.SENSOR_CLASSES = {};
+
+/**
+ * GPS sensor client
+ */
+VMS.SENSOR_CLASSES.GPS = function () {
+    VMS.Component.apply(this, arguments);
+    this.$speed = $('.GPS .speed');
+    this.$heading = $('.GPS .heading');
+    this.$datetime = $('.datetime');
+    this.$fix_quality = $('#system-info .fix_quality');
+    this.$sats_used = $('#system-info .sats_used');
+    this.$latlon_mode = $('#latlon_mode');
+};
+
+VMS.SENSOR_CLASSES.GPS.prototype = new VMS.Component({
+    name: 'GPS'
+});
+
+VMS.SENSOR_CLASSES.GPS.prototype.update = function (opts) {
+    // we don't want to expose any of these GPS states as a sensor error
+    opts.state = opts.state
+        & (~VMS.sensorStates.GPS_ESTIMATED.flag)
+        & (~VMS.sensorStates.GPS_INSIDE_FERRY_LANE.flag)
+        & (~VMS.sensorStates.GPS_INSIDE_HOME_PORT.flag);
+
+    if (opts.latitude == 0 && opts.longitude == 0) {
+        opts.value = 'warming up';
+    } else {
+        if (this.$latlon_mode.val() == 'dec') {
+            opts.value = opts.latitude + ',' + opts.longitude;
+        } else {
+            opts.value = gpsKit.decimalLatToDMS(opts.latitude) + '<br>' + gpsKit.decimalLongToDMS(opts.longitude);
+        }
+    }
+
+    VMS.Component.prototype.update.apply(this, [opts]);
+
+    this.$datetime.text(opts.datetime.substring(0, opts.datetime.indexOf('.')));
+
+    opts.speed = Math.floor(opts.speed);
+    opts.heading = Math.floor(opts.heading);
+
+    if (this.$speed.text() != opts.speed) {
+        this.$speed.text(opts.speed);
+        if (this.speedometer) this.speedometer.update(opts.speed);
+    }
+
+    if (this.$heading.text() != opts.heading) {
+        this.$heading.text(opts.heading);
+        if (this.compass) this.compass.update(opts.heading);
+    }
+
+    switch (opts.satQuality) {
+        case 0: opts.satQuality = '0 (NO FIX)'; break;
+        case 1: opts.satQuality = '1 (GPS FIX)'; break;
+        case 2: opts.satQuality = '2 (DGPS FIX)'; break;
+    }
+    if (this.$fix_quality.text() != opts.satQuality) {
+        this.$fix_quality.text(opts.satQuality);
+    }
+
+    if (this.$sats_used.text() != opts.satsUsed) {
+        this.$sats_used.text(opts.satsUsed);
+    }
+};
 
 /**
  * RFID sensor client
  */
 VMS.SENSOR_CLASSES.RFID = function(){
     VMS.Component.apply(this, arguments);
-    this.$trip_scans = $('#trip_scans');
-    this.$string_scans = $('#string_scans');
+    this.$trip_scans = $('.RFID .trip_scans');
+    this.$string_scans = $('.RFID .string_scans');
 }
+
 VMS.SENSOR_CLASSES.RFID.prototype = new VMS.Component({
     name: 'RFID'
 });
+
 VMS.SENSOR_CLASSES.RFID.prototype.update = function (opts) {
-    opts.value = opts.lastScannedTag; 
+    if (!opts.lastScannedTag) {
+        opts.lastScannedTag = 'no scans yet';
+        $('.RFID').addClass('warn');
+    } else {
+        $('.RFID').removeClass('warn');
+    }
+
+    opts.value = opts.lastScannedTag;
     VMS.Component.prototype.update.apply(this, [opts]);
+
     /* also update the scan counters */
-    if (opts.string_scans) {
-        this.$string_scans.text(opts.string_scans);
-    }
-    if (opts.trip_scans) {
-        this.$trip_scans.text(opts.trip_scans);
-    }
+    if (this.$string_scans.text() != opts.stringScans) { this.$string_scans.text(opts.stringScans); }
+    if (this.$trip_scans.text() != opts.tripScans) { this.$trip_scans.text(opts.tripScans); }
 };
 
-
+/**
+ * AD sensor client
+ */
 VMS.SENSOR_CLASSES.AD = function () {
     VMS.Component.apply(this, arguments);
+    this.$battery = $('#system-info .battery');
 };
 
 VMS.SENSOR_CLASSES.AD.prototype = new VMS.Component({
@@ -98,74 +154,137 @@ VMS.SENSOR_CLASSES.AD.prototype = new VMS.Component({
 });
 
 VMS.SENSOR_CLASSES.AD.prototype.update = function (opts) {
-    opts.value = Math.max(0,parseFloat(opts.psi));
+    opts.state = opts.state & (~VMS.sensorStates.AD_BATTERY_LOW.flag);
+    opts.value = Math.max(0, Math.floor(opts.psi));
     VMS.Component.prototype.update.apply(this, [opts]);
+    this.$battery.text(opts.battery.toFixed(2));
 };
 
 /**
- * GPS sensor client
+ * SYS sensor client
  */
-VMS.SENSOR_CLASSES.GPS = function () {
+VMS.SENSOR_CLASSES.SYS = function () {
     VMS.Component.apply(this, arguments);
-    this.$heading = $('.GPS .heading');
-    this.$speed = $('.GPS .speed');
-    this.$dtime = $('.GPS .dtime');
+    this.$available = $('.SYS .available');
+    this.$disk_number = $('.SYS .diskNumber');
+    this.$diskavail_mode = $('#diskavail_mode');
+    this.$uptime = $('#system-info .uptime');
+    this.$load = $('#system-info .load');
+    this.$cpu_percent = $('#system-info .cpu_percent');
+    this.$ram_free = $('#system-info .ram_free');
+    this.$ram_total = $('#system-info .ram_total');
+    this.$temp_core0 = $('#system-info .temp_core0');
+    this.$temp_core1 = $('#system-info .temp_core1');
+    this.$os_free = $('#system-info .os_free');
+    this.$os_total = $('#system-info .os_total');
+    this.$data_free = $('#system-info .data_free');
+    this.$data_total = $('#system-info .data_total');
 };
 
-VMS.SENSOR_CLASSES.GPS.prototype = new VMS.Component({
-    name: 'GPS'
+VMS.SENSOR_CLASSES.SYS.prototype = new VMS.Component({
+    name: 'SYS'
 });
-VMS.SENSOR_CLASSES.GPS.prototype.update = function (opts) {
-        opts.value = opts.latitude + "," + opts.longitude
-    VMS.Component.prototype.update.apply(this, [opts]);
-    if (opts.heading) {
-            this.$heading.text(opts.heading);
-            if (this.compass) this.compass.update(Math.floor(opts.heading));
-    }
-    if (opts.speed) {
-            this.$speed.text(opts.speed);
-            if (this.speedometer) this.speedometer.update(Math.floor(opts.speed));
-    }
-    if (opts.dtime) {
-        this.$dtime.text(opts.dtime);
-    }
-};
 
-VMS.SENSOR_CLASSES.DISK = function () {
-    VMS.Component.apply(this, arguments);
-    this.$available = $('.DISK .available');
-};
+delayCounter = 999;
+blocksToMB = 4096 / 1024 / 1024;
+lastPercentUsed = 999;
 
-VMS.SENSOR_CLASSES.DISK.prototype = new VMS.Component({
-    name: 'DISK'
-});
-VMS.SENSOR_CLASSES.DISK.prototype.update = function (opts) {
-    VMS.Component.prototype.update.apply(this, [opts]);
-    if (opts.available) {
-        if(this.last_available)
-        {
-        if(this.last_available - opts.available <= 100)
-        {
-            this.$available.text("calculating");
+VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
+    if(typeof(force_update) !== 'undefined') {
+        delayCounter = 999;
+        return;
+    }
+
+    if(delayCounter > 3) {
+        var osDiskPercentUsed = Math.floor(100 * (1 - opts.osDiskFreeBlocks / opts.osDiskTotalBlocks));
+
+        if (opts.dataDiskPresent == "true") {
+            if (this.$diskavail_mode.val() == "fake") {
+                var diskMinutesLeft = opts.dataDiskMinutesLeftFake;
+            } else {
+                var diskMinutesLeft = opts.dataDiskMinutesLeft;
+            }
+            
+            if (opts.fishingArea == 'A') var dataDiskPercentUsed = Math.floor(100 * (1 - opts.dataDiskMinutesLeftFake / 30240));
+            else var dataDiskPercentUsed = Math.floor(100 * (1 - opts.dataDiskFreeBlocks / opts.dataDiskTotalBlocks));
+            
+            var percentUsed = dataDiskPercentUsed;
+            this.$disk_number.text('#' + opts.dataDiskLabel.substring(5, opts.dataDiskLabel.length));
+            opts.state = opts.state || 0;
+            $('#using_os_disk').hide();
+        } else {
+            var diskMinutesLeft = opts.osDiskMinutesLeft;
+            var percentUsed = osDiskPercentUsed;
+            this.$disk_number.text('OS');
+            opts.state = 1;
+            $('#using_os_disk').show();
         }
-        else
-        {
-            var dif = this.last_available - opts.available;
-            var minutes = Math.ceil(parseFloat(opts.available) /dif *7 /60);
+
+        if (this.dial && percentUsed != lastPercentUsed) {
+            this.dial.update(percentUsed);
+            lastPercentUsed = percentUsed;
+        }
+
+        if (!isNaN(diskMinutesLeft)) {
+            if(opts.fishingArea == 'A' && diskMinutesLeft < 3 * 24 * 60 ||
+                diskMinutesLeft < 1 * 12 * 60) {
+                opts.state = 1;
+            } else {
+                opts.state = opts.state || 0;
+            }
+
+            VMS.Component.prototype.update.apply(this, [opts]);
+
+            var minutes = diskMinutesLeft;
             var hours = Math.floor(minutes / 60) || 0;
             minutes = minutes - hours * 60;
             var days = Math.floor(hours /24);
             hours = hours - days * 24;
-            if(days != 0)
-                this.$available.text('' + days + 'd ' + hours + 'h ' + minutes + ' m');
-            else if(hours != 0)
-                this.$available.text('' + hours + 'h ' + minutes + 'm');
-            else if(minutes < 30)
-                this.$available.text("< 30m");
-            else
-                this.$available.text('' + minutes + 'm');
+            if(days != 0) this.$available.text('' + days + 'd ' + hours + 'h'/* + minutes + 'm'*/);
+            else if(hours != 0) this.$available.text('' + hours + 'h'/* + minutes + 'm'*/);
+            else if(minutes < 30 && minutes > 0) this.$available.text("< 30m");
+            else if(minutes == 0) this.$available.text("FULL");
+            else this.$available.text('' + minutes + 'm');
+
+            lastMinutesLeft = diskMinutesLeft;
         }
+
+        this.$uptime.text(opts.uptime);
+        this.$load.text(opts.load);
+        this.$cpu_percent.text(opts.cpuPercent);
+        this.$ram_free.text(Math.floor(opts.ramFreeKB / 1024));
+        this.$ram_total.text(Math.floor(opts.ramTotalKB / 1024));
+        this.$temp_core0.text(opts.tempCore0);
+        this.$temp_core1.text(opts.tempCore1);
+        this.$os_free.text(Math.floor(opts.osDiskFreeBlocks * blocksToMB));
+        this.$os_total.text(Math.floor(opts.osDiskTotalBlocks * blocksToMB));
+        
+        if (opts.dataDiskPresent == "true") {
+            this.$data_free.text(Math.floor(opts.dataDiskFreeBlocks * blocksToMB));
+            this.$data_total.text(Math.floor(opts.dataDiskTotalBlocks * blocksToMB));
+        } else {
+            this.$data_free.text(0);
+            this.$data_total.text(0);
         }
-        this.last_available = opts.available;
+
+        if (osDiskPercentUsed >= 90) {
+            $('#os_disk_full').show();
+        } else {
+            $('#os_disk_full').hide();
+        }
+
+        // <= 3 days for Area A, <= 1 day for Maine
+        if (opts.dataDiskPresent == 'true') {
+            if (opts.fishingArea == 'A' && opts.dataDiskMinutesLeftFake <= 4320 ||
+                opts.dataDiskMinutesLeft <= 720) {
+                $('#data_disk_full').show();
+            } else {
+                $('#data_disk_full').hide();
+            }
+        }
+
+        delayCounter = 0;
+    } else {
+        delayCounter++;
     }
 };

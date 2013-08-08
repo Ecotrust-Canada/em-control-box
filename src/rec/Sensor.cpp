@@ -21,13 +21,13 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
+#include "Sensor.h"
 #include <iostream>
-#include <unistd.h>
-#include <sys/ioctl.h>
+#include <cstring>
 #include <fcntl.h>
 #include <termios.h>
-#include <cstring>
-#include "Sensor.h"
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 using namespace std;
 

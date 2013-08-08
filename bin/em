@@ -2,6 +2,7 @@
 
 EM_CONF="/etc/em.conf"
 MODULES_DIR="`dirname $0`/modules"
+BOARDS="pro328 pro5v328 promicro16" # arduino boards we use
 
 if [ ! -r ${EM_CONF} ]; then
 	echo "Conf file ${EM_CONF} not readable!"

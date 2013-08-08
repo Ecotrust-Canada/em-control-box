@@ -1,0 +1,19 @@
+GPS_NO_CONNECTION       0x0001  "No GPS Connection"
+GPS_NO_DATA             0x0002  "No GPS Data"
+GPS_NO_FIX              0x0004  "No GPS Fix"
+GPS_ESTIMATED           0x0008  "GPS Fix Estimated"
+GPS_NO_FERRY_DATA       0x0010  "No Ferry Lane Data"
+GPS_NO_HOME_PORT_DATA   0x0020  "No Home Port Data"
+GPS_INSIDE_FERRY_LANE   0x0040  "In Ferry Lane"
+GPS_INSIDE_HOME_PORT    0x0080  "In Home Port"
+
+AD_NO_CONNECTION        0x0100  "No AD Connection"
+AD_NO_DATA              0x0200  "No AD Data"
+AD_PSI_LOW_OR_ZERO      0x0400  "PSI Low/Zero"
+AD_BATTERY_LOW          0x0800  "Battery Low"
+AD_BATTERY_HIGH         0x1000  "Battery High"
+
+RFID_NO_CONNECTION      0x2000  "No RFID Connection"
+RFID_NO_DATA            0x4000  "No RFID Data"
+RFID_CHECKSUM_FAILED    0x8000  "RFID Checksum Failed"
+

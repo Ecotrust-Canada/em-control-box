@@ -21,12 +21,11 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-//#include <cmath>
 #include "GPSSensor.h"
+#include <iostream>
+#include <sstream>
+#include <fstream>
+//#include <cstring>
 
 using namespace std;
 
@@ -73,8 +72,11 @@ int GPSSensor::Connect() {
 
 int GPSSensor::Receive() {
     static timestamp_t last_online;
-
-    if (*state & GPS_NO_CONNECTION && Connect() != 0) {
+    static double /*last_latitude, last_longitude, last_speed,*/ last_time;
+ 
+    if (em_data->iterationTimer < GPS_WARMUP_PERIOD) {
+        return 0;
+    } else if ((*state & GPS_NO_CONNECTION /*|| *state & GPS_NO_DATA*/) && Connect() != 0) {
         D("Tried to GPSSensor::Receive() but not connected and Connect() failed");
         return -1;
     }
@@ -89,22 +91,33 @@ int GPSSensor::Receive() {
 
         if(GPS_DATA.online == last_online) {
             D("GPS data hasn't been updated, setting GPS_NO_DATA with delay");
-            SetErrorState(GPS_NO_DATA, GPS_NO_DATA_DELAY);
+            SetErrorState(GPS_NO_DATA, GPS_STATE_DELAY);
         } else {
             UnsetErrorState(GPS_NO_DATA);
         }
 
-        if(GPS_DATA.status == 0 || GPS_DATA.satellites_visible == 0 || GPS_DATA.satellites_used == 0) {
-            SetErrorState(GPS_NO_FIX);
+        if(GPS_DATA.status == 0 || 
+            /*GPS_DATA.satellites_visible == 0 || GPS_DATA.satellites_used == 0*/ // we don't do it this way anymore because in case the GPS is configured to send only GPRMC we get no satellite info but still have a fix
+            (/*GPS_DATA.fix.latitude == last_latitude &&
+            GPS_DATA.fix.longitude == last_longitude &&
+            GPS_DATA.fix.speed == last_speed &&*/
+            GPS_DATA.fix.time == last_time &&
+            GPS_DATA.satellites_used == 0)) {
+            SetErrorState(GPS_NO_FIX, GPS_STATE_DELAY);
+
+            if (GetErrorState() & GPS_NO_FIX) {
+                em_data->GPS_satQuality = 0;
+            }
         } else if(GPS_DATA.status == 6) {
             SetErrorState(GPS_ESTIMATED);
+            em_data->GPS_satQuality = GPS_DATA.status;
         } else {
             UnsetErrorState(GPS_NO_FIX);
             UnsetErrorState(GPS_ESTIMATED);
+            em_data->GPS_satQuality = GPS_DATA.status;
         }
 
         em_data->GPS_time = GPS_DATA.fix.time;
-        em_data->GPS_satQuality = GPS_DATA.status;
         em_data->GPS_satsUsed = GPS_DATA.satellites_used;
         em_data->GPS_latitude = GPS_DATA.fix.latitude;
         em_data->GPS_longitude = GPS_DATA.fix.longitude;
@@ -114,22 +127,26 @@ int GPSSensor::Receive() {
         em_data->GPS_eph = EMIX(GPS_DATA.fix.epx, GPS_DATA.fix.epy);
 
         last_online = GPS_DATA.online;
+        /*last_latitude = GPS_DATA.fix.latitude; // HACKS to handle GPRMC-only GPSs and detecting fix status given that GPSD doesn't behave nicely via SHM
+        last_longitude = GPS_DATA.fix.longitude;
+        last_speed = GPS_DATA.fix.speed;*/
+        last_time = GPS_DATA.fix.time;
     }
 
-    //D("GPS_DATA.set = " << GPS_DATA.set);
-    //D("GPS_DATA.online       = " << fixed << GPS_DATA.online);
-    //D("GPS_DATA.fix.time     = " << fixed << GPS_DATA.fix.time);
-    //D("GPS_DATA.status       = " << GPS_DATA.status);
-    //D("GPS_DATA.fix.mode     = " << GPS_DATA.fix.mode);
+    //D("GPS_DATA.set          = " << GPS_DATA.set);
+    D("GPS_DATA.online       = " << GPS_DATA.online);
+    D("GPS_DATA.fix.time     = " << GPS_DATA.fix.time);
+    D("GPS_DATA.fix.mode     = " << GPS_DATA.fix.mode);
+    D("GPS_DATA.status       = " << GPS_DATA.status);
     D("GPS_DATA.fix.latitude = " << GPS_DATA.fix.latitude);
     D("GPS_DATA.fix.longitude = " << GPS_DATA.fix.longitude);
     //D("GPS_DATA.sats_visible = " << GPS_DATA.satellites_visible);
     //D("GPS_DATA.sats_used    = " << GPS_DATA.satellites_used);
+    //D("GPS_DATA.tag          = " << GPS_DATA.tag);
     //D("GPS_DATA.dop.hdop = " << GPS_DATA.dop.hdop);
     //D("GPS_DATA.eph = " << EMIX(GPS_DATA.fix.epx, GPS_DATA.fix.epy));
     //D("GPS_DATA.fix.epx = " << GPS_DATA.fix.epx);
     //D("GPS_DATA.fix.epy = " << GPS_DATA.fix.epy);
-
     return 0;
 }
 
@@ -230,29 +247,16 @@ short GPSSensor::IsPointInsidePoly(const POINT &P, const POINT *V, unsigned shor
 
     // loop through all edges of the polygon
     for(int i = 0; i < n; i++) {   // edge from V[i] to  V[i+1]
-        D("P.y=" << P.y << "  V[i].y=" << V[i].y);
         if(V[i].y <= P.y) {          // start y <= P.y
-            D("Less than/equal to P");
             if(V[i + 1].y > P.y) {      // an upward crossing
-                D("Upward crossing")
-                if (IsLeft(V[i], V[i + 1], P) > 0)  {// P left of  edge
-                    D("Left of edge");
+                if (IsLeft(V[i], V[i + 1], P) > 0) { // P left of  edge
                     ++wn;            // have  a valid up intersect
-                    D("++wn");
-                } else {
-                    D("Was right of or on edge");
                 }
             }
         } else {                        // start y > P.y (no test needed)
-            D("More than P");
             if(V[i + 1].y <= P.y) {     // a downward crossing
-                D("Downward crossing");
-                if(IsLeft(V[i], V[i + 1], P) < 0) { // P right of  edge
-                    D("Right of edge");
-                    --wn;            // have  a valid down intersect
-                    D("--wn");
-                } else {
-                    D("Was left of or on edge");
+                if(IsLeft(V[i], V[i + 1], P) < 0) { // P right of edge
+                    --wn; //have a valid down intersect
                 }
             }
         }
@@ -261,7 +265,9 @@ short GPSSensor::IsPointInsidePoly(const POINT &P, const POINT *V, unsigned shor
     return wn;
 }
 
-void GPSSensor::CheckSpecialAreas() {
+int GPSSensor::CheckSpecialAreas() {
+    int encodingState = STATE_ENCODING_RUNNING;
+
     UnsetErrorState(GPS_INSIDE_HOME_PORT);
     UnsetErrorState(GPS_INSIDE_FERRY_LANE);
 
@@ -274,6 +280,7 @@ void GPSSensor::CheckSpecialAreas() {
                 if (IsPointInsidePoly((POINT){em_data->GPS_longitude, em_data->GPS_latitude}, home_ports[k], num_home_port_edges[k] - 1)) {
                     D("IN SPECIAL AREA: home port");
                     SetErrorState(GPS_INSIDE_HOME_PORT);
+                    encodingState = STATE_ENCODING_PAUSED;
                     break;
                 }
             }
@@ -290,4 +297,6 @@ void GPSSensor::CheckSpecialAreas() {
             }
         }
     }
+
+    return encodingState;
 }

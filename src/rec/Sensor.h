@@ -23,12 +23,6 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #ifndef SENSOR_H
 #define SENSOR_H
-//#include <cstring>
-//#include <iostream>
-//#include <sys/ioctl.h>
-//#include <fcntl.h>
-//#include <termios.h>
-#include <termios.h>
 #include "StateMachine.h"
 
 #define SENSOR_RECONNECT_DELAY 10000 // in usec; if connection failed, this is the wait time until next reconnection

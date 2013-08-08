@@ -23,9 +23,9 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #ifndef RFID_SENSOR_H
 #define RFID_SENSOR_H
-#include <set>
-#include "Sensor.h"
+//#include <set>
 #include "em-rec.h"
+#include "Sensor.h"
 
 /**
  * Buffer for RFID messages.

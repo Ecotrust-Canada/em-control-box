@@ -1,2 +1,0 @@
-ComplianceState.o: ComplianceState.cpp ComplianceState.h Sensor.h \
- StateMachine.h em-rec.h ../config.h ../util.h
