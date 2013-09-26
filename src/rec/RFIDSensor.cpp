@@ -90,10 +90,10 @@ int RFIDSensor::Receive() {
             if (scannedCorrupt > 0) cerr << "RFID: " << scannedCorrupt << "/" << scannedTotal << " scans were corrupt" << endl;
 
             if (scannedCorrupt >= scannedTotal) {
-            	SetErrorState(RFID_CHECKSUM_FAILED);
+            	SetState(RFID_CHECKSUM_FAILED);
             	em_data->RFID_saveFlag = false;
             } else {
-            	UnsetErrorState(RFID_CHECKSUM_FAILED);
+            	UnsetState(RFID_CHECKSUM_FAILED);
 
                 // only save if RECORD_SCAN_INTERVAL time has gone by since the last scan, or the tag is different from the last one saved
                 if(em_data->iterationTimer - em_data->RFID_lastSaveIteration >= RECORD_SCAN_INTERVAL || em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {

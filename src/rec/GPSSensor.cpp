@@ -25,45 +25,59 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include <iostream>
 #include <sstream>
 #include <fstream>
-//#include <cstring>
+#include <iomanip> // for setw
+#include <cstring>
+#include <cmath>
+#include <unistd.h>
+#include <pthread.h>
 
 using namespace std;
 
 GPSSensor::GPSSensor(EM_DATA_TYPE* _em_data):Sensor("GPS", &_em_data->GPS_state, GPS_NO_CONNECTION, GPS_NO_DATA) {
     em_data = _em_data;
+    smThread.SetState(STATE_NOT_RUNNING);
+    pthread_mutex_init(&mtx_GPS_DATA_buf, NULL);
 }
 
+GPSSensor::~GPSSensor() {
+    pthread_mutex_destroy(&mtx_GPS_DATA_buf);
+}
+
+// lacking mutexes on GPS_DATA but it shouldn't matter as Connect() is only ever called
+// in the main thread context, and never when the consumer thread is running
 int GPSSensor::Connect() {
     static bool silenceConnectErrors = false;
-
-    if(GPS_DATA.privdata != NULL && PRIVATE(GPS_DATA)->shmseg != NULL) {
-        D("In GPSSensor::Connect() but shmseg set, doing gps_close()");
-        gps_close(&GPS_DATA);
-    }
     
-    if (gps_open(GPSD_SHARED_MEMORY, 0, &GPS_DATA) != 0) {
+    if (gps_open("localhost", DEFAULT_GPSD_PORT, &GPS_DATA) != 0) {
         if(!silenceConnectErrors || OVERRIDE_SILENCE) {
-            cerr << "GPS: Failed to attach to GPSd shared memory segment (is GPSd running?); will keep at it but silencing further Connect() errors" << endl;
+            cerr << "GPS: Failed to connect to GPSd (is it running?); will keep at it but silencing further Connect() errors" << endl;
             silenceConnectErrors = true;
         }
+
+        SetState(GPS_NO_CONNECTION);
+        GPS_DATA = GPS_DATA_buf = GPS_DATA_empty;
         
-        //UnsetAllErrorStates();
-        SetErrorState(GPS_NO_CONNECTION);
         return -1;
     }
     
-    UnsetErrorState(GPS_NO_CONNECTION);
-    cout << name << ": Connected" << endl;
+    (void) gps_stream(&GPS_DATA, WATCH_ENABLE | WATCH_JSON, NULL);
 
-    if(!(*state & GPS_NO_HOME_PORT_DATA) && num_home_ports == 0) {
+    UnsetState(GPS_NO_CONNECTION);
+    UnsetState(GPS_NO_DATA);
+    UnsetState(GPS_NO_FIX);
+
+    cout << name << ": Connected (GPSd)" << endl;
+
+    // bug: condition of having a KML file with NO polys = reread every time
+    if(!(GetState() & GPS_NO_HOME_PORT_DATA) && num_home_ports == 0) {
         if((num_home_ports = LoadKML(em_data->GPS_homePortDataFile, home_ports, num_home_port_edges)) == 0) {
-            SetErrorState(GPS_NO_HOME_PORT_DATA);
+            SetState(GPS_NO_HOME_PORT_DATA);
         }
     }
 
-    if(!(*state & GPS_NO_FERRY_DATA) && num_ferry_lanes == 0) {
+    if(!(GetState() & GPS_NO_FERRY_DATA) && num_ferry_lanes == 0) {
         if((num_ferry_lanes = LoadKML(em_data->GPS_ferryDataFile, ferry_lanes, num_ferry_lane_edges)) == 0) {
-            SetErrorState(GPS_NO_FERRY_DATA);
+            SetState(GPS_NO_FERRY_DATA);
         }
     }
 
@@ -71,90 +85,208 @@ int GPSSensor::Connect() {
 }
 
 int GPSSensor::Receive() {
-    static timestamp_t last_online;
-    static double /*last_latitude, last_longitude, last_speed,*/ last_time;
- 
-    if (em_data->iterationTimer < GPS_WARMUP_PERIOD) {
-        return 0;
-    } else if ((*state & GPS_NO_CONNECTION /*|| *state & GPS_NO_DATA*/) && Connect() != 0) {
-        D("Tried to GPSSensor::Receive() but not connected and Connect() failed");
-        return -1;
-    }
+    static int retVal;
 
-    if (isConnected()) {
-        if(!gps_read(&GPS_DATA)) {
-            D("gps_read() didn't succeed");
-            //UnsetAllErrorStates();
-            SetErrorState(GPS_NO_CONNECTION);
-            return -1;
-        }
+    // whenever the thread self-closes (sets THREAD_CLOSING), we do a full
+    // reconnection to GPSd, because we don't know (or care) why it closed
+    // but we know something is wrong
+    switch(smThread.GetState()) {
+        // thread should always set this when it wants to exit
+        case STATE_CLOSING_OR_UNDEFINED:
+            // there's no guarantee this will get run if the program is
+            // halted (CTRL+C) so it is done again by em-rec after the record loop
+            Close();
 
-        if(GPS_DATA.online == last_online) {
-            D("GPS data hasn't been updated, setting GPS_NO_DATA with delay");
-            SetErrorState(GPS_NO_DATA, GPS_STATE_DELAY);
-        } else {
-            UnsetErrorState(GPS_NO_DATA);
-        }
+        // the thread should NOT be running past this point
+        ///////////////////////////////////////////////////
 
-        if(GPS_DATA.status == 0 || 
-            /*GPS_DATA.satellites_visible == 0 || GPS_DATA.satellites_used == 0*/ // we don't do it this way anymore because in case the GPS is configured to send only GPRMC we get no satellite info but still have a fix
-            (/*GPS_DATA.fix.latitude == last_latitude &&
-            GPS_DATA.fix.longitude == last_longitude &&
-            GPS_DATA.fix.speed == last_speed &&*/
-            GPS_DATA.fix.time == last_time &&
-            GPS_DATA.satellites_used == 0)) {
-            SetErrorState(GPS_NO_FIX, GPS_STATE_DELAY);
+        // the thread should NEVER set this itself; Close() does this
+        case STATE_NOT_RUNNING:
+            if(__EM_RUNNING) {
+                if (!isConnected() && Connect() != 0) {
+                    D("Tried to GPSSensor::Receive() while not connected and Connect() failed");
+                    return -1;
+                }
 
-            if (GetErrorState() & GPS_NO_FIX) {
-                em_data->GPS_satQuality = 0;
+                smThread.SetState(STATE_RUNNING);
+                if((retVal = pthread_create(&pt_receiveLoop, NULL, &thr_ReceiveLoopLauncher, (void*)this)) != 0) {
+                    smThread.SetState(STATE_NOT_RUNNING);
+                }
+                
+                D("pthread_create(): " << retVal);
             }
-        } else if(GPS_DATA.status == 6) {
-            SetErrorState(GPS_ESTIMATED);
-            em_data->GPS_satQuality = GPS_DATA.status;
-        } else {
-            UnsetErrorState(GPS_NO_FIX);
-            UnsetErrorState(GPS_ESTIMATED);
-            em_data->GPS_satQuality = GPS_DATA.status;
-        }
 
-        em_data->GPS_time = GPS_DATA.fix.time;
-        em_data->GPS_satsUsed = GPS_DATA.satellites_used;
-        em_data->GPS_latitude = GPS_DATA.fix.latitude;
-        em_data->GPS_longitude = GPS_DATA.fix.longitude;
-        em_data->GPS_speed = GPS_DATA.fix.speed * MPS_TO_KNOTS;
-        em_data->GPS_heading = GPS_DATA.fix.track;
-        em_data->GPS_hdop = GPS_DATA.dop.hdop;
-        em_data->GPS_eph = EMIX(GPS_DATA.fix.epx, GPS_DATA.fix.epy);
+        case THREAD_RUNNING:
+            if (isConnected() /*&& smThread.GetState() & STATE_RUNNING*/) {
+                pthread_mutex_lock(&mtx_GPS_DATA_buf);
+                pthread_mutex_lock(&(em_data->mtx));
+                    em_data->GPS_time = GPS_DATA_buf.fix.time;
+                    em_data->GPS_latitude = isnan(GPS_DATA_buf.fix.latitude) ? 0 : GPS_DATA_buf.fix.latitude;
+                    em_data->GPS_longitude = isnan(GPS_DATA_buf.fix.longitude) ? 0 : GPS_DATA_buf.fix.longitude;
+                    em_data->GPS_heading = isnan(GPS_DATA_buf.fix.track) ? 0 : GPS_DATA_buf.fix.track;
+                    em_data->GPS_speed = isnan(GPS_DATA_buf.fix.speed) ? 0 : GPS_DATA_buf.fix.speed * MPS_TO_KNOTS;
+                    em_data->GPS_satQuality = GPS_DATA_buf.status;
+                    em_data->GPS_satsUsed = GPS_DATA_buf.satellites_used;
+                    em_data->GPS_hdop = isnan(GPS_DATA_buf.dop.hdop) ? 0 : GPS_DATA_buf.dop.hdop;
+                    em_data->GPS_eph = isnan(GPS_DATA_buf.fix.epx) && isnan(GPS_DATA_buf.fix.epy) ? 0 : EMIX(GPS_DATA_buf.fix.epx, GPS_DATA_buf.fix.epy);
+                pthread_mutex_unlock(&(em_data->mtx));
+                pthread_mutex_unlock(&mtx_GPS_DATA_buf);
+            }
 
-        last_online = GPS_DATA.online;
-        /*last_latitude = GPS_DATA.fix.latitude; // HACKS to handle GPRMC-only GPSs and detecting fix status given that GPSD doesn't behave nicely via SHM
-        last_longitude = GPS_DATA.fix.longitude;
-        last_speed = GPS_DATA.fix.speed;*/
-        last_time = GPS_DATA.fix.time;
+            break;
     }
 
-    //D("GPS_DATA.set          = " << GPS_DATA.set);
-    D("GPS_DATA.online       = " << GPS_DATA.online);
-    D("GPS_DATA.fix.time     = " << GPS_DATA.fix.time);
-    D("GPS_DATA.fix.mode     = " << GPS_DATA.fix.mode);
-    D("GPS_DATA.status       = " << GPS_DATA.status);
-    D("GPS_DATA.fix.latitude = " << GPS_DATA.fix.latitude);
-    D("GPS_DATA.fix.longitude = " << GPS_DATA.fix.longitude);
-    //D("GPS_DATA.sats_visible = " << GPS_DATA.satellites_visible);
-    //D("GPS_DATA.sats_used    = " << GPS_DATA.satellites_used);
-    //D("GPS_DATA.tag          = " << GPS_DATA.tag);
-    //D("GPS_DATA.dop.hdop = " << GPS_DATA.dop.hdop);
-    //D("GPS_DATA.eph = " << EMIX(GPS_DATA.fix.epx, GPS_DATA.fix.epy));
-    //D("GPS_DATA.fix.epx = " << GPS_DATA.fix.epx);
-    //D("GPS_DATA.fix.epy = " << GPS_DATA.fix.epy);
     return 0;
 }
 
-void GPSSensor::Close() {
-    if(GPS_DATA.privdata != NULL && PRIVATE(GPS_DATA)->shmseg != NULL) {
-        D("gps_close() on shutdown");
-        gps_close(&GPS_DATA);
+void *GPSSensor::thr_ReceiveLoopLauncher(void *self) {
+    ((GPSSensor*)self)->thr_ReceiveLoop();
+    return NULL;
+}
+
+// assumes we are Connected()
+void GPSSensor::thr_ReceiveLoop() {
+    unsigned short threadCloseDelayCounter = 0;
+
+    cout << name << ": Consumer thread running" << endl;
+
+    while(smThread.GetState() & STATE_RUNNING && __EM_RUNNING) {
+        if (isConnected()) {
+            if(gps_waiting(&GPS_DATA, POLL_PERIOD / 10)) {
+                if(!gps_read(&GPS_DATA)) {
+                    D("gps_read() didn't succeed, closing connection");
+                    SetState(GPS_NO_CONNECTION); // want to force a reconnect
+
+                    smThread.SetState(STATE_CLOSING_OR_UNDEFINED);
+                    pthread_exit(NULL);
+                } else {                        
+                    // this stuff processed with every run of the read loop ONLY when there was data
+                    if(GPS_DATA.online != GPS_DATA_buf.online) {
+                        D("Unset GPS_NO_DATA");
+                        UnsetState(GPS_NO_DATA);
+                    } else {
+                        D("GPS data read, no change, setting GPS_NO_DATA");
+                        SetState(GPS_NO_DATA, GPS_STATE_DELAY);
+                    }
+                }
+            } else {
+                D("No GPS data to read, setting delayed GPS_NO_DATA");
+                SetState(GPS_NO_DATA, GPS_STATE_DELAY); // after 300000?
+            }
+
+            cout << GPS_DATA.status << "\t" << GPS_DATA.fix.mode << "\t" << GPS_DATA.online << "\t" << setw(10) << GPS_DATA.fix.time << "\t" << setw(10) << GPS_DATA.skyview_time << "\t" << GPS_DATA.satellites_used << "\t" << GPS_DATA.satellites_visible << "\t" << GPS_DATA.fix.epx << "\t" << setw(12) << GPS_DATA.fix.latitude << "\t" << setw(12) << GPS_DATA.fix.longitude << "\t" << GPS_DATA.tag << "\t";
+
+            if (GPS_DATA.set & ONLINE_SET) cout << " ONLINE";
+            if (GPS_DATA.set & TIME_SET) cout << ",TIME";
+            if (GPS_DATA.set & LATLON_SET) cout << ",LATLON";
+            if (GPS_DATA.set & ALTITUDE_SET) cout << ",ALTITUDE";
+            if (GPS_DATA.set & SPEED_SET) cout << ",SPEED";
+            if (GPS_DATA.set & TRACK_SET) cout << ",TRACK";
+            if (GPS_DATA.set & CLIMB_SET) cout << ",CLIMB";
+            if (GPS_DATA.set & STATUS_SET) cout << ",STATUS";
+            if (GPS_DATA.set & MODE_SET) cout << ",MODE";
+            if (GPS_DATA.set & DOP_SET) cout << ",DOP";
+            if (GPS_DATA.set & HERR_SET) cout << ",HERR";
+            if (GPS_DATA.set & VERR_SET) cout << ",VERR";
+            if (GPS_DATA.set & VERSION_SET) cout << ",VERSION";
+            if (GPS_DATA.set & POLICY_SET) cout << ",POLICY";
+            if (GPS_DATA.set & SATELLITE_SET) cout << ",SATELLITE";
+            if (GPS_DATA.set & DEVICE_SET) cout << ",DEVICE";
+            cout << endl;
+            // this stuff processed every run of read loop even when no data
+
+            // check for NO_FIX, using the satellites_used count is the most consistent and easiest
+            if(GPS_DATA.satellites_used == 0) {
+                // hack for old-style bean-shaped GPSs that are configured to send only GPRMC (Area A)
+                // these guys cause GPSd to report 0 satellites_used even though they have a lock, so
+                // we unset GPS_NO_FIX if LATLON_SET is set in these cases; this hack is enabled by setting
+                // fishing_area = A in em.conf
+                // the additional conditions of HERR & VERR NOT being set are to prevent this hack from
+                // being triggered when in Area A when we have a PROPERLY configured GPS (or a newer 17x);
+                // if properly configured or newer they set VERR and HERR
+                if(__GPRMC &&
+                   GPS_DATA.set & LATLON_SET &&
+                   !(GPS_DATA.set & HERR_SET) && !(GPS_DATA.set & VERR_SET)) {
+                    UnsetState(GPS_NO_FIX);
+                } else {
+                    SetState(GPS_NO_FIX, GPS_STATE_DELAY);
+                }
+            } else {
+                UnsetState(GPS_NO_FIX);
+            }
+
+            if(GPS_DATA.status == 6) {
+                UnsetState(GPS_NO_FIX);
+                SetState(GPS_ESTIMATED, GPS_STATE_DELAY);
+            } else {
+                UnsetState(GPS_ESTIMATED);
+            }
+
+            if(GetState() & GPS_NO_FIX || GetState() & GPS_NO_DATA) {
+                gps_clear_fix(&(GPS_DATA.fix));
+                
+                pthread_mutex_lock(&mtx_GPS_DATA_buf);
+                    gps_clear_fix(&(GPS_DATA_buf.fix));
+                pthread_mutex_unlock(&mtx_GPS_DATA_buf);
+
+                GPS_DATA.status = 0;
+                GPS_DATA.satellites_used = 0;
+
+                threadCloseDelayCounter++;
+                D("TCC = " << threadCloseDelayCounter);
+            } else {
+                threadCloseDelayCounter = 0;
+            }
+
+            pthread_mutex_lock(&mtx_GPS_DATA_buf);
+                memcpy(&GPS_DATA_buf, &GPS_DATA, sizeof(GPS_DATA));
+            pthread_mutex_unlock(&mtx_GPS_DATA_buf);
+
+            if(threadCloseDelayCounter >= GPS_THREAD_CLOSE_DELAY) {
+                D("Thread close counter reached");    
+
+                smThread.SetState(STATE_CLOSING_OR_UNDEFINED);
+                pthread_exit(NULL);
+            }
+        } else {
+            D("Receive() while NOT connected");
+        }
+
+        usleep(POLL_PERIOD / 100); // slow us down a bit
+
+        pthread_mutex_lock(&(em_data->mtx));
+            _runState = em_data->runState;
+        pthread_mutex_unlock(&(em_data->mtx));
     }
+
+    D("Broke out of thread's receive loop");
+    smThread.SetState(STATE_CLOSING_OR_UNDEFINED);
+    pthread_exit(NULL);
+}
+
+void GPSSensor::Close() {
+    D("GPSSensor::Close()");
+    
+    // only delay if main program shutting down
+    if (!(__EM_RUNNING)) {
+        usleep(POLL_PERIOD); // wait for a bit to let the consumer thread pick up on main program loop being set THREAD_NOT_RUNNING
+    } // by now consumer thread should be waiting for a join
+
+
+    // by now the thread should be in THREAD_CLOSING
+    if(smThread.GetState() & STATE_CLOSING_OR_UNDEFINED) {
+        if(pthread_join(pt_receiveLoop, NULL) == 0) {
+            cout << name << ": Consumer thread stopped" << endl;
+        }
+
+        // thread is gone, no need for mutexes
+        smThread.SetState(STATE_NOT_RUNNING);
+    }
+    
+    gps_close(&GPS_DATA);
+    GPS_DATA = GPS_DATA_buf = GPS_DATA_empty;
+
+    SetState(GPS_NO_CONNECTION);
 }
 
 unsigned short GPSSensor::LoadKML(char *file, POINT polygons[MAX_POLYS][MAX_POINTS], unsigned short *num_edges) {
@@ -198,7 +330,6 @@ unsigned short GPSSensor::LoadKML(char *file, POINT polygons[MAX_POLYS][MAX_POIN
         }
 
         coordinates << contents.substr(s_index, e_index - s_index);
-        //D("Working with this data:" << endl << contents.substr(s_index, e_index - s_index));
 
         num_edges[num_polys_found] = 0;
         while(coordinates >> x >> tmp_c >> y) {
@@ -268,30 +399,30 @@ short GPSSensor::IsPointInsidePoly(const POINT &P, const POINT *V, unsigned shor
 int GPSSensor::CheckSpecialAreas() {
     int encodingState = STATE_ENCODING_RUNNING;
 
-    UnsetErrorState(GPS_INSIDE_HOME_PORT);
-    UnsetErrorState(GPS_INSIDE_FERRY_LANE);
+    UnsetState(GPS_INSIDE_HOME_PORT);
+    UnsetState(GPS_INSIDE_FERRY_LANE);
 
-    if(*state & GPS_NO_FIX || *state & GPS_NO_DATA) {
+    if(GetState() & GPS_NO_FIX || GetState() & GPS_NO_DATA) {
         D("Not bothering to check poly because GPS data isn't useful");
     } else {
-        if(!(*state & GPS_NO_HOME_PORT_DATA)) {
+        if(!(GetState() & GPS_NO_HOME_PORT_DATA)) {
             for (unsigned int k = 0; k < num_home_ports; k++) {
                 D("Checking if in home port " << k);
                 if (IsPointInsidePoly((POINT){em_data->GPS_longitude, em_data->GPS_latitude}, home_ports[k], num_home_port_edges[k] - 1)) {
                     D("IN SPECIAL AREA: home port");
-                    SetErrorState(GPS_INSIDE_HOME_PORT);
+                    SetState(GPS_INSIDE_HOME_PORT);
                     encodingState = STATE_ENCODING_PAUSED;
                     break;
                 }
             }
         }
 
-        if(!(*state & GPS_NO_FERRY_DATA)) {
+        if(!(GetState() & GPS_NO_FERRY_DATA)) {
             for (unsigned int k = 0; k < num_ferry_lanes; k++) {
                 D("Checking if in ferry lane " << k);
                 if (IsPointInsidePoly((POINT){em_data->GPS_longitude, em_data->GPS_latitude}, ferry_lanes[k], num_ferry_lane_edges[k] - 1)) {
                     D("IN SPECIAL AREA: ferry lane");
-                    SetErrorState(GPS_INSIDE_FERRY_LANE);
+                    SetState(GPS_INSIDE_FERRY_LANE);
                     break;
                 }
             }

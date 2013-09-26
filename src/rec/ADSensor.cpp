@@ -89,7 +89,7 @@ int ADSensor::Receive() {
         while(*ch != AD_START_BYTE && ch < &AD_BUF[bytesRead]) ch++;
 
         if(*ch == AD_START_BYTE) {
-            UnsetErrorState(AD_NO_DATA);
+            UnsetState(AD_NO_DATA);
 
             double avgRawPSI = 0.0, avgRawBat = 0.0;
             int p = 0, b = 0;
@@ -111,26 +111,26 @@ int ADSensor::Receive() {
 
             // if we collected any PSI values
             if(p >= 1) {
-                UnsetErrorState(AD_NO_DATA);
+                UnsetState(AD_NO_DATA);
 
                 if(p > 1) avgRawPSI /= p; // get average
 
                 if(avgRawPSI == 0) {
                     em_data->AD_psi = 0;
-                    SetErrorState(AD_PSI_LOW_OR_ZERO, AD_PSI_LOW_OR_ZERO_DELAY);
+                    SetState(AD_PSI_LOW_OR_ZERO, AD_PSI_LOW_OR_ZERO_DELAY);
                 } else if(avgRawPSI > 0) {
                     double rawVolts = avgRawPSI / PSI_RAW_MAX * arduino_vmax;
 
                     if(rawVolts < psi_vmin) {
                         em_data->AD_psi = 0;
-                        if(rawVolts < psi_vmin * 0.9) SetErrorState(AD_PSI_LOW_OR_ZERO, AD_PSI_LOW_OR_ZERO_DELAY);
+                        if(rawVolts < psi_vmin * 0.9) SetState(AD_PSI_LOW_OR_ZERO, AD_PSI_LOW_OR_ZERO_DELAY);
                     } else {
                         em_data->AD_psi = (rawVolts - psi_vmin) / (psi_vmax - psi_vmin) * PSI_MAX; // remove the 1V base signal
-                        UnsetErrorState(AD_PSI_LOW_OR_ZERO);
+                        UnsetState(AD_PSI_LOW_OR_ZERO);
                     }
                 }
             } else {
-                SetErrorState(AD_NO_DATA);
+                SetState(AD_NO_DATA);
             }
 
             // if we collected any bat values
@@ -144,19 +144,19 @@ int ADSensor::Receive() {
                 } else if(avgRawBat > 0) {
                     em_data->AD_battery = avgRawBat * (bat_max / bat_raw_max);
                     if(em_data->AD_battery <= BATTERY_LOW_THRESH) {
-                        SetErrorState(AD_BATTERY_LOW, AD_PSI_LOW_OR_ZERO_DELAY);
-                        UnsetErrorState(AD_BATTERY_HIGH);
+                        SetState(AD_BATTERY_LOW, AD_PSI_LOW_OR_ZERO_DELAY);
+                        UnsetState(AD_BATTERY_HIGH);
                     } else if(em_data->AD_battery >= BATTERY_HIGH_THRESH) {
-                        SetErrorState(AD_BATTERY_HIGH, AD_PSI_LOW_OR_ZERO_DELAY);
-                        UnsetErrorState(AD_BATTERY_LOW);
+                        SetState(AD_BATTERY_HIGH, AD_PSI_LOW_OR_ZERO_DELAY);
+                        UnsetState(AD_BATTERY_LOW);
                     } else {
-                        UnsetErrorState(AD_BATTERY_LOW);
-                        UnsetErrorState(AD_BATTERY_HIGH);
+                        UnsetState(AD_BATTERY_LOW);
+                        UnsetState(AD_BATTERY_HIGH);
                     }
                 }
             }
         } else {
-            SetErrorState(AD_NO_DATA);
+            SetState(AD_NO_DATA);
         }
 
         return bytesRead;

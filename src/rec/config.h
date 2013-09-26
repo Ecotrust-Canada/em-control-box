@@ -30,43 +30,36 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define DEFAULT_arduino 			"5V"
 #define DEFAULT_psi_vmin			"0.90"
 #define DEFAULT_cam 				"1"
+
 #define DEFAULT_EM_DIR				"/var/em"
-#define DEFAULT_DATA_MNT 			"/mnt/data"
-#define DEFAULT_BACKUP_DATA_MNT		"/var/em/data"
+#define DEFAULT_OS_DISK				"/var/em/data"
+#define DEFAULT_DATA_DISK 			"/mnt/data"
 #define DEFAULT_JSON_STATE_FILE 	"/tmp/em_state.json"
 #define DEFAULT_ARDUINO_DEV 		"/dev/arduino"
 #define DEFAULT_GPS_DEV 			"/dev/ttyS0"
 #define DEFAULT_RFID_DEV 			"/dev/ttyS1"
-#define DEFAULT_SENSOR_DATA 		"SENSOR_DATA.csv"
-#define DEFAULT_RFID_DATA			"RFID_DATA.csv"
-#define DEFAULT_SYSTEM_DATA 		"SYSTEM_DATA.csv"
 #define DEFAULT_HOME_PORT_DATA 		"/opt/em/public/a_home_ports.kml"
 #define DEFAULT_FERRY_DATA			"/opt/em/public/a_ferry_lanes.kml"
-#define DEFAULT_PAUSE_MARKER 		"/tmp/.pause-encoding"
-#define DEFAULT_SCREENSHOT_MARKER 	"/tmp/.screenshot"
 
 typedef struct {
     char	vessel[32],
 			vrn[16],
 			arduino_type[16],
-			fishing_area[16],
+			//fishing_area[16],
 			psi_vmin[16],
-			cam[16],
+			//cam[16],
 			EM_DIR[32],
+			OS_DISK[32],
+			DATA_DISK[32],
 			JSON_STATE_FILE[32],
-			VIDEOS_DIR[32],
+			//VIDEOS_DIR[32],
 			ARDUINO_DEV[32],
 			GPS_DEV[32],
 			RFID_DEV[32],
-			SENSOR_DATA[32],
-			RFID_DATA[32],
-			SYSTEM_DATA[32],
-			DATA_MNT[32],
-			BACKUP_DATA_MNT[32],
 			HOME_PORT_DATA[48],
-			FERRY_DATA[48],
-			PAUSE_MARKER[48],
-			SCREENSHOT_MARKER[48];
+			FERRY_DATA[48];
+			//PAUSE_MARKER[48],
+			//SCREENSHOT_MARKER[48];
 } CONFIG_TYPE;
 
 /**

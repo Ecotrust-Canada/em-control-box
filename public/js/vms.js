@@ -25,7 +25,7 @@ window.VMS = {};
 VMS.sensorStates = {};
 // I don't expect these to change throughout a run of the software so it's
 // safe to make them "static" (they come from SYS{} in the state file)
-var fishingArea, numCam, zoomedCam = 0, aspectH, aspectV;
+var fishingArea, numCams, zoomedCam = 0, aspectH, aspectV;
 
 /**
  * Initialization after DOM loads.
@@ -36,7 +36,7 @@ $(function (undef) {
     $.getJSON('/em_state.json', function (state) {
         if (state) {
             fishingArea = state.SYS.fishingArea;
-            numCam = state.SYS.numCam;
+            numCams = state.SYS.numCams;
 
             if(fishingArea == "GM") {
                 $('.RFID').hide();
@@ -84,14 +84,14 @@ $(function (undef) {
         var divClose = '</div>';
 
         if(fishingArea == 'GM') {
-            if(numCam > 1) {
+            if(numCams > 1) {
                 if (zoomedCam == 0) {
                     var content = ''
                     
                     //var heightMax = $(window).height() - 88;
                     var heightMax = $(window).height() - 160;
                     
-                    for (var i = 1; i <= numCam; i++) {
+                    for (var i = 1; i <= numCams; i++) {
                         //if (i == 1 || i == 3) content = content + '<tr>';
                         //content = content + '<td><embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(viewportDims[0]/2) + '" height="' + Math.floor(viewportDims[1]/2) + '" /></td>';
                         content = content + '<embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(heightMax / 2 / aspectV * aspectH) + '" height="' + Math.floor(heightMax / 2) + '" />';
@@ -307,9 +307,9 @@ $(function (undef) {
     });
 
     $('.tab-cam').click(function () {
-        if (numCam > 1) {
-            if (zoomedCam == numCam) zoomedCam = 0;
-            else if (zoomedCam < numCam) zoomedCam++;
+        if (numCams > 1) {
+            if (zoomedCam == numCams) zoomedCam = 0;
+            else if (zoomedCam < numCams) zoomedCam++;
 
             $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
         }

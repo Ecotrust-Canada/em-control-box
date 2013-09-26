@@ -31,7 +31,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-Sensor::Sensor(const char* aName, unsigned long int* _state, unsigned long int _NO_CONNECTION, unsigned long int _NO_DATA):StateMachine(_state) {
+Sensor::Sensor(const char* aName, unsigned long int* _state, unsigned long int _NO_CONNECTION, unsigned long int _NO_DATA):StateMachine(_state, false) {
     name = aName;
     *state = _NO_CONNECTION;
     NO_CONNECTION = _NO_CONNECTION;
@@ -50,9 +50,9 @@ int Sensor::Connect() {
     static bool silenceConnectErrors = false;
     termios options;
 
-    SetErrorState(NO_CONNECTION);
+    SetState(NO_CONNECTION);
 
-    for(int i = 0; *state & NO_CONNECTION && i < MAX_TRY_COUNT; i++) {
+    for(int i = 0; GetState() & NO_CONNECTION && i < MAX_TRY_COUNT; i++) {
         if(i > 0) usleep(SENSOR_RECONNECT_DELAY);
 
         serialHandle = open(serialPort, O_RDWR | O_NOCTTY | O_NDELAY); // opens port
@@ -121,11 +121,11 @@ int Sensor::Connect() {
             continue;
         }
 
-        UnsetErrorState(NO_CONNECTION);
+        UnsetState(NO_CONNECTION);
         cout << name << ": Connected" << endl;
     }
 
-    if(*state & NO_CONNECTION && (!silenceConnectErrors || OVERRIDE_SILENCE)) {
+    if(GetState() & NO_CONNECTION && (!silenceConnectErrors || OVERRIDE_SILENCE)) {
         cerr << name << ": Failed to connect after " << MAX_TRY_COUNT << " tries; will keep at it but silencing further Connect() errors" << endl;
         silenceConnectErrors = true;
         return -1;
@@ -138,16 +138,16 @@ int Sensor::Send(const char* cmd) {
     int bytesWritten = write(serialHandle, cmd, strlen(cmd));
     
     if(bytesWritten == -1) {
-        SetErrorState(NO_CONNECTION);
+        SetState(NO_CONNECTION);
     } else {
-        UnsetErrorState(NO_CONNECTION);
+        UnsetState(NO_CONNECTION);
     }
 
     return bytesWritten;
 }
 
 int Sensor::Receive(char buf[], int min, int max, bool set_no_data) {
-    if(*state & NO_CONNECTION) {
+    if(GetState() & NO_CONNECTION) {
         if(Connect() != 0) {
             // couldn't connect
             return -1;
@@ -158,10 +158,10 @@ int Sensor::Receive(char buf[], int min, int max, bool set_no_data) {
     int status = ioctl(serialHandle, FIONREAD, &bytesToRead); // check how many bytes are waiting to be read
 
     if (status == -1) {
-        SetErrorState(NO_CONNECTION);
+        SetState(NO_CONNECTION);
         return status;
     } else {
-        UnsetErrorState(NO_CONNECTION);
+        UnsetState(NO_CONNECTION);
     }
 
     if(bytesToRead > max) bytesToRead = max;
@@ -169,9 +169,9 @@ int Sensor::Receive(char buf[], int min, int max, bool set_no_data) {
     if(bytesToRead >= min) {
         bytesRead = read(serialHandle, buf, bytesToRead);
         buf[bytesRead] = '\0'; // null terminate the data.
-        UnsetErrorState(NO_DATA);
+        UnsetState(NO_DATA);
     } else {
-        if (set_no_data) SetErrorState(NO_DATA);
+        if (set_no_data) SetState(NO_DATA);
     }
 
     return bytesRead;
@@ -179,10 +179,11 @@ int Sensor::Receive(char buf[], int min, int max, bool set_no_data) {
 
 void Sensor::Close() {
     close(serialHandle);
+    SetState(NO_CONNECTION);
 }
 
 bool Sensor::isConnected() {
-    if (*state & NO_CONNECTION) return false;
+    if (GetState() & NO_CONNECTION) return false;
 
     return true;
 }

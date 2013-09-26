@@ -27,7 +27,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include "Sensor.h"
 #include "gps.h"
 
-#define GPS_WARMUP_PERIOD	10
+#define GPS_STATE_DELAY     3 * POLL_PERIOD / (POLL_PERIOD/10 + POLL_PERIOD/100)
+#define GPS_THREAD_CLOSE_DELAY 100
 #define MAX_POLYS           10
 #define MAX_POINTS          20
 //#define MAXTAGLEN           8 
@@ -38,14 +39,8 @@ struct POINT {
 };
 
 // these are from GPSd code
-#define PRIVATE(GPS_DATA) ((struct privdata_t *)GPS_DATA.privdata)
 #define EMIX(x, y) (((x) > (y)) ? (x) : (y))
 #define MPS_TO_KNOTS 1.9438445
-
-struct privdata_t {
-    void *shmseg;
-    int tick;
-};
 
 /**
  * @class GPSSensor
@@ -57,21 +52,28 @@ struct privdata_t {
  */
 class GPSSensor: public Sensor {
     private:
+        pthread_t pt_receiveLoop;
+        StateMachine smThread(STATE_NOT_RUNNING, true);
         EM_DATA_TYPE *em_data;
-        struct gps_data_t GPS_DATA;
+        struct gps_data_t GPS_DATA, GPS_DATA_buf, GPS_DATA_empty;
         POINT home_ports[MAX_POLYS][MAX_POINTS];
         POINT ferry_lanes[MAX_POLYS][MAX_POINTS];
         unsigned short num_home_ports,  num_home_port_edges[MAX_POLYS];
         unsigned short num_ferry_lanes, num_ferry_lane_edges[MAX_POLYS];
 
+        pthread_mutex_t mtx_GPS_DATA_buf;
+
+        static void *thr_ReceiveLoopLauncher(void*);
+        void thr_ReceiveLoop();
         unsigned short LoadKML(char *, POINT[MAX_POLYS][MAX_POINTS], unsigned short *);
         short IsPointInsidePoly(const POINT &, const POINT *, unsigned short);
 
     public:
         GPSSensor(EM_DATA_TYPE*);
+        ~GPSSensor();
         int CheckSpecialAreas();
-        int Connect();
         int Receive();
+        int Connect();
         void Close();
 };
 

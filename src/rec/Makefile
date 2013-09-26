@@ -7,7 +7,7 @@ XDEPS := $(wildcard ${DEPS})
 CC = g++
 CCFLAGS = -O2 -march=atom -fomit-frame-pointer -DEM_REC -Wall -Werror
 LDFLAGS =
-LIBS = -lgps -lblkid
+LIBS = -lgps -lblkid -lpthread
 
 .PHONY: all pre-build clean
 all:: pre-build ${TARGET} 

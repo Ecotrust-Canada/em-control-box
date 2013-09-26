@@ -1,4 +1,4 @@
-NAME="buildard buildem installem"
+NAME="buildard buildem installem resetgps2"
 
 buildard_description="Builds Arduino analog data collector images"
 buildard_start() {
@@ -233,4 +233,48 @@ buildem_start() {
 
 	echo
 	echo -e Your image: ${bldwht}/opt/em/images/em-${VER}${txtrst}
+}
+
+resetgps2_description="Resets Garmin GPS to GPRMC-only configuration"
+resetgps2_start() {
+	echo -ne "	${STAR} Configuring serial ports again (just to make sure) ... "
+	setserial -z ${GPS_DEV} low_latency
+	setserial -z ${RFID_DEV} low_latency
+	if [ "${fishing_area}" == "A" ]; then
+		stty -F ${GPS_DEV} 4800
+	else
+		stty -F ${GPS_DEV} 38400
+	fi
+	echo -e ${OK}
+
+	echo -ne "	${STAR} Sending sensor configuration ... " &&
+	if [ "${fishing_area}" == "A" ]; then
+		echo -ne '$PGRMC,A,,,,,,,,A,3,1*65\r\n' > ${GPS_DEV}
+		sleep 2
+		echo -ne '$PGRMC,A,,,,,,,,A,3,1,,,1*78\r\n' > ${GPS_DEV}
+		sleep 2
+	else
+		echo -ne '$PGRMC,A,,,,,,,,A,8,1,,,1*73\r\n' > ${GPS_DEV}
+		sleep 2
+		echo -ne '$PGRMC2,5,LOW,,,,,0*04\r\n' > ${GPS_DEV}
+		sleep 2
+	fi
+
+	echo -ne '$PGRMC1,1,1,2,,,,2,W,N,1,1,1*52\r\n' > ${GPS_DEV}
+	sleep 2
+	echo -e ${OK}
+
+	echo -ne "	${STAR} Disabling all output sentences ... " &&
+	echo -ne '$PGRMO,,2*75\r\n' > ${GPS_DEV}
+	sleep 2
+	echo -e ${OK}
+
+	echo -ne "	${STAR} Enabling GPRMC ... "
+	echo -ne '$PGRMO,GPRMC,1*3D\r\n' > ${GPS_DEV}
+	sleep 2
+	echo -e ${OK}
+
+	echo -ne "	${STAR} Resetting GPS ... "
+	echo -ne '$PGRMI,,,,,,,R\r\n' > ${GPS_DEV}
+	echo -e ${OK}
 }

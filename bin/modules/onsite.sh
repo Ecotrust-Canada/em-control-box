@@ -78,7 +78,6 @@ resetgps_start() {
 	else
 		stty -F ${GPS_DEV} 38400
 	fi
-	stty -F ${RFID_DEV} 9600
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Sending sensor configuration ... " &&
@@ -94,7 +93,7 @@ resetgps_start() {
 		sleep 2
 	fi
 
-	echo -ne '$PGRMC1,1,1,1,,,,2,W,N,1,1,1*51\r\n' > ${GPS_DEV}
+	echo -ne '$PGRMC1,1,1,2,,,,2,W,N,1,1,1*52\r\n' > ${GPS_DEV}
 	sleep 2
 	echo -e ${OK}
 

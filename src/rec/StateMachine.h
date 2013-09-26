@@ -24,11 +24,14 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #ifndef STATEMACHINE_H
 #define STATEMACHINE_H
 
-#define GPS_STATE_DELAY 3 // how many times must NO_DATA/NO_FIX be set before it's exposed when checking for updated GPS info
-#define AD_PSI_LOW_OR_ZERO_DELAY 3
+#define STATE_CLOSING_OR_UNDEFINED -1
+#define STATE_NOT_RUNNING           0
+#define STATE_RUNNING               1
 
 #include "em-rec.h"
 #include "states.h"
+
+#include <pthread.h>
 
 class StateMachine {
     protected:
@@ -41,30 +44,32 @@ class StateMachine {
          * 
          * All error flags will be reset.
          */
-        StateMachine(unsigned long int*);
+        StateMachine(unsigned long int*, bool);
+        ~StateMachine();
 
         /**
          * Set the error flag.
          */
-        void SetErrorState(unsigned long, unsigned short = 0);
+        void SetState(unsigned long, unsigned short = 0);
 
         /**
          * Reset the error flag.
          */
-        void UnsetErrorState(unsigned long);
+        void UnsetState(unsigned long);
 
         /**
          * Reset all the error states.
          */
-        void UnsetAllErrorStates();
+        void UnsetAllStates();
 
         void PrintState();
 
-        unsigned long int GetErrorState();
+        unsigned long int GetState();
 
     private:
+        pthread_mutex_t mtx_state;
         unsigned short bitmaskIndex(unsigned long);
-
+        bool exclusiveStyle;
 };
 
 #endif

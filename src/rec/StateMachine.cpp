@@ -28,9 +28,17 @@ using namespace std;
 
 static signed long futureIterations[sizeof(long int)*8] = { -1 };
 
-StateMachine::StateMachine(unsigned long* aState) {
+StateMachine::StateMachine(unsigned long* aState, bool _exclusiveStyle) {
+    pthread_mutex_init(&mtx_state, NULL);
+    
     state = aState;
     *state = 0;
+
+    exclusiveStyle = _exclusiveStyle;
+}
+
+StateMachine::~StateMachine() {
+    pthread_mutex_destroy(&mtx_state);
 }
 
 unsigned short StateMachine::bitmaskIndex(unsigned long b) {
@@ -39,37 +47,50 @@ unsigned short StateMachine::bitmaskIndex(unsigned long b) {
     return i;
 }
 
-void StateMachine::SetErrorState(unsigned long errorFlag, unsigned short futureIteration) {
+void StateMachine::SetState(unsigned long errorFlag, unsigned short futureIteration) {
     unsigned short flagIndex = bitmaskIndex(errorFlag);
 
-    if(futureIteration) {
-        if(futureIterations[flagIndex] >= futureIteration) {
-            futureIterations[flagIndex] = 0;
-            D("Reached delayed error state in state machine, restarting");
+    if(exclusiveStyle) UnsetAllStates();
+
+    pthread_mutex_lock(&mtx_state);
+        if(futureIteration) {
+            if(futureIterations[flagIndex] >= futureIteration) {
+                D("Reached delayed error state, restarting counter (" << errorFlag << ": " << futureIterations[flagIndex] << ")");
+                futureIterations[flagIndex] = 0;
+            } else {
+                futureIterations[flagIndex]++;
+                pthread_mutex_unlock(&mtx_state);
+                return;
+            }
         } else {
-            futureIterations[flagIndex]++;
-            return;
+            futureIterations[flagIndex] = 0;
         }
-    } else {
-        futureIterations[flagIndex] = 0;
-    }
-    
-    *state = *state | errorFlag;
+        
+        *state = *state | errorFlag;
+    pthread_mutex_unlock(&mtx_state);
 }
 
-void StateMachine::UnsetErrorState(unsigned long errorFlag) {
-    *state = *state & (~errorFlag);
-    futureIterations[bitmaskIndex(errorFlag)] = 0;
+void StateMachine::UnsetState(unsigned long errorFlag) {
+    pthread_mutex_lock(&mtx_state);
+        *state = *state & (~errorFlag);
+        futureIterations[bitmaskIndex(errorFlag)] = 0;
+    pthread_mutex_unlock(&mtx_state);
 }
 
-void StateMachine::UnsetAllErrorStates() {
-    for(unsigned int i = 0; i < sizeof(futureIterations) / sizeof(futureIterations[0]); i++) {
-        futureIterations[i] = 0;
-    }
+void StateMachine::UnsetAllStates() {
+    pthread_mutex_lock(&mtx_state);
+        for(unsigned int i = 0; i < sizeof(futureIterations) / sizeof(futureIterations[0]); i++) {
+            futureIterations[i] = 0;
+        }
 
-    *state = 0;
+        *state = 0;
+    pthread_mutex_unlock(&mtx_state);
 }
 
-unsigned long int StateMachine::GetErrorState() {
-    return *state;
+unsigned long int StateMachine::GetState() {
+    pthread_mutex_lock(&mtx_state);
+        unsigned long int _state = *state;
+    pthread_mutex_unlock(&mtx_state);
+
+    return _state;
 }

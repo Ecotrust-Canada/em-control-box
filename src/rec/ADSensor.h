@@ -29,6 +29,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 /**
  * Buffer for AD microcontroller messages
  */
+#define AD_PSI_LOW_OR_ZERO_DELAY 3
+
 #define AD_BUF_SIZE		2048
 #define AD_BYTES_MIN	5
 #define AD_START_BYTE	':'

@@ -26,19 +26,23 @@ using namespace std;
 #ifndef EM_REC_H
 #define EM_REC_H
 
-#define VERSION "2.1.0"
+#define VERSION "2.2.0"
 
-#define CONFIG_FILENAME				"/etc/em.conf"
-#define SCAN_COUNT_FILENAME			"scan_count.dat"
+#define FN_CONFIG				"/etc/em.conf"
+#define FN_TRACK_LOG			"TRACK"
+#define FN_SCAN_LOG				"SCAN"
+#define FN_SYSTEM_LOG			"SYSTEM"
+#define FN_SCAN_COUNT			"scan_count.dat"
+
 #define POLL_PERIOD 				1000000 // how many microseconds (default 1 sec)
-#define STATS_COLLECTION_INTERVAL	5       // how many POLL_PERIODs before something different happens (all intervals in units of POLL_PERIOD)
+#define SPECIAL_INTERVAL			5       // how many POLL_PERIODs before something different happens (all intervals in units of POLL_PERIOD)
 #define NOTIFY_SCAN_INTERVAL		6	 	// wait this many between honks
 #define RECORD_SCAN_INTERVAL		300		// 5 minutes
 #define USE_WARNING_HONK			false
 #define DATA_DISK_FAKE_DAYS_START	21
 
 // debugging flags
-//#define DEBUG // comment out to disable debug output
+#define DEBUG // comment out to disable debug output
 #define REMOVE_DELAY				false
 
 // DON'T CHANGE ANYTHING PAST THIS POINT
@@ -49,12 +53,28 @@ using namespace std;
 
 #define MD5_SALT "1535bc9732a631bb91f113bcf454c7e8"
 
-#define STATE_RUNNING 				true
-#define STATE_NOT_RUNNING			false
+#define OPTION_USING_AD				0x0001
+#define OPTION_USING_RFID			0x0002
+#define OPTION_USING_GPS			0x0004
+#define OPTION_GPRMC_ONLY_HACK		0x0008
+#define OPTION_ANALOG_CAMERAS		0x0010
+#define OPTION_IP_CAMERAS			0x0020
 
-#define STATE_ENCODING_UNDEFINED	-1
-#define STATE_ENCODING_PAUSED		0
-#define STATE_ENCODING_RUNNING		1
+#define _EM_RUNNING smEM.GetState() & STATE_RUNNING
+#define _AD     smOptions.GetState() & OPTION_USING_AD
+#define _RFID   smOptions.GetState() & OPTION_USING_RFID
+#define _GPS    smOptions.GetState() & OPTION_USING_GPS
+#define _GPRMC  smOptions.GetState() & OPTION_GPRMC_ONLY_HACK
+#define _ANALOG smOptions.GetState() & OPTION_ANALOG_CAMERAS
+#define _IP     smOptions.GetState() & OPTION_IP_CAMERAS
+
+#define __EM_RUNNING ((StateMachine *)em_data->options)->GetState() & OPTION_USING_AD
+#define __AD     ((StateMachine *)em_data->options)->GetState() & OPTION_USING_AD
+#define __RFID   ((StateMachine *)em_data->options)->GetState() & OPTION_USING_RFID
+#define __GPS    ((StateMachine *)em_data->options)->GetState() & OPTION_USING_GPS
+#define __GPRMC  ((StateMachine *)em_data->options)->GetState() & OPTION_GPRMC_ONLY_HACK
+#define __ANALOG ((StateMachine *)em_data->options)->GetState() & OPTION_ANALOG_CAMERAS
+#define __IP     ((StateMachine *)em_data->options)->GetState() & OPTION_IP_CAMERAS
 
 #ifdef DEBUG
 	#define D(s) cerr << "DEBUG: " s << endl;
@@ -65,22 +85,22 @@ using namespace std;
 #endif
 
 #include <string>
-#include <list>
+//#include <list>
 
 typedef struct {
+	// program state data
 	unsigned long iterationTimer;
-	unsigned short runState;
 	char currentDateTime[32];
+	void *sm_em;
+	void *sm_options;
+	void *sm_helper;
+	void *sm_video;
 
-	list<string> SENSOR_DATA_files;
-	list<string> RFID_DATA_files;
-        list<string> SYSTEM_DATA_files;
-	string SENSOR_DATA_lastHash;
-	string RFID_DATA_lastHash;
-	
+	// System
 	bool SYS_dataDiskPresent;
 	char *SYS_dataDiskLabel;
-
+	char SYS_fishingArea[8];
+	unsigned short SYS_numCams;
 	char SYS_uptime[16];
 	char SYS_load[24];
 	double SYS_cpuPercent;
@@ -96,6 +116,7 @@ typedef struct {
 	unsigned long SYS_dataDiskMinutesLeft;
 	unsigned long SYS_dataDiskMinutesLeftFake;
 
+	// GPS
 	unsigned long GPS_state;
 	char GPS_homePortDataFile[48];
 	char GPS_ferryDataFile[48];
@@ -109,6 +130,7 @@ typedef struct {
 	double GPS_hdop;
 	double GPS_eph;
 
+	// RFID
 	unsigned long RFID_state;
 	unsigned long long RFID_lastScannedTag;
 	unsigned long long RFID_lastSavedTag;
@@ -117,22 +139,25 @@ typedef struct {
         unsigned long RFID_tripScans;
 	bool RFID_saveFlag;
 
+	// AD (Analog-Digital converter)
 	unsigned long AD_state;
 	float AD_psi;
 	float AD_battery;
 	unsigned short AD_honkSound;
 	unsigned long AD_lastHonkIteration;
+
+	pthread_mutex_t mtx;
 } EM_DATA_TYPE;
 
 int main(int, char**);
+void thr_helperLoop(void*);
+string writeLog(const char*, string, string);
+void writeJSONState(EM_DATA_TYPE*);
+bool isDataDiskThere(EM_DATA_TYPE*);
+string updateSystemStats(EM_DATA_TYPE*);
+bool shouldTakeScreenshot(EM_DATA_TYPE*);
 void reset_string_scans_handler(int);
 void reset_trip_scans_handler(int);
 void exit_handler(int);
-void recordLoop();
-void writeLogs(EM_DATA_TYPE*);
-string appendLogWithMD5(string, list<string>, string);
-void computeAndLogSystemStats(EM_DATA_TYPE*, unsigned short);
-void writeJSONState(EM_DATA_TYPE*);
-bool shouldTakeScreenshot(EM_DATA_TYPE*);
 
 #endif
