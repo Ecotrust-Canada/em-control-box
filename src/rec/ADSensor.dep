@@ -1,2 +1,0 @@
-ADSensor.o: ADSensor.cpp ADSensor.h em-rec.h Sensor.h StateMachine.h \
- states.h

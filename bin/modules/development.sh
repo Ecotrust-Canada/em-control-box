@@ -91,7 +91,7 @@ installem_start() {
 
 	echo -ne "	${STAR} Creating skeleton structure and swap file ... " &&
 	cd /mnt/install
-	mkdir -p boot/grub var/cache/fontconfig var/cache/ldconfig var/em/data var/lib/dbus var/lib/hwclock var/lib/sshd var/lib/systemd/catalog var/lib/xkb var/log/journal
+	mkdir -p boot/grub var/cache/fontconfig var/cache/ldconfig var/em/data/archived var/em/data/reports var/em/data/screenshots var/em/data/video var/lib/dbus var/lib/hwclock var/lib/sshd var/lib/systemd/catalog var/lib/xkb var/log/journal
 	chmod 750 var/cache/ldconfig
 	ln -s /run/lock var/lock
 	ln -s /run var/run

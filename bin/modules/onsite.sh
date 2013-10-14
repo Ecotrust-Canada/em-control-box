@@ -29,13 +29,13 @@ start_start() {
 }
 
 check_var_safety() {
-	if [ -z "${DATA_MNT}" ]; then
-		echo -e "${bldred}DATA_MNT not properly set in em.conf${txtrst}"
+	if [ -z "${DATA_DISK}" ]; then
+		echo -e "${bldred}DATA_DISK not properly set in em.conf${txtrst}"
 		exit 1
 	fi
 
-	if [ -z "${BACKUP_DATA_MNT}" ]; then
-		echo -e "${bldred}BACKUP_DATA_MNT not properly set in em.conf${txtrst}"
+	if [ -z "${OS_DISK}" ]; then
+		echo -e "${bldred}OS_DISK not properly set in em.conf${txtrst}"
 		exit 1
 	fi
 }
@@ -137,11 +137,11 @@ clear_start() {
 		stop_start
 
 		echo -ne "	${STAR} Clearing data disk ... " &&
-		rm -Rf ${DATA_MNT}/* &&
+		rm -Rf ${DATA_DISK}/* &&
 		echo -e ${OK}
 
 		echo -ne "	${STAR} Clearing OS disk ... " &&
-		rm -Rf ${BACKUP_DATA_MNT}/* &&
+		rm -Rf ${OS_DISK}/* &&
 		echo -e ${OK}
 	fi
 }

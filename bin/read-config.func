@@ -1,0 +1,14 @@
+EM_CONF="/etc/em.conf"
+
+function read_config() {
+	if [ ! -r ${EM_CONF} ]; then
+        	echo "Conf file ${EM_CONF} not readable!"
+	        exit 1
+	fi
+
+	cat ${EM_CONF} | sed 's/=\(.*\)/="\1"/g' > /tmp/.em.conf
+
+	source /tmp/.em.conf
+}
+
+read_config

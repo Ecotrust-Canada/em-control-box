@@ -38,28 +38,27 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define DEFAULT_ARDUINO_DEV 		"/dev/arduino"
 #define DEFAULT_GPS_DEV 			"/dev/ttyS0"
 #define DEFAULT_RFID_DEV 			"/dev/ttyS1"
-#define DEFAULT_HOME_PORT_DATA 		"/opt/em/public/a_home_ports.kml"
-#define DEFAULT_FERRY_DATA			"/opt/em/public/a_ferry_lanes.kml"
+//#define DEFAULT_HOME_PORT_DATA 		"/opt/em/public/a_home_ports.kml"
+//#define DEFAULT_FERRY_DATA			"/opt/em/public/a_ferry_lanes.kml"
+#define DEFAULT_HOME_PORT_DATA 		"/need/to/set/this"
+#define DEFAULT_FERRY_DATA			"/need/to/set/this"
+
+#include <string>
 
 typedef struct {
-    char	vessel[32],
-			vrn[16],
-			arduino_type[16],
-			//fishing_area[16],
-			psi_vmin[16],
-			//cam[16],
-			EM_DIR[32],
-			OS_DISK[32],
-			DATA_DISK[32],
-			JSON_STATE_FILE[32],
-			//VIDEOS_DIR[32],
-			ARDUINO_DEV[32],
-			GPS_DEV[32],
-			RFID_DEV[32],
-			HOME_PORT_DATA[48],
-			FERRY_DATA[48];
-			//PAUSE_MARKER[48],
-			//SCREENSHOT_MARKER[48];
+    std::string	vessel,
+			vrn,
+			arduino_type,
+			psi_vmin,
+			EM_DIR,
+			OS_DISK,
+			DATA_DISK,
+			JSON_STATE_FILE,
+			ARDUINO_DEV,
+			GPS_DEV,
+			RFID_DEV,
+			HOME_PORT_DATA,
+			FERRY_DATA;
 } CONFIG_TYPE;
 
 /**
@@ -72,7 +71,6 @@ char* printConfig(char*);
  * Read the configuration from the file defined by CONFIG_FILENAME.
  */
 int readConfigFile(const char *);
-
-const char* getConfig(const char*, const char*);
+std::string getConfig(const char*, const char*);
 
 #endif

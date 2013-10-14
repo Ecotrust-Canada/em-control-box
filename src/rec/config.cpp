@@ -28,10 +28,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include <iostream>
 #include <cstdlib>
 #include <cstdio>
-//#include <stdio.h>
-//#include <stdlib.h>
-//
-//
+#include <string>
+
 using namespace std;
 
 char NOTFOUND[] = "\0"; ///< The value returned by the getter function when the required configuration is found.
@@ -44,13 +42,13 @@ char config[32][2][255]; ///< Hold all the configurations.
  * @param key The key of the configuration.
  * @return The configuration with the give key. NOTFOUND if no configuration with that key exists.
  */
-const char* getConfig(const char* key, const char* default_value) {
+string getConfig(const char* key, const char* default_value) {
     for(int i = 0; i < config_length; i++) {
-        if (strcmp(key, config[i][0]) == 0) return config[i][1];
+        if (strcmp(key, config[i][0]) == 0) return string(config[i][1]);
     }
 
     cerr << "ERROR: Missing key '" << key << "' in config file, using default '" << default_value << "'" << endl;
-    return default_value;
+    return string(default_value);
 }
 
 

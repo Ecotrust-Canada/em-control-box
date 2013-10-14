@@ -1,3 +1,11 @@
 node_modules
 images
 bin/em-rec
+*.o
+*.dep
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+

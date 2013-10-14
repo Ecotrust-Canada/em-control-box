@@ -1,6 +1,0 @@
-#!/bin/bash
-
-sleep 60
-/opt/em/bin/em stop
-/opt/em/bin/em start
-

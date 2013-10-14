@@ -24,9 +24,12 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #ifndef STATEMACHINE_H
 #define STATEMACHINE_H
 
-#define STATE_CLOSING_OR_UNDEFINED -1
-#define STATE_NOT_RUNNING           0
-#define STATE_RUNNING               1
+#define STATE_CLOSING_OR_UNDEFINED 0x0001
+#define STATE_NOT_RUNNING          0x0002
+#define STATE_RUNNING              0x0004
+
+#define SM_EXCLUSIVE_STATES         true
+#define SM_MULTIPLE_STATES          false
 
 #include "em-rec.h"
 #include "states.h"
@@ -35,7 +38,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 class StateMachine {
     protected:
-        unsigned long int *state; ///< Contains all the error flags of the sensor.
+        unsigned long state; ///< Contains all the error flags of the sensor.
     
     public:
         /**
@@ -44,7 +47,7 @@ class StateMachine {
          * 
          * All error flags will be reset.
          */
-        StateMachine(unsigned long int*, bool);
+        StateMachine(unsigned long, bool);
         ~StateMachine();
 
         /**
@@ -64,12 +67,13 @@ class StateMachine {
 
         void PrintState();
 
-        unsigned long int GetState();
+        unsigned long GetState();
 
     private:
         pthread_mutex_t mtx_state;
         unsigned short bitmaskIndex(unsigned long);
         bool exclusiveStyle;
+        signed long futureIterations[sizeof(long int)*8];
 };
 
 #endif

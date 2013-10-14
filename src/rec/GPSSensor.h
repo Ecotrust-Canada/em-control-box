@@ -27,7 +27,9 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include "Sensor.h"
 #include "gps.h"
 
-#define GPS_STATE_DELAY     3 * POLL_PERIOD / (POLL_PERIOD/10 + POLL_PERIOD/100)
+//#include 
+
+#define GPS_STATE_DELAY     3 * POLL_PERIOD / (POLL_PERIOD/5 + POLL_PERIOD/75)
 #define GPS_THREAD_CLOSE_DELAY 100
 #define MAX_POLYS           10
 #define MAX_POINTS          20
@@ -53,7 +55,7 @@ struct POINT {
 class GPSSensor: public Sensor {
     private:
         pthread_t pt_receiveLoop;
-        StateMachine smThread(STATE_NOT_RUNNING, true);
+        StateMachine smMyThread;
         EM_DATA_TYPE *em_data;
         struct gps_data_t GPS_DATA, GPS_DATA_buf, GPS_DATA_empty;
         POINT home_ports[MAX_POLYS][MAX_POINTS];
@@ -65,13 +67,13 @@ class GPSSensor: public Sensor {
 
         static void *thr_ReceiveLoopLauncher(void*);
         void thr_ReceiveLoop();
-        unsigned short LoadKML(char *, POINT[MAX_POLYS][MAX_POINTS], unsigned short *);
+        unsigned short LoadKML(std::string, POINT[MAX_POLYS][MAX_POINTS], unsigned short *);
         short IsPointInsidePoly(const POINT &, const POINT *, unsigned short);
 
     public:
         GPSSensor(EM_DATA_TYPE*);
         ~GPSSensor();
-        int CheckSpecialAreas();
+        bool InSpecialArea();
         int Receive();
         int Connect();
         void Close();

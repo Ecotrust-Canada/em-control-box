@@ -23,8 +23,12 @@ You may contact Ecotrust Canada via our websitehttp://ecotrust.ca
 
 window.VMS = {};
 VMS.sensorStates = {};
+// List of selectors (or elements) that subscribe to post messages of sensor data.
+VMS.subscribers = {
+    ".tab-elog iframe": "http://localhost:1337"
+};
 // I don't expect these to change throughout a run of the software so it's
-// safe to make them "static" (they come from SYS{} in the state file)
+// safe to make them global (they come from SYS{} in the state file)
 var fishingArea, numCams, zoomedCam = 0, aspectH, aspectV;
 
 /**
@@ -34,7 +38,9 @@ $(function (undef) {
     $TABS = $('.tab-body');
     
     $.getJSON('/em_state.json', function (state) {
+
         if (state) {
+
             fishingArea = state.SYS.fishingArea;
             numCams = state.SYS.numCams;
 
@@ -45,7 +51,7 @@ $(function (undef) {
                 aspectV = 9;
                 setTimeout(function() {
                     $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-                }, (48 - state.iterationTimer) * 1000);
+                }, (48 - state.runIterations) * 1000);
             } else {
                 aspectH = 4;
                 aspectV = 3;
@@ -182,7 +188,16 @@ $(function (undef) {
             if (status) {
                 $('#no_response').hide();
 
-                if (parseInt('' + status.iterationTimer) == parseInt('' + lastIterationTimer)) {
+                // Send to subscribers (currently on the Elog)
+                for (var sub_key in VMS.subscribers) {
+                    var win = $(sub_key).get(0).contentWindow;
+                    win.postMessage(
+                        status,
+                        $(sub_key).attr('src')
+                    );
+                }
+
+                if (parseInt('' + status.runIterations) == parseInt('' + lastIterationTimer)) {
                     if (noRecorderCount >= 2) {
                         $("#no_recorder").show();
                         console.error('ERROR: No Recorder');
@@ -231,7 +246,7 @@ $(function (undef) {
                     VMS.AD.update(status.AD);
                     VMS.SYS.update(status.SYS);
 
-                    lastIterationTimer = status.iterationTimer;
+                    lastIterationTimer = status.runIterations;
                     noResponseCount = 0;
                     noRecorderCount = 0;
                 }
@@ -296,13 +311,11 @@ $(function (undef) {
                 "opacity": "0.5",
                 'background-image': 'none'
             });
-            $('#toggle_brightness').text('Day Mode');
         } else {
             $('body').css({
                 "opacity": "1",
                 'background-image': 'url(/wood.jpg)'
             });
-            $('#toggle_brightness').text('Night Mode');
         }
     });
 

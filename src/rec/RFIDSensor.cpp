@@ -24,12 +24,13 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include "RFIDSensor.h"
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 using namespace std;
 
 char RFID_BUF[RFID_BUF_SIZE];
 
-RFIDSensor::RFIDSensor(EM_DATA_TYPE* _em_data):Sensor("RFID", &_em_data->RFID_state, RFID_NO_CONNECTION, RFID_NO_DATA) {
+RFIDSensor::RFIDSensor(EM_DATA_TYPE* _em_data):Sensor("RFID", RFID_NO_CONNECTION, RFID_NO_DATA) {
     em_data = _em_data;
 }
 
@@ -46,6 +47,17 @@ int RFIDSensor::Connect() {
     } */
 
     return Sensor::Connect();
+}
+
+void RFIDSensor::SetScanCountsFile(string file) {
+    scanCountsFile = file;
+
+    ifstream fin(scanCountsFile.c_str());
+    if(!fin.fail()) {
+        fin >> em_data->RFID_stringScans >> em_data->RFID_tripScans;
+        fin.close();
+        cout << name << ": Got previous scan counts from " << scanCountsFile << endl;
+    }
 }
 
 int RFIDSensor::Receive() {
@@ -87,7 +99,7 @@ int RFIDSensor::Receive() {
             	}
             }
 
-            if (scannedCorrupt > 0) cerr << "RFID: " << scannedCorrupt << "/" << scannedTotal << " scans were corrupt" << endl;
+            if (scannedCorrupt > 0) cerr << name << ": " << scannedCorrupt << "/" << scannedTotal << " scans were corrupt" << endl;
 
             if (scannedCorrupt >= scannedTotal) {
             	SetState(RFID_CHECKSUM_FAILED);
@@ -96,14 +108,14 @@ int RFIDSensor::Receive() {
             	UnsetState(RFID_CHECKSUM_FAILED);
 
                 // only save if RECORD_SCAN_INTERVAL time has gone by since the last scan, or the tag is different from the last one saved
-                if(em_data->iterationTimer - em_data->RFID_lastSaveIteration >= RECORD_SCAN_INTERVAL || em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {
+                if(em_data->runIterations - em_data->RFID_lastSaveIteration >= RECORD_SCAN_INTERVAL || em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {
             	   em_data->RFID_saveFlag = true;
                    em_data->RFID_stringScans++;
                    em_data->RFID_tripScans++;
                 }
 
                 // only make noise if NOTIFY_SCAN_INTERVAL time has gone by since the last scan, or the tag is different from the last one saved
-                if(em_data->iterationTimer - em_data->AD_lastHonkIteration >= NOTIFY_SCAN_INTERVAL || em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {
+                if(em_data->runIterations - em_data->AD_lastHonkIteration >= NOTIFY_SCAN_INTERVAL || em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {
                     /*if(USE_WARNING_HONK && MY_TAGS.find(em_data->RFID_lastScannedTag) == MY_TAGS.end()) {
                         em_data->AD_honkSound = HONK_SCAN_WARNING;
                     } else*/ if(em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {
@@ -158,4 +170,18 @@ void RFIDSensor::resetStringScans() {
 
 void RFIDSensor::resetTripScans() {
     em_data->RFID_tripScans = 0;
+}
+
+void RFIDSensor::Close() {
+    if(!scanCountsFile.empty()) {
+        ofstream fout(scanCountsFile.c_str());
+
+        if(!fout.fail()) {
+            fout << em_data->RFID_stringScans << ' ' << em_data->RFID_tripScans;
+            fout.close();
+            cout << name << ": Wrote out scan counts to " << scanCountsFile << endl;
+        }
+    }
+
+    Sensor::Close();
 }

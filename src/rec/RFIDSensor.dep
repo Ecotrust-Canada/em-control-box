@@ -1,2 +1,0 @@
-RFIDSensor.o: RFIDSensor.cpp RFIDSensor.h em-rec.h Sensor.h \
- StateMachine.h states.h

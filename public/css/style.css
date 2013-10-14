@@ -171,14 +171,21 @@ nav p.datetime {
 #main .tab-report textarea { margin-top: 3px; }
 #main .tab-search td, #main .tab-search th { border: 1px dotted #EEE; padding: 4px; }
 #main .tab-search table { font-size: 14px; text-align: center; }
-
+#main .tab-elog {position: absolute; top:36px; left:0; right:282px; bottom:0;}
+@media (max-width : 1024px) {
+  #main .tab-elog {right: 0;}
+}
 #sensors {
   background-color: #404040;
   border-left: 2px solid #E0E0E0;
   float: right;
   width: 280px;
 }
-
+@media (max-width : 1024px) {
+  #sensors div:not(#no_recorder) {
+    display : none;
+  }
+}
 #sensors div {
   border-bottom: 2px solid #E0E0E0;
   padding: 6px;
@@ -249,6 +256,24 @@ nav p.datetime {
 #system-info .label { display: inline-block; margin-right: 4px; text-align: right; width: 80px; }
 #system-info .value { display: inline-block; font-weight: bold; width: 150px; }
 .ok { background-color: #008800; }
-.fail { background-color: #CC0000 !important;}
+.ok:after { 
+  content: "\e81a";
+  font-family: fontello;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  color: #005500;
+}
+.fail { background-color: #CC0000 !important; position: relative;}
+.fail:after { 
+  content: "\e823";
+  font-family: fontello;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  color: #880000;
+}
 .warn { background-color: #aa6800;}
 .inactive { background-color: #404040; }
+
+

@@ -1,13 +1,13 @@
 TARGET := ../../bin/em-rec
-SRCS := config.cpp StateMachine.cpp Sensor.cpp GPSSensor.cpp ADSensor.cpp RFIDSensor.cpp md5.cpp em-rec.cpp
+SRCS := config.cpp StateMachine.cpp Sensor.cpp GPSSensor.cpp ADSensor.cpp RFIDSensor.cpp CaptureManager.cpp md5.cpp em-rec.cpp
 OBJS := ${SRCS:.cpp=.o} 
 DEPS := ${SRCS:.cpp=.dep} 
 XDEPS := $(wildcard ${DEPS}) 
 
 CC = g++
-CCFLAGS = -O2 -march=atom -fomit-frame-pointer -DEM_REC -Wall -Werror
-LDFLAGS =
-LIBS = -lgps -lblkid -lpthread
+CCFLAGS = -O2 -march=atom -fomit-frame-pointer -DEM_REC -Wall -Werror -pthread
+LDFLAGS = -O2 -march=atom -fomit-frame-pointer -DEM_REC -Wall -Werror -pthread
+LIBS = -lgps -lblkid -lpthread -lnetembryo -lnemesi
 
 .PHONY: all pre-build clean
 all:: pre-build ${TARGET} 

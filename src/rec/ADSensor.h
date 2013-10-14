@@ -67,7 +67,7 @@ class ADSensor: public Sensor {
         ADSensor(EM_DATA_TYPE*);
         int Connect();
         int Receive();
-        void SetADCType(char*, char*);
+        void SetADCType(const char*, const char*);
         void HonkMyHorn();
 };
 

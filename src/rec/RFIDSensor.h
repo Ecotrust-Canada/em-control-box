@@ -45,6 +45,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 class RFIDSensor: public Sensor {
     private:
         EM_DATA_TYPE *em_data;
+        string scanCountsFile;
         //set<unsigned long long int> MY_TAGS;
         unsigned int ASCIIToHex(char);
         unsigned int DecodeChecksum(char, char);
@@ -53,9 +54,11 @@ class RFIDSensor: public Sensor {
     public:
         RFIDSensor(EM_DATA_TYPE*);
         int Connect();
+        void SetScanCountsFile(string);
         int Receive();
         void resetStringScans();
         void resetTripScans();
+        void Close();
 };
 
 #endif

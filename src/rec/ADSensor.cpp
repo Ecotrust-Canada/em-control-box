@@ -31,7 +31,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-ADSensor::ADSensor(EM_DATA_TYPE* _em_data):Sensor("AD", &_em_data->AD_state, AD_NO_CONNECTION, AD_NO_DATA) {
+ADSensor::ADSensor(EM_DATA_TYPE* _em_data):Sensor("AD", AD_NO_CONNECTION, AD_NO_DATA) {
     em_data = _em_data;
 }
 
@@ -39,7 +39,7 @@ int ADSensor::Connect() {
     return Sensor::Connect();
 }
 
-void ADSensor::SetADCType(char *_arduino_type, char *_psi_vmin) {
+void ADSensor::SetADCType(const char *_arduino_type, const char *_psi_vmin) {
     char divider = '\0';
     psi_vmin = 0;
     psi_vmax = (double)PSI_VOLT_MAX;
@@ -181,5 +181,5 @@ void ADSensor::HonkMyHorn() {
     }
 
     em_data->AD_honkSound = 0;
-    em_data->AD_lastHonkIteration = em_data->iterationTimer;
+    em_data->AD_lastHonkIteration = em_data->runIterations;
 }

@@ -6,7 +6,9 @@ block content
       li.active Cams
       li Report
       li Search
-    button#toggle_brightness(type='button') Night Mode
+      li Elog 
+    button#toggle_brightness(type='button')
+      i.icon-moon
     p.datetime initializing
   
   #sensors
@@ -17,7 +19,7 @@ block content
         span.speed.value-field 0
         span  kn
         span.heading.value-field 0
-        span  &deg
+        span  &deg;
       p.value.value-field.clickable warming up
       input(type='hidden', name='latlon_mode', id='latlon_mode', value='dec')
 
@@ -136,7 +138,10 @@ block content
           th Location
           th Date
           th Soak Time
-
+    
+    .tab-body.tab-elog
+      iframe(src="http://10.10.40.86:1337", frameborder="0", style="overflow:hidden;height:100%;width:100%", height="100%", width="100%")
+ 
   #system-info-button.clickable
     p System Info
 

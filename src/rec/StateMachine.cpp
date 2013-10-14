@@ -26,15 +26,17 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-static signed long futureIterations[sizeof(long int)*8] = { -1 };
+// WTF?
+//static signed long futureIterations[sizeof(long int)*8] = { -1 };
 
-StateMachine::StateMachine(unsigned long* aState, bool _exclusiveStyle) {
+StateMachine::StateMachine(unsigned long initialState, bool _exclusiveStyle) {
     pthread_mutex_init(&mtx_state, NULL);
-    
-    state = aState;
-    *state = 0;
-
+    state = initialState;
     exclusiveStyle = _exclusiveStyle;
+
+    for(unsigned int i = 0; i < sizeof(long int) * 8; i++) {
+        futureIterations[i] = -1;
+    }
 }
 
 StateMachine::~StateMachine() {
@@ -49,12 +51,14 @@ unsigned short StateMachine::bitmaskIndex(unsigned long b) {
 
 void StateMachine::SetState(unsigned long errorFlag, unsigned short futureIteration) {
     unsigned short flagIndex = bitmaskIndex(errorFlag);
+    signed long savedFutureIteration = futureIterations[flagIndex];
 
     if(exclusiveStyle) UnsetAllStates();
+    futureIterations[flagIndex] = savedFutureIteration;
 
     pthread_mutex_lock(&mtx_state);
         if(futureIteration) {
-            if(futureIterations[flagIndex] >= futureIteration) {
+            if(futureIterations[flagIndex] >= futureIteration - 1) {
                 D("Reached delayed error state, restarting counter (" << errorFlag << ": " << futureIterations[flagIndex] << ")");
                 futureIterations[flagIndex] = 0;
             } else {
@@ -66,13 +70,13 @@ void StateMachine::SetState(unsigned long errorFlag, unsigned short futureIterat
             futureIterations[flagIndex] = 0;
         }
         
-        *state = *state | errorFlag;
+        state = state | errorFlag;
     pthread_mutex_unlock(&mtx_state);
 }
 
 void StateMachine::UnsetState(unsigned long errorFlag) {
     pthread_mutex_lock(&mtx_state);
-        *state = *state & (~errorFlag);
+        state = state & (~errorFlag);
         futureIterations[bitmaskIndex(errorFlag)] = 0;
     pthread_mutex_unlock(&mtx_state);
 }
@@ -83,13 +87,13 @@ void StateMachine::UnsetAllStates() {
             futureIterations[i] = 0;
         }
 
-        *state = 0;
+        state = 0;
     pthread_mutex_unlock(&mtx_state);
 }
 
-unsigned long int StateMachine::GetState() {
+unsigned long StateMachine::GetState() {
     pthread_mutex_lock(&mtx_state);
-        unsigned long int _state = *state;
+        unsigned long int _state = state;
     pthread_mutex_unlock(&mtx_state);
 
     return _state;

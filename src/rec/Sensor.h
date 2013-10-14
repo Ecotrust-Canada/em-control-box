@@ -37,8 +37,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
  */
 class Sensor: public StateMachine {
     private:
-        unsigned long int NO_CONNECTION;
-        unsigned long int NO_DATA;
+        unsigned long NO_CONNECTION;
+        unsigned long NO_DATA;
         const char* serialPort; ///< The port of the serial device is plugged in.
         int baudRate; ///< Whether to use 4800 or 9600 or 19200 as the speed when listening to the serial port.
         int serialHandle; ///< The serial file handle.
@@ -71,7 +71,7 @@ class Sensor: public StateMachine {
          * 
          * All error flags will be reset.
          */
-        Sensor(const char*, unsigned long int*, unsigned long int, unsigned long int);
+        Sensor(const char*, unsigned long, unsigned long);
 
         const char* name; ///< The name of the sensor, i.e., GPS, AD, RFID
 

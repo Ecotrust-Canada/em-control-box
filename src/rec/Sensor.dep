@@ -1,1 +1,0 @@
-Sensor.o: Sensor.cpp Sensor.h StateMachine.h em-rec.h states.h

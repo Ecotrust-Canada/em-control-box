@@ -33,17 +33,20 @@ using namespace std;
 #define FN_SCAN_LOG				"SCAN"
 #define FN_SYSTEM_LOG			"SYSTEM"
 #define FN_SCAN_COUNT			"scan_count.dat"
+#define FN_VIDEO_DIR			"/data/video"
 
-#define POLL_PERIOD 				1000000 // how many microseconds (default 1 sec)
-#define SPECIAL_INTERVAL			5       // how many POLL_PERIODs before something different happens (all intervals in units of POLL_PERIOD)
+#define POLL_PERIOD 				1000000 // how many microseconds (default 1 sec) DO NOT ALTER
+#define HELPER_INTERVAL				5       // how many POLL_PERIODs before something different happens (all intervals in units of POLL_PERIOD) 5 seconds
+#define HELPER_INNER_INTERVAL		24		// currently used only for screenshotting (every 2 minutes)
 #define NOTIFY_SCAN_INTERVAL		6	 	// wait this many between honks
 #define RECORD_SCAN_INTERVAL		300		// 5 minutes
 #define USE_WARNING_HONK			false
 #define DATA_DISK_FAKE_DAYS_START	21
+#define MAX_CAMS        			4
+#define MAX_CLIP_LENGTH     		1800    // force new movie file every X POLL_PERIODs
 
-// debugging flags
-#define DEBUG // comment out to disable debug output
-#define REMOVE_DELAY				false
+// comment out to disable debug output
+//#define DEBUG
 
 // DON'T CHANGE ANYTHING PAST THIS POINT
 ////////////////////////////////////////
@@ -68,41 +71,50 @@ using namespace std;
 #define _ANALOG smOptions.GetState() & OPTION_ANALOG_CAMERAS
 #define _IP     smOptions.GetState() & OPTION_IP_CAMERAS
 
-#define __EM_RUNNING ((StateMachine *)em_data->options)->GetState() & OPTION_USING_AD
-#define __AD     ((StateMachine *)em_data->options)->GetState() & OPTION_USING_AD
-#define __RFID   ((StateMachine *)em_data->options)->GetState() & OPTION_USING_RFID
-#define __GPS    ((StateMachine *)em_data->options)->GetState() & OPTION_USING_GPS
-#define __GPRMC  ((StateMachine *)em_data->options)->GetState() & OPTION_GPRMC_ONLY_HACK
-#define __ANALOG ((StateMachine *)em_data->options)->GetState() & OPTION_ANALOG_CAMERAS
-#define __IP     ((StateMachine *)em_data->options)->GetState() & OPTION_IP_CAMERAS
+#define __EM_RUNNING ((StateMachine *)em_data->sm_em)->GetState() & STATE_RUNNING
+#define __AD     ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_AD
+#define __RFID   ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_RFID
+#define __GPS    ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_GPS
+#define __GPRMC  ((StateMachine *)em_data->sm_options)->GetState() & OPTION_GPRMC_ONLY_HACK
+#define __ANALOG ((StateMachine *)em_data->sm_options)->GetState() & OPTION_ANALOG_CAMERAS
+#define __IP     ((StateMachine *)em_data->sm_options)->GetState() & OPTION_IP_CAMERAS
+
+#define C_RED 	 "\33[0;31m"
+#define C_GREEN  "\33[0;32m"
+#define C_YELLOW "\33[0;33m"
+#define C_M1     "\33[0;35m"
+#define C_M2     "\33[0;36m"
+#define C_RESET  "\33[0m"
 
 #ifdef DEBUG
-	#define D(s) cerr << "DEBUG: " s << endl;
+	#define D(s) cerr << C_GREEN << "DEBUG: " << s << C_RESET << endl;
+	#define D2(s) cerr << C_M1 << "DEBUG: " << s << C_RESET << endl;
+	#define D3(s) cerr << C_M2 << "DEBUG: " << s << C_RESET << endl;
 	#define OVERRIDE_SILENCE 		true
 #else
 	#define D(s)
+	#define D2(s)
+	#define D3(s)
 	#define OVERRIDE_SILENCE 		false
 #endif
 
 #include <string>
-//#include <list>
 
 typedef struct {
 	// program state data
-	unsigned long iterationTimer;
+	unsigned long runIterations;
 	char currentDateTime[32];
 	void *sm_em;
 	void *sm_options;
 	void *sm_helper;
-	void *sm_video;
 
 	// System
 	bool SYS_dataDiskPresent;
-	char *SYS_dataDiskLabel;
-	char SYS_fishingArea[8];
+	string SYS_dataDiskLabel;
+	string SYS_fishingArea;
 	unsigned short SYS_numCams;
-	char SYS_uptime[16];
-	char SYS_load[24];
+	string SYS_uptime;
+	string SYS_load;
 	double SYS_cpuPercent;
 	unsigned long long SYS_ramFreeKB;
 	unsigned long long SYS_ramTotalKB;
@@ -115,11 +127,12 @@ typedef struct {
 	unsigned long SYS_dataDiskTotalBlocks;
 	unsigned long SYS_dataDiskMinutesLeft;
 	unsigned long SYS_dataDiskMinutesLeftFake;
+	bool SYS_videoIsRecording;
+	string SYS_currentVideoFile[MAX_CAMS];
 
 	// GPS
-	unsigned long GPS_state;
-	char GPS_homePortDataFile[48];
-	char GPS_ferryDataFile[48];
+	string GPS_homePortDataFile;
+	string GPS_ferryDataFile;
 	unsigned long GPS_time;
 	double GPS_latitude;
 	double GPS_longitude;
@@ -131,7 +144,6 @@ typedef struct {
 	double GPS_eph;
 
 	// RFID
-	unsigned long RFID_state;
 	unsigned long long RFID_lastScannedTag;
 	unsigned long long RFID_lastSavedTag;
 	unsigned long RFID_lastSaveIteration;
@@ -140,7 +152,6 @@ typedef struct {
 	bool RFID_saveFlag;
 
 	// AD (Analog-Digital converter)
-	unsigned long AD_state;
 	float AD_psi;
 	float AD_battery;
 	unsigned short AD_honkSound;
@@ -150,12 +161,12 @@ typedef struct {
 } EM_DATA_TYPE;
 
 int main(int, char**);
-void thr_helperLoop(void*);
-string writeLog(const char*, string, string);
+void *thr_helperLoop(void*);
+void writeLog(string, string);
+string writeLog(string, string, string);
 void writeJSONState(EM_DATA_TYPE*);
 bool isDataDiskThere(EM_DATA_TYPE*);
 string updateSystemStats(EM_DATA_TYPE*);
-bool shouldTakeScreenshot(EM_DATA_TYPE*);
 void reset_string_scans_handler(int);
 void reset_trip_scans_handler(int);
 void exit_handler(int);

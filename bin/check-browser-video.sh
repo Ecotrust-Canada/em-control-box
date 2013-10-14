@@ -1,7 +1,7 @@
 #!/bin/sh
 PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
-sleep 30
+sleep 60
 
 while [ 1 ]; do
 	sleep 30
