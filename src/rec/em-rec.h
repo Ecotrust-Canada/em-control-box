@@ -26,7 +26,7 @@ using namespace std;
 #ifndef EM_REC_H
 #define EM_REC_H
 
-#define VERSION "2.2.0"
+#define VERSION "2.2.1"
 
 #define FN_CONFIG				"/etc/em.conf"
 #define FN_TRACK_LOG			"TRACK"
@@ -44,9 +44,7 @@ using namespace std;
 #define DATA_DISK_FAKE_DAYS_START	21
 #define MAX_CAMS        			4
 #define MAX_CLIP_LENGTH     		1800    // force new movie file every X POLL_PERIODs
-
-// comment out to disable debug output
-//#define DEBUG
+//#define MAX_CLIP_LENGTH     		12    // force new movie file every X POLL_PERIODs
 
 // DON'T CHANGE ANYTHING PAST THIS POINT
 ////////////////////////////////////////
@@ -82,25 +80,6 @@ using namespace std;
 #define __GPRMC  ((StateMachine *)em_data->sm_options)->GetState() & OPTION_GPRMC_ONLY_HACK
 #define __ANALOG ((StateMachine *)em_data->sm_options)->GetState() & OPTION_ANALOG_CAMERAS
 #define __IP     ((StateMachine *)em_data->sm_options)->GetState() & OPTION_IP_CAMERAS
-
-#define C_RED 	 "\33[0;31m"
-#define C_GREEN  "\33[0;32m"
-#define C_YELLOW "\33[0;33m"
-#define C_M1     "\33[0;35m"
-#define C_M2     "\33[0;36m"
-#define C_RESET  "\33[0m"
-
-#ifdef DEBUG
-	#define D(s) cerr << C_GREEN << "DEBUG: " << s << C_RESET << endl;
-	#define D2(s) cerr << C_M1 << "DEBUG: " << s << C_RESET << endl;
-	#define D3(s) cerr << C_M2 << "DEBUG: " << s << C_RESET << endl;
-	#define OVERRIDE_SILENCE 		true
-#else
-	#define D(s)
-	#define D2(s)
-	#define D3(s)
-	#define OVERRIDE_SILENCE 		false
-#endif
 
 #include <string>
 

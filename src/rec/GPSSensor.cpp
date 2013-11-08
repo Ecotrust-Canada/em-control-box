@@ -22,6 +22,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
 #include "GPSSensor.h"
+#include "output.h"
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -52,7 +54,7 @@ int GPSSensor::Connect() {
     
     if (gps_open("localhost", DEFAULT_GPSD_PORT, &GPS_DATA) != 0) {
         if(!silenceConnectErrors || OVERRIDE_SILENCE) {
-            cerr << "GPS: Failed to connect to GPSd (is it running?); will keep at it but silencing further Connect() errors" << endl;
+            E(name << ": Failed to connect to GPSd (is it running?); will keep at it but silencing further Connect() errors");
             silenceConnectErrors = true;
         }
 
@@ -68,7 +70,7 @@ int GPSSensor::Connect() {
     UnsetState(GPS_NO_DATA);
     UnsetState(GPS_NO_FIX);
 
-    cout << name << ": Connected (GPSd)" << endl;
+    O(name << ": Connected (GPSd)");
 
     // bug: condition of having a KML file with NO polys = reread every time
     if(!(GetState() & GPS_NO_HOME_PORT_DATA) && num_home_ports == 0) {
@@ -113,7 +115,7 @@ int GPSSensor::Receive() {
                 smMyThread.SetState(STATE_RUNNING);
                 if((retVal = pthread_create(&pt_receiveLoop, NULL, &thr_ReceiveLoopLauncher, (void *)this)) != 0) {
                     smMyThread.SetState(STATE_NOT_RUNNING);
-                    cerr << "ERROR: Couldn't create GPS consumer thread" << endl;
+                    E(name << ": Couldn't create GPS consumer thread");
                 } D("GPS::pthread_create(): " << retVal);
             }
 
@@ -149,7 +151,7 @@ void *GPSSensor::thr_ReceiveLoopLauncher(void *self) {
 void GPSSensor::thr_ReceiveLoop() {
     unsigned short threadCloseDelayCounter = 0;
 
-    cout << name << ": Consumer thread running" << endl;
+    O(name << ": Consumer thread running");
 
     while(smMyThread.GetState() & STATE_RUNNING && __EM_RUNNING) {
         if (isConnected()) {
@@ -175,25 +177,25 @@ void GPSSensor::thr_ReceiveLoop() {
                 SetState(GPS_NO_DATA, GPS_STATE_DELAY); // after 300000?
             }
 /*
-            cout << GPS_DATA.status << "\t" << GPS_DATA.fix.mode << "\t" << GPS_DATA.online << "\t" << setw(10) << GPS_DATA.fix.time << "\t" << setw(10) << GPS_DATA.skyview_time << "\t" << GPS_DATA.satellites_used << "\t" << GPS_DATA.satellites_visible << "\t" << GPS_DATA.fix.epx << "\t" << setw(12) << GPS_DATA.fix.latitude << "\t" << setw(12) << GPS_DATA.fix.longitude << "\t" << GPS_DATA.tag << "\t";
+            c0ut << GPS_DATA.status << "\t" << GPS_DATA.fix.mode << "\t" << GPS_DATA.online << "\t" << setw(10) << GPS_DATA.fix.time << "\t" << setw(10) << GPS_DATA.skyview_time << "\t" << GPS_DATA.satellites_used << "\t" << GPS_DATA.satellites_visible << "\t" << GPS_DATA.fix.epx << "\t" << setw(12) << GPS_DATA.fix.latitude << "\t" << setw(12) << GPS_DATA.fix.longitude << "\t" << GPS_DATA.tag << "\t";
 
-            if (GPS_DATA.set & ONLINE_SET) cout << " ONLINE";
-            if (GPS_DATA.set & TIME_SET) cout << ",TIME";
-            if (GPS_DATA.set & LATLON_SET) cout << ",LATLON";
-            if (GPS_DATA.set & ALTITUDE_SET) cout << ",ALTITUDE";
-            if (GPS_DATA.set & SPEED_SET) cout << ",SPEED";
-            if (GPS_DATA.set & TRACK_SET) cout << ",TRACK";
-            if (GPS_DATA.set & CLIMB_SET) cout << ",CLIMB";
-            if (GPS_DATA.set & STATUS_SET) cout << ",STATUS";
-            if (GPS_DATA.set & MODE_SET) cout << ",MODE";
-            if (GPS_DATA.set & DOP_SET) cout << ",DOP";
-            if (GPS_DATA.set & HERR_SET) cout << ",HERR";
-            if (GPS_DATA.set & VERR_SET) cout << ",VERR";
-            if (GPS_DATA.set & VERSION_SET) cout << ",VERSION";
-            if (GPS_DATA.set & POLICY_SET) cout << ",POLICY";
-            if (GPS_DATA.set & SATELLITE_SET) cout << ",SATELLITE";
-            if (GPS_DATA.set & DEVICE_SET) cout << ",DEVICE";
-            cout << endl;
+            if (GPS_DATA.set & ONLINE_SET) c0ut << " ONLINE";
+            if (GPS_DATA.set & TIME_SET) c0ut << ",TIME";
+            if (GPS_DATA.set & LATLON_SET) c0ut << ",LATLON";
+            if (GPS_DATA.set & ALTITUDE_SET) c0ut << ",ALTITUDE";
+            if (GPS_DATA.set & SPEED_SET) c0ut << ",SPEED";
+            if (GPS_DATA.set & TRACK_SET) c0ut << ",TRACK";
+            if (GPS_DATA.set & CLIMB_SET) c0ut << ",CLIMB";
+            if (GPS_DATA.set & STATUS_SET) c0ut << ",STATUS";
+            if (GPS_DATA.set & MODE_SET) c0ut << ",MODE";
+            if (GPS_DATA.set & DOP_SET) c0ut << ",DOP";
+            if (GPS_DATA.set & HERR_SET) c0ut << ",HERR";
+            if (GPS_DATA.set & VERR_SET) c0ut << ",VERR";
+            if (GPS_DATA.set & VERSION_SET) c0ut << ",VERSION";
+            if (GPS_DATA.set & POLICY_SET) c0ut << ",POLICY";
+            if (GPS_DATA.set & SATELLITE_SET) c0ut << ",SATELLITE";
+            if (GPS_DATA.set & DEVICE_SET) c0ut << ",DEVICE";
+            c0ut << endl;
 */
             // this stuff processed every run of read loop even when no data
 
@@ -275,7 +277,7 @@ void GPSSensor::Close() {
         if(pthread_join(pt_receiveLoop, NULL) == 0) {
             // thread is gone, no need for mutexes
             smMyThread.SetState(STATE_NOT_RUNNING);
-            cout << name << ": Consumer thread stopped" << endl;
+            O(name << ": Consumer thread stopped");
         }
     }
     
@@ -297,7 +299,7 @@ unsigned short GPSSensor::LoadKML(string file, POINT polygons[MAX_POLYS][MAX_POI
     
     ifstream in(file.c_str());
     if(in.fail()) {
-        cerr << "ERROR: Couldn't load KML file " << file << endl;
+        E(name << ": Couldn't load KML file " << file);
         return 0;
     }
 
@@ -343,7 +345,7 @@ unsigned short GPSSensor::LoadKML(string file, POINT polygons[MAX_POLYS][MAX_POI
         num_polys_found++;
     }
 
-    cout << "GPS: Loaded " << num_polys_found << " polygons from " << file << endl;
+    O(name << ": Loaded " << num_polys_found << " polygons from " << file);
 
     return num_polys_found;
 }

@@ -23,6 +23,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #define INIT_CONFIG
 #include "config.h"
+#include "output.h"
 
 #include <cstring>
 #include <iostream>
@@ -47,7 +48,7 @@ string getConfig(const char* key, const char* default_value) {
         if (strcmp(key, config[i][0]) == 0) return string(config[i][1]);
     }
 
-    cerr << "ERROR: Missing key '" << key << "' in config file, using default '" << default_value << "'" << endl;
+    E("Missing key '" << key << "' in config file, using default '" << default_value << "'");
     return string(default_value);
 }
 
@@ -59,7 +60,7 @@ int readConfigFile(const char *file) {
     config_fd = fopen(file, "r");
 
     if (!config_fd) {
-        cerr << "ERROR: Couldn't load config file " << file << endl;
+        E("Couldn't load config file " << file);
         return 1;
     }
 

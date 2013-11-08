@@ -196,10 +196,9 @@ buildem_start() {
 	echo -e ${OK}
 
 	echo -e "	${STAR} Building Linux kernel, modules, and updating ${DEST} ... " && 
-	cp /opt/em/src/config-${VER} /usr/src/linux/.config
+	cp /opt/em/src/config-${VER}-stage1 /usr/src/linux/.config
 	cd /usr/src/linux
 	rm -f usr/initramfs_data.cpio*
-	echo CONFIG_INITRAMFS_SOURCE=\"\" >> /usr/src/linux/.config
 	make -j4 bzImage > /dev/null
 	make -j4 modules > /dev/null && make modules_install > /dev/null
 	cd /usr/src/fanout
@@ -210,7 +209,8 @@ buildem_start() {
 	make clean > /dev/null 2>&1
 	make > /dev/null 2>&1
 	make install > /dev/null 2>&1
-	cp -r --parents --no-dereference --preserve=all /lib/modules/3.11.4-em ${DEST}/lib/modules/
+	# determine kernel version automatically instead of hardcoding
+	cp -r --parents --no-dereference --preserve=all /lib/modules/3.11.4-em ${DEST}/
 	echo -e ${OK}
 
 	echo -e "	${STAR} Creating initramfs CPIO archive ... " &&
@@ -220,13 +220,9 @@ buildem_start() {
 	echo -e ${OK}
 
 	echo -e "	${STAR} Rebuilding Linux kernel w/ initramfs from ${DEST} ... " &&
-	cp /opt/em/src/config-${VER} /usr/src/linux/.config
+	cp /opt/em/src/config-${VER}-stage2 /usr/src/linux/.config
 	cd /usr/src/linux
 	rm -f usr/initramfs_data.cpio*
-	echo CONFIG_INITRAMFS_SOURCE=\"/usr/src/initramfs_data.cpio.gz\" >> /usr/src/linux/.config
-	echo CONFIG_INITRAMFS_ROOT_UID=0 >> /usr/src/linux/.config
-	echo CONFIG_INITRAMFS_ROOT_GID=0 >> /usr/src/linux/.config
-	echo CONFIG_INITRAMFS_COMPRESSION_GZIP=y >> /usr/src/linux/.config
 	make -j3 bzImage > /dev/null
 	cp arch/x86/boot/bzImage /opt/em/images/em-${VER}
 	echo -e ${OK}

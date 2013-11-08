@@ -22,6 +22,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
 #include "Sensor.h"
+#include "output.h"
+
 #include <iostream>
 #include <cstring>
 #include <fcntl.h>
@@ -58,29 +60,39 @@ int Sensor::Connect() {
         serialHandle = open(serialPort, O_RDWR | O_NOCTTY | O_NDELAY); // opens port
 
         if (serialHandle == -1) {
-            if(!silenceConnectErrors) cerr << C_RED << name << ": Failed to open port '" << serialPort << "'" << C_RESET << endl;
+            if(!silenceConnectErrors) {
+                E(name << ": Failed to open port '" << serialPort << "'");
+            }
             continue;
         }
 
         // enable blocking I/O (read() blocks until bytes available)
         if(fcntl(serialHandle, F_SETFL, 0) == -1) {
-            if(!silenceConnectErrors) cerr << C_RED << name << ": Failed SETFL" << C_RESET << endl;
+            if(!silenceConnectErrors) {
+                E(name << ": Failed SETFL");
+            }
             continue;
         }
 
         // fill options struct
         if(tcgetattr(serialHandle, &options) == -1) {
-            if(!silenceConnectErrors) cerr << C_RED << name << ": Failed to get serial config" << C_RESET << endl;
+            if(!silenceConnectErrors) {
+                E(name << ": Failed to get serial config");
+            }
             continue;
         }
 
         if(cfsetispeed(&options, baudRate) == -1) { // sets baud rates
-            if(!silenceConnectErrors) cerr << C_RED << name << ": Failed to set input baud rate" << C_RESET << endl;
+            if(!silenceConnectErrors) {
+                E(name << ": Failed to set input baud rate");
+            }
             continue;
         }
 
         if(cfsetospeed(&options, baudRate) == -1) { // sets baud rates
-            if(!silenceConnectErrors) cerr << C_RED << name << ": Failed to set output baud rate" << C_RESET << endl;
+            if(!silenceConnectErrors) {
+                E(name << ": Failed to set output baud rate");
+            }
             continue;
         }
 
@@ -117,16 +129,18 @@ int Sensor::Connect() {
         options.c_cc[VTIME] = 20;
 
         if(tcsetattr(serialHandle, TCSANOW, &options) == -1) {
-            if(!silenceConnectErrors) cerr << C_RED << name << ": Failed to set config" << C_RESET << endl;
+            if(!silenceConnectErrors) {
+                E(name << ": Failed to set config");
+            }
             continue;
         }
 
         UnsetState(NO_CONNECTION);
-        cout << name << ": Connected" << endl;
+        O(name << ": Connected");
     }
 
     if(GetState() & NO_CONNECTION && (!silenceConnectErrors || OVERRIDE_SILENCE)) {
-        cerr << C_RED << name << ": Failed to connect after " << MAX_TRY_COUNT << " tries; will keep at it but silencing further Connect() errors" << C_RESET << endl;
+        E(name << ": Failed to connect after " << MAX_TRY_COUNT << " tries; will keep at it but silencing further Connect() errors");
         silenceConnectErrors = true;
         return -1;
     }

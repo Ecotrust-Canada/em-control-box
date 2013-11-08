@@ -30,6 +30,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include "RFIDSensor.h"
 #include "CaptureManager.h"
 #include "md5.h"
+#include "output.h"
 
 #include <iostream>
 #include <fstream>
@@ -74,6 +75,7 @@ unsigned long IGNORED_STATES = GPS_NO_FERRY_DATA |
 
 struct stat G_parent_st;
 struct tm *G_timeinfo;
+pthread_mutex_t mtxOut;
 
 int main(int argc, char *argv[]) {
     struct timeval tv;
@@ -83,16 +85,21 @@ int main(int argc, char *argv[]) {
 
     int retVal;
     char buf[256], date[24] = { '\0' };
+    unsigned long allStates = 0;
     string TRACK_lastHash;
     string SCAN_lastHash;
     string tmp;
 
-    cout << "INFO: Ecotrust EM Recorder v" << VERSION << " is starting" << endl;
+    pthread_mutex_init(&EM_DATA.mtx, NULL);
+    pthread_mutex_init(&mtxOut, NULL);
+
     cout << setprecision(numeric_limits<double>::digits10 + 1);
     cerr << setprecision(numeric_limits<double>::digits10 + 1);
 
+    I("Ecotrust EM Recorder v" << VERSION << " is starting");
+    
     if (readConfigFile(FN_CONFIG)) {
-        cerr << C_RED << "ERROR: Failed to get configuration" << C_RESET << endl;
+        E("Failed to get configuration");
         exit(-1);
     }
 
@@ -121,9 +128,8 @@ int main(int argc, char *argv[]) {
     EM_DATA.sm_system = &smSystem;
     EM_DATA.sm_helper = &smHelperThread;
 
-    pthread_mutex_init(&EM_DATA.mtx, NULL);
-
-    smRecorder.UnsetState(STATE_NOT_RUNNING); smRecorder.SetState(STATE_RUNNING);
+    smRecorder.UnsetState(STATE_NOT_RUNNING);
+    smRecorder.SetState(STATE_RUNNING);
 
     if(_AD) {
         CONFIG.ARDUINO_DEV = getConfig("ARDUINO_DEV", DEFAULT_ARDUINO_DEV);
@@ -134,6 +140,8 @@ int main(int argc, char *argv[]) {
         iADSensor.SetBaudRate(B9600);
         iADSensor.SetADCType(CONFIG.arduino_type.c_str(), CONFIG.psi_vmin.c_str());
         iADSensor.Connect();
+    } else {
+        iADSensor.SetState(0);
     }
 
     if(_RFID) {
@@ -143,6 +151,8 @@ int main(int argc, char *argv[]) {
         iRFIDSensor.SetBaudRate(B9600);
         iRFIDSensor.SetScanCountsFile(CONFIG.EM_DIR + "/" + FN_SCAN_COUNT);
         iRFIDSensor.Connect();
+    } else {
+        iRFIDSensor.SetState(0);
     }
 
     if(_GPS) {
@@ -152,16 +162,22 @@ int main(int argc, char *argv[]) {
 
         iGPSSensor.Connect();
         iGPSSensor.Receive(); // spawn the consumer thread
+    } else {
+        iGPSSensor.SetState(0);
     }
 
+    // write recorder info to system log header
+    time(&rawtime);
+    G_timeinfo = localtime(&rawtime);
+    snprintf(buf, sizeof(buf), "*** EM-REC VERSION %s, OPTIONS %lu ***", VERSION, smOptions.GetState());
+    writeLog(string(CONFIG.OS_DISK) + "/" + FN_SYSTEM_LOG, buf);
+    
     // spawn helper thread
     smHelperThread.SetState(STATE_RUNNING);
     if((retVal = pthread_create(&pt_helper, NULL, &thr_helperLoop, NULL)) != 0) {
         smHelperThread.SetState(STATE_NOT_RUNNING);
-        cerr << C_RED << "ERROR: Couldn't create main helper thread" << C_RESET << endl;
-    }
-    
-    cout << "INFO: Created helper thread" << endl;
+        E("Couldn't create main helper thread");
+    } I("Created helper thread");
     
     signal(SIGINT, exit_handler);
     signal(SIGHUP, exit_handler);
@@ -169,8 +185,7 @@ int main(int argc, char *argv[]) {
     signal(SIGUSR1, reset_string_scans_handler);
     signal(SIGUSR2, reset_trip_scans_handler);
 
-    cout << "INFO: Beginning main recording loop" << endl;
-
+    I("Beginning main recording loop");
     while(_EM_RUNNING) { // only EM_DATA.runState == STATE_NOT_RUNNING can stop this
         gettimeofday(&tv, NULL);
         tstart = tv.tv_sec * 1000000 + tv.tv_usec;
@@ -183,9 +198,22 @@ int main(int argc, char *argv[]) {
         snprintf(EM_DATA.currentDateTime, sizeof(EM_DATA.currentDateTime), "%s.%06d", date, (unsigned int)tv.tv_usec);
         pthread_mutex_unlock(&EM_DATA.mtx);
 
-        if(_GPS) iGPSSensor.Receive(); // a separate thread now consumes GPS data, kick it into gear if it's dead
-        if(_RFID) iRFIDSensor.Receive();
-        if(_AD) iADSensor.Receive();
+        allStates = smSystem.GetState();
+
+        if(_GPS) {
+            iGPSSensor.Receive(); // a separate thread now consumes GPS data, kick it into gear if it's dead
+            allStates = allStates | iGPSSensor.GetState();
+        }
+        
+        if(_RFID) {
+            iRFIDSensor.Receive();
+            allStates = allStates | iRFIDSensor.GetState();
+        }
+        
+        if(_AD) {
+            iADSensor.Receive();
+            allStates = allStates | iADSensor.GetState();
+        }
 
         if(_GPS) {
             pthread_mutex_lock(&EM_DATA.mtx);
@@ -203,7 +231,7 @@ int main(int argc, char *argv[]) {
                     EM_DATA.GPS_satQuality,
                     EM_DATA.GPS_hdop,
                     EM_DATA.GPS_eph,
-                    iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState() | smSystem.GetState());
+                    allStates);
             pthread_mutex_unlock(&EM_DATA.mtx);
 
             TRACK_lastHash = writeLog(string(CONFIG.OS_DISK) + "/" + FN_TRACK_LOG, buf, TRACK_lastHash);
@@ -228,7 +256,7 @@ int main(int argc, char *argv[]) {
                     EM_DATA.GPS_satQuality,
                     EM_DATA.GPS_hdop,
                     EM_DATA.GPS_eph,
-                    iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState() | smSystem.GetState());
+                    allStates);
             pthread_mutex_unlock(&EM_DATA.mtx);
 
             SCAN_lastHash = writeLog(string(CONFIG.OS_DISK) + "/" + FN_SCAN_LOG, buf, SCAN_lastHash);
@@ -258,7 +286,7 @@ int main(int argc, char *argv[]) {
 
         if (tdiff > POLL_PERIOD) {
             tdiff = POLL_PERIOD;
-            cerr << C_YELLOW << "WARN: Took longer than 1 second to get data; check sensors" << C_RESET << endl;
+            W("Took longer than 1 second to get data; check sensors");
         }
 
         usleep(POLL_PERIOD - tdiff);
@@ -268,15 +296,17 @@ int main(int argc, char *argv[]) {
 
     if(pthread_join(pt_helper, NULL) == 0) {
         smHelperThread.SetState(STATE_NOT_RUNNING);
-        cout << "INFO: Helper thread stopped" << endl;
+        I("Helper thread stopped");
     }
 
     if(_GPS) iGPSSensor.Close();
     if(_RFID) iRFIDSensor.Close();
     if(_AD) iADSensor.Close();
 
+    I("Stopped");
+
     pthread_mutex_destroy(&EM_DATA.mtx);
-    cout << "INFO: Stopped" << endl;
+    pthread_mutex_destroy(&mtxOut);
     
     return 0;
 }
@@ -300,12 +330,12 @@ void *thr_helperLoop(void *arg) {
 
         // checks for data disk, tries to mount if not there
         if(!isDataDiskThere(&EM_DATA)) {
-            cout << "INFO: Data disk not mounted, attempting to mount" << endl;
+            I("Data disk not mounted, attempting to mount");
             if(mount("/dev/em_data", CONFIG.DATA_DISK.c_str(), "ext4",
                 MS_NOATIME | MS_NODEV | MS_NODIRATIME | MS_NOEXEC | MS_NOSUID, NULL) == 0) {
-                cout << "INFO: Mount success" << endl;
+                I("Mount success");
             } else {
-                cerr << C_RED << "ERROR: Mount failed" << C_RESET << endl;
+                E("Mount failed");
             }
         }
 
@@ -324,7 +354,7 @@ void *thr_helperLoop(void *arg) {
                         latitude = EM_DATA.GPS_latitude;
                         longitude = EM_DATA.GPS_longitude;
                     pthread_mutex_unlock(&EM_DATA.mtx);
-                    cout << "INFO: Entered home port (" << latitude << "," << longitude << "), pausing video capture" << endl;
+                    I("Entered home port (" << latitude << "," << longitude << "), pausing video capture");
                 }
 
                 cmVideo.Stop();
@@ -338,7 +368,7 @@ void *thr_helperLoop(void *arg) {
                         latitude = EM_DATA.GPS_latitude;
                         longitude = EM_DATA.GPS_longitude;
                     pthread_mutex_unlock(&EM_DATA.mtx);
-                    cout << "INFO: Left home port or was never there (" << latitude << "," << longitude << "), starting video capture" << endl;
+                    I("Left home port or was never there (" << latitude << "," << longitude << "), starting video capture");
                 }
 
                 cmVideo.Start(); // what this program is really all about =)
@@ -347,7 +377,7 @@ void *thr_helperLoop(void *arg) {
 
         // checks for errors that are screenshot-worthy
         if((iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState()) & ~(IGNORED_STATES)) {
-            // state needs to show up HELPER_INNER_INTERVAL times before it is exposed
+            // state needs to show up HELPER_INNER_INTERVAL times before it is exposed;
             // since HELPER_INTERVAL (this main loop's run interval) is 5 seconds, this means
             // 5*24 = 2 minutes as it's currently set
             smTakeScreenshot.SetState(true, HELPER_INNER_INTERVAL);
@@ -370,7 +400,7 @@ void *thr_helperLoop(void *arg) {
                 smTakeScreenshot.UnsetAllStates();
                 D2("Took screenshot");
             } else {
-                cerr << C_RED << "ERROR: /usr/bin/scrot fork() failed" << C_RESET << endl;
+                E("/usr/bin/scrot fork() failed");
             }
         }
 
@@ -380,7 +410,7 @@ void *thr_helperLoop(void *arg) {
 
         if (tdiff > HELPER_PERIOD) {
             tdiff = HELPER_PERIOD;
-            cerr << C_YELLOW << "WARN: Helper thread loop took longer than " << HELPER_INTERVAL << " POLL_PERIODs" << C_RESET << endl;
+            W("Helper thread loop took longer than " << HELPER_INTERVAL << " POLL_PERIODs");
         }
 
         // check twice so we don't hold up shutdowns in our long wait period
@@ -406,7 +436,7 @@ void writeLog(string prefix, string buf) {
         buf += "\n";
 
         if(!(fp = fopen(file.c_str(), "a"))) {
-            cerr << C_RED << "ERROR: Can't write to data file " << file << C_RESET << endl;
+            E("Can't write to data file " << file);
         } else {
             if(fwrite(buf.c_str(), buf.length(), 1, fp) < 1 && errno == ENOSPC) {
                 D("fwrite error, setting OS_DISK_FULL");
@@ -422,7 +452,7 @@ string writeLog(string prefix, string buf, string lastHash) {
     string newHash;
 
     if(lastHash.empty()) {
-        cout << "INFO: Seeding last hash from " << lastHashFile << endl;
+        I("Seeding last hash from " << lastHashFile);
 
         ifstream fin(lastHashFile.c_str());
         if(!fin.fail()) {
@@ -569,7 +599,7 @@ bool isDataDiskThere(EM_DATA_TYPE *em_data) {
                 em_data->SYS_dataDiskLabel = blkid_get_tag_value(blkid_cache, "LABEL", blkid_devno_to_devname(st.st_dev));
             pthread_mutex_unlock(&(em_data->mtx));
 
-            cout << "INFO: Data disk PRESENT, label = " << em_data->SYS_dataDiskLabel << endl;
+            I("Data disk PRESENT, label = " << em_data->SYS_dataDiskLabel);
         }
 
         return true;
@@ -580,7 +610,7 @@ bool isDataDiskThere(EM_DATA_TYPE *em_data) {
             pthread_mutex_unlock(&(em_data->mtx));
             
             blkid_gc_cache(blkid_cache);
-            cout << "INFO: Data disk NOT PRESENT" << endl;
+            I("Data disk NOT PRESENT");
         }
     }
 
@@ -804,6 +834,6 @@ void reset_trip_scans_handler(int s) { D("Resetting tripScans");
 }
 
 void exit_handler(int s) {
-    cout << "INFO: Ecotrust EM Recorder v" << VERSION << " is stopping ..." << endl;
+    I("Ecotrust EM Recorder v" << VERSION << " is stopping ...");
     smRecorder.UnsetState(STATE_RUNNING); smRecorder.SetState(STATE_NOT_RUNNING);
 }

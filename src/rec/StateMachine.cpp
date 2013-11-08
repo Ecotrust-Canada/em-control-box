@@ -22,6 +22,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
 #include "StateMachine.h"
+#include "output.h"
+
 #include <iostream>
 
 using namespace std;

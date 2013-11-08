@@ -22,6 +22,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
 #include "ADSensor.h"
+#include "output.h"
+
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
@@ -49,31 +51,31 @@ void ADSensor::SetADCType(const char *_arduino_type, const char *_psi_vmin) {
 
     if(arduino_vmax == 3.3) {
         bat_scale = 3.3/5.0;
-        cout << "AD: Setting 3.3V Arduino ";
+        O(name << ": Setting 3.3V Arduino ");
     } else if(arduino_vmax == 5.0) {
         bat_scale = 1.0;
-        cout << "AD: Setting 5.0V Arduino ";
+        O(name << ": Setting 5.0V Arduino ");
     } else {
-        cerr << "ERROR: Arduino configuration bad; please check /etc/em.conf" << endl;
+        E("Arduino configuration bad; please check /etc/em.conf");
         exit(-1);
     }
 
     if(!divider) {
         bat_max = BATTERY_MAX;
         bat_raw_max = BATTERY_RAW_MAX;
-        cout << "WITHOUT voltage divider" << endl;
+        O("WITHOUT voltage divider");
     } else if(divider == 'D') {
         psi_vmin /= 2;
         psi_vmax /= 2;
         bat_max = BATTERY_MAX;
         bat_raw_max = BATTERY_RAW_MAX;
-        cout << "WITH voltage divider" << endl;
+        O("WITH voltage divider");
     } else if(divider == 'P') { // Pro Micro, Maine
         psi_vmin = psi_vmin * ((double)10 / 49);
         psi_vmax = psi_vmax * ((double)10 / 49);
         bat_max = NG_BAT_MAX;
         bat_raw_max = NG_BAT_RAW_MAX;
-        cout << "Pro Micro WITH 10/49 voltage divider" << endl;
+        O("Pro Micro WITH 10/49 voltage divider");
     }
 }
 

@@ -23,9 +23,16 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #ifndef CAPTUREMANAGER_H
 #define CAPTUREMANAGER_H
+
 #include "StateMachine.h"
 #include <sys/types.h>
 #include <unistd.h>
+
+extern "C" {
+    #include <nemesi/rtsp.h>
+    //#include <nemesi/rtp.h>
+    //#include <nemesi/sdp.h>
+}
 
 #define RTSP_URL        "rtsp://1.1.1.%d:7070/track1"
 #define _ACTIVE_CAMS    unsigned short i = 0; i < em_data->SYS_numCams; i++
@@ -39,6 +46,10 @@ class CaptureManager: public StateMachine {
         string baseVideoDirectory;
         unsigned long startedAtIteration[MAX_CAMS];
         off_t lastFileSize[MAX_CAMS];
+
+        rtsp_ctrl *_rtsp_ctrl[MAX_CAMS];
+        rtsp_session *_rtsp_session[MAX_CAMS];
+        bool rtsp_init_done[MAX_CAMS];
 
         static void *thr_CaptureLoopLauncher(void*);
         void thr_CaptureLoop();

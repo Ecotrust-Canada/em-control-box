@@ -22,6 +22,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
 #include "RFIDSensor.h"
+#include "output.h"
+
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -43,7 +45,7 @@ int RFIDSensor::Connect() {
     if (in.is_open()) {
         while(in >> tag) MY_TAGS.insert(tag);
         in.close();
-        cout << "RFID: Loaded /mnt/data/TAG_LIST" << endl;
+        O(name << ": Loaded /mnt/data/TAG_LIST");
     } */
 
     return Sensor::Connect();
@@ -56,7 +58,7 @@ void RFIDSensor::SetScanCountsFile(string file) {
     if(!fin.fail()) {
         fin >> em_data->RFID_stringScans >> em_data->RFID_tripScans;
         fin.close();
-        cout << name << ": Got previous scan counts from " << scanCountsFile << endl;
+        O(name << ": Got previous scan counts from " << scanCountsFile);
     }
 }
 
@@ -99,7 +101,9 @@ int RFIDSensor::Receive() {
             	}
             }
 
-            if (scannedCorrupt > 0) cerr << name << ": " << scannedCorrupt << "/" << scannedTotal << " scans were corrupt" << endl;
+            if (scannedCorrupt > 0) {
+                E(name << ": " << scannedCorrupt << "/" << scannedTotal << " scans were corrupt");
+            }
 
             if (scannedCorrupt >= scannedTotal) {
             	SetState(RFID_CHECKSUM_FAILED);
@@ -179,7 +183,7 @@ void RFIDSensor::Close() {
         if(!fout.fail()) {
             fout << em_data->RFID_stringScans << ' ' << em_data->RFID_tripScans;
             fout.close();
-            cout << name << ": Wrote out scan counts to " << scanCountsFile << endl;
+            O(name << ": Wrote out scan counts to " << scanCountsFile);
         }
     }
 

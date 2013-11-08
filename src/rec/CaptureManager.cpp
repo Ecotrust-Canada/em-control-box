@@ -22,6 +22,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
 
 #include "CaptureManager.h"
+#include "output.h"
+
 #include <iostream>
 #include <cstdio>
 #include <pthread.h>
@@ -29,7 +31,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include <sys/stat.h>
 
 extern "C" {
-    #include <nemesi/rtsp.h>
+    //#include <nemesi/rtsp.h>
     #include <nemesi/rtp.h>
     #include <nemesi/sdp.h>
 }
@@ -42,12 +44,13 @@ CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string base):
     baseVideoDirectory = base;
 
     if(__ANALOG) {
-        cout << "INFO: Using ANALOG cameras" << endl;
+        I("Using ANALOG cameras");
     } else if(__IP) {
-        cout << "INFO: Using *" << em_data->SYS_numCams << "* IP cameras" << endl;
+        I("Using *" << em_data->SYS_numCams << "* IP cameras");
 
         for(_ACTIVE_CAMS) {
             smCaptureThread[i] = new StateMachine(STATE_NOT_RUNNING, true);
+            rtsp_init_done[i] = false;
         }
     }
 
@@ -59,6 +62,10 @@ CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string base):
 }
 
 CaptureManager::~CaptureManager() {
+    //for(_ACTIVE_CAMS) {
+    //    if(rtsp_init_done[i]) rtsp_uninit(_rtsp_ctrl[i]);
+   // }
+
     pthread_mutex_destroy(&mtx_threadIndex);
     pthread_mutex_destroy(&mtx_rtspStuff);
     pthread_mutex_destroy(&mtx_threadStartedAtIteration);
@@ -117,7 +124,7 @@ unsigned long CaptureManager::Start() {
         // Now actually start things up
         if(__ANALOG) {
             D2("Start Analog");
-            cerr << "Analog captures not supported in this release!" << endl;
+            E("Analog captures not supported in this release!");
             //SetState(STATE_RUNNING);
         } else if(__IP) {
             D2("About to sync CM threads");
@@ -130,7 +137,7 @@ unsigned long CaptureManager::Start() {
                 if(smCaptureThread[i]->GetState() & STATE_NOT_RUNNING) {
                     if(pthread_create(&pt_capture[i], NULL, &thr_CaptureLoopLauncher, (void *)this) != 0) {
                         smCaptureThread[i]->SetState(STATE_NOT_RUNNING); // eh why not
-                        cerr << "ERROR: Couldn't create IP camera capture thread " << i << endl;
+                        E("Couldn't create IP camera capture thread " << i);
                     } else {
                         D2("CREATED " << i);
                         usleep(POLL_PERIOD / 10); // delay the thread creation a bit
@@ -228,61 +235,66 @@ void CaptureManager::thr_CaptureLoop() {
         int fd;
         char url[64], date[32], fileName[96];
         
-        rtsp_ctrl *_rtsp_ctrl;
         rtp_thread *_rtp_thread;
-        rtsp_session *_rtsp_session;
         rtp_ssrc *_rtp_ssrc;
         rtp_buff _rtp_buff;
         rtp_frame _rtp_frame;
+
         nms_rtsp_hints _rtsp_hints = { -1 };
         _rtsp_hints.pref_rtsp_proto = TCP;
         _rtsp_hints.pref_rtp_proto = TCP;
-        
+
+REINIT_RTSP:        
         D3("States good, beginning RTSP init for " << threadIndex);
         pthread_mutex_lock(&mtx_rtspStuff);
-            snprintf(url, sizeof(url), RTSP_URL, threadIndex + 1); // PRODUCTION
-            //snprintf(url, sizeof(url), RTSP_URL, 1); // HACK to force multi-cam testing with just one cam
+            //snprintf(url, sizeof(url), RTSP_URL, threadIndex + 1); // PRODUCTION
+            snprintf(url, sizeof(url), RTSP_URL, 1); // HACK to force multi-cam testing with just one cam
 
-            if ((_rtsp_ctrl = rtsp_init(&_rtsp_hints)) == NULL) {
-                cerr << C_RED << "ERROR: Cannot init RTSP for camera " << threadIndex << C_RESET << endl;
-                ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
-                smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
-                pthread_mutex_unlock(&mtx_rtspStuff);
-                pthread_exit(NULL);
+            if(!rtsp_init_done[threadIndex]) {
+                if((_rtsp_ctrl[threadIndex] = rtsp_init(&_rtsp_hints)) == NULL) {
+                    E("rtsp_init() failed in thread " << threadIndex);
+                    ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
+                    smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
+                    pthread_mutex_unlock(&mtx_rtspStuff);
+                    pthread_exit(NULL);
+                } else {
+                    D3("rtsp_init() success");
+                } 
+
+                if (rtsp_open(_rtsp_ctrl[threadIndex], url)) {
+                    E("rtsp_open() failed for thread " << threadIndex);
+                    rtsp_uninit(_rtsp_ctrl[threadIndex]);
+
+                    ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
+                    smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
+                    pthread_mutex_unlock(&mtx_rtspStuff);
+                    pthread_exit(NULL);
+                }
+
+                rtsp_wait(_rtsp_ctrl[threadIndex]);
+                _rtsp_session[threadIndex] = _rtsp_ctrl[threadIndex]->rtsp_queue; // get the session information
+                D3("rtsp_open() finished and got session " << _rtsp_session[threadIndex]);
+
+                if (!_rtsp_session[threadIndex]) {
+                    E("No RTSP session available for camera " << threadIndex);
+                    rtsp_close(_rtsp_ctrl[threadIndex]);
+                    rtsp_wait(_rtsp_ctrl[threadIndex]);
+                    rtsp_uninit(_rtsp_ctrl[threadIndex]);
+
+                    ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
+                    smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
+                    pthread_mutex_unlock(&mtx_rtspStuff);
+                    pthread_exit(NULL);
+                }
+
+                rtsp_init_done[threadIndex] = true;
+            } else {
+                D3("Skipped basic RTSP init for " << threadIndex);
             }
-
-            if (rtsp_open(_rtsp_ctrl, url)) {
-                cerr << C_RED << "ERROR: Cannot open RTSP for camera " << threadIndex << C_RESET << endl;
-                rtsp_uninit(_rtsp_ctrl);
-
-                ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
-                smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
-                pthread_mutex_unlock(&mtx_rtspStuff);
-                pthread_exit(NULL);
-            }
-
-            rtsp_wait(_rtsp_ctrl);
-            _rtsp_session = _rtsp_ctrl->rtsp_queue; // get the session information
-
-            if (!_rtsp_session) {
-                cerr << C_RED << "ERROR: No RTSP session available for camera " << threadIndex << C_RESET << endl;
-                rtsp_close(_rtsp_ctrl);
-                rtsp_wait(_rtsp_ctrl);
-                rtsp_uninit(_rtsp_ctrl);
-
-                ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
-                smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
-                pthread_mutex_unlock(&mtx_rtspStuff);
-                pthread_exit(NULL);
-            }
-
-            rtsp_play(_rtsp_ctrl, 0.0, 0.0);
-            rtsp_wait(_rtsp_ctrl);
-
-            _rtp_thread = rtsp_get_rtp_th(_rtsp_ctrl);
         pthread_mutex_unlock(&mtx_rtspStuff);
         D3("Finished RTSP init for " << threadIndex);
 
+        // File name / opening handling
         time(&rawtime);
         timeinfo = localtime(&rawtime);
         strftime(date, sizeof(date), "%Y%m%d-%H%M%S", timeinfo);
@@ -296,19 +308,31 @@ void CaptureManager::thr_CaptureLoop() {
         pthread_mutex_unlock(&mtx_threadStartedAtIteration);
         
         if((fd = creat(fileName, 00644)) == -1) {
-            cerr << C_RED << "ERROR: Couldn't create file " << fileName << C_RESET << endl;
+            E("Couldn't create file " << fileName);
 
             if(errno == ENOSPC) {
                 ((StateMachine *)em_data->sm_system)->SetState(SYS_OS_DISK_FULL);
             }
 
-            rtsp_close(_rtsp_ctrl);
-            rtsp_wait(_rtsp_ctrl);
-            rtsp_uninit(_rtsp_ctrl);
+            rtsp_close(_rtsp_ctrl[threadIndex]);
+            rtsp_wait(_rtsp_ctrl[threadIndex]);
+            rtsp_uninit(_rtsp_ctrl[threadIndex]);
             
+            rtsp_init_done[threadIndex] = false;
             smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
             pthread_exit(NULL);
         }
+
+        D3("calling rtsp_play() ... ");
+        if((rtsp_play(_rtsp_ctrl[threadIndex], 0.0, 0.0)) != 0) {
+            rtsp_init_done[threadIndex] = false;
+            goto REINIT_RTSP;
+        }
+        D3("rtsp_play() succeeded");
+        rtsp_wait(_rtsp_ctrl[threadIndex]);
+
+        D3("calling rtsp_get_rtp_th() ...");
+        _rtp_thread = rtsp_get_rtp_th(_rtsp_ctrl[threadIndex]);
 
         // no more pthread_exits beyond this point
         // everything now in a loop dependent on run states
@@ -323,10 +347,10 @@ void CaptureManager::thr_CaptureLoop() {
             __EM_RUNNING &&
             !(__OS_DISK_FULL) &&
             !rtp_fill_buffers(_rtp_thread)) {
-            for (_rtp_ssrc = rtp_active_ssrc_queue(rtsp_get_rtp_queue(_rtsp_ctrl)); _rtp_ssrc; _rtp_ssrc = rtp_next_active_ssrc(_rtp_ssrc)) {
+            for (_rtp_ssrc = rtp_active_ssrc_queue(rtsp_get_rtp_queue(_rtsp_ctrl[threadIndex])); _rtp_ssrc; _rtp_ssrc = rtp_next_active_ssrc(_rtp_ssrc)) {
                 if (!rtp_fill_buffer(_rtp_ssrc, &_rtp_frame, &_rtp_buff)) { // parse the stream
                     if (write(fd, _rtp_frame.data, _rtp_frame.len) < _rtp_frame.len) {
-                        cerr << C_RED << "ERROR: Couldn't write whole RTSP packet for camera " << threadIndex << C_RESET << endl;
+                        E("Couldn't write whole RTSP packet for camera " << threadIndex);
 
                         ((StateMachine *)em_data->sm_system)->SetState(SYS_OS_DISK_FULL);
                         smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
@@ -343,15 +367,22 @@ void CaptureManager::thr_CaptureLoop() {
         rename(fileName, (string(fileName) + ".h264").c_str());
         
         pthread_mutex_lock(&mtx_rtspStuff);
-            rtsp_close(_rtsp_ctrl);
-            if(lastFileSize[threadIndex] != -1) {
-                rtsp_wait(_rtsp_ctrl);
-                rtsp_uninit(_rtsp_ctrl);
+            if(lastFileSize[threadIndex] != -1) { // normal stop
+                D3("pre rtsp_stop"); rtsp_stop(_rtsp_ctrl[threadIndex]);D3("post rtsp_stop");
+                D3("pre rtsp_wait"); rtsp_wait(_rtsp_ctrl[threadIndex]);D3("post rtsp_wait");
+            } else { // file stopped growing; could mean disconnection, network stack failure, etc.
+                D3("pre rtsp_close");rtsp_close(_rtsp_ctrl[threadIndex]);D3("post rtsp_close");
+                D3("pre rtsp_wait");rtsp_wait(_rtsp_ctrl[threadIndex]);D3("post rtsp_wait");
+                D3("pre rtsp_uninit");rtsp_uninit(_rtsp_ctrl[threadIndex]);D3("post rtsp_uninit");
+
+                rtsp_init_done[threadIndex] = false;
             }
+
+            // rtsp_wait will set REINITIALIZED if reconnected; we need to run reinit routes then
         pthread_mutex_unlock(&mtx_rtspStuff);
     } // end massive if
 
-    cout << "INFO: Capture thread " << threadIndex << " stopped";
+    D3("Capture thread " << threadIndex << " exiting ...");
     smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
     pthread_exit(NULL);
 }
