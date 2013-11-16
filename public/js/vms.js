@@ -104,6 +104,7 @@ $(function (undef) {
                         //if (i == 1 || i == 3) content = content + '<tr>';
                         //content = content + '<td><embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(viewportDims[0]/2) + '" height="' + Math.floor(viewportDims[1]/2) + '" /></td>';
                         content = content + '<embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(heightMax / 2 / aspectV * aspectH) + '" height="' + Math.floor(heightMax / 2) + '" loop=999 />';
+                        // HACK for single cam testing: content = content + '<embed src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + Math.floor(heightMax / 2 / aspectV * aspectH) + '" height="' + Math.floor(heightMax / 2) + '" loop=999 />';
                         //if (i == 2 || i == 4) content = content + '</tr>';
                     }
                     content = content + '';
@@ -263,9 +264,11 @@ $(function (undef) {
         if($(e.target).text() == "ELog" && $(window).width() <= 1024) {
             $('#sensors').hide();
             $('#night-mode').hide();
+            $('#reload-video').hide();
         } else {
             $('#sensors').show();
             $('#night-mode').show();
+            $('#reload-video').show();
         }
     });
 

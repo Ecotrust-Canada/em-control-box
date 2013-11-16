@@ -157,7 +157,7 @@ buildem_start() {
         fi
 
 	echo -ne "	${STAR} Building em-rec ... " &&
-	cd /opt/em/src/rec && make clean > /dev/null
+	cd /opt/em/src/rec && make > /dev/null
 	make > /dev/null
 	echo -e ${OK}
  
@@ -175,7 +175,7 @@ buildem_start() {
 
 	echo -ne "	${STAR} Copying files ... " &&
 	for FILE in `cat /opt/em/src/files.lst`; do cp -r --parents --no-dereference --preserve=all /$FILE ${DEST}/; done
-	cp /opt/em/src/fstab ${DEST}/etc/
+	cp /opt/em/src/fstab /opt/em/src/resolv.conf ${DEST}/etc/
 	ln -s /sbin/init ${DEST}/init
 	echo -e ${OK}
 
@@ -210,7 +210,7 @@ buildem_start() {
 	make clean > /dev/null 2>&1
 	make > /dev/null 2>&1
 	make install > /dev/null 2>&1
-	cp -r --parents --no-dereference --preserve=all /lib/modules/3.10.2-em ${DEST}/lib/modules/
+	cp -r --parents --no-dereference --preserve=all /lib/modules/3.11.4-em ${DEST}/lib/modules/
 	echo -e ${OK}
 
 	echo -e "	${STAR} Creating initramfs CPIO archive ... " &&

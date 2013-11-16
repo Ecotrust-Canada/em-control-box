@@ -269,8 +269,10 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
             var diskMinutesLeft = opts.osDiskMinutesLeft;
             var percentUsed = osDiskPercentUsed;
             this.$disk_number.text('OS');
-            //opts.state = 1;
-            $('#using_os_disk').show();
+            opts.state = opts.state | 1;
+            if(lastIteration >= 12) {
+                $('#using_os_disk').show();
+            }
         }
 
         if (this.dial && percentUsed != lastPercentUsed) {

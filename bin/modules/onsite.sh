@@ -3,28 +3,21 @@ NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet
 stop_description="Stops all EM services"
 stop_start() {
 	echo -ne "      ${STAR} Stopping all EM services ... " &&
-	/bin/systemctl stop screenshot.service check-browser-video.service smartctl.timer sensors.timer encode-video.service startx.service web-server.service em-rec.service capture-bttv.service
+	/bin/systemctl stop smartctl.timer sensors.timer encode-video.service startx.service web-server.service elog-server.service em-rec.service capture-bttv.service
 	echo -e ${OK}
 }
 
 start_description="Starts all EM services"
 start_start() {
 	echo -ne "      ${STAR} Starting all EM services " &&
-	/bin/systemctl restart var-permissions.service
-	echo -n .
 	/bin/systemctl start capture-bttv.service smartctl.timer sensors.timer
 	echo -n .
 	/bin/systemctl start encode-video.service
 	echo -n .
-	sleep 1
-	echo -n .
 	/bin/systemctl start em-rec.service
 	echo -n .
-	/bin/systemctl start web-server.service startx.service
+	/bin/systemctl start web-server.service elog-server.service startx.service
 	echo -n .
-	sleep 2
-	echo -n .
-	/bin/systemctl start check-browser-video.service screenshot.service
 	echo -e " ${OK}"
 }
 
