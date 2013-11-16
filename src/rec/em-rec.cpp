@@ -48,6 +48,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <errno.h>
 
 using namespace std;
 
@@ -58,10 +59,12 @@ GPSSensor iGPSSensor(&EM_DATA);
 RFIDSensor iRFIDSensor(&EM_DATA);
 ADSensor iADSensor(&EM_DATA);
 
-StateMachine smEM(STATE_NOT_RUNNING, SM_EXCLUSIVE_STATES);
+StateMachine smRecorder(STATE_NOT_RUNNING, SM_EXCLUSIVE_STATES);
 StateMachine smOptions(0, SM_MULTIPLE_STATES);
+StateMachine smSystem(0, SM_MULTIPLE_STATES);
 StateMachine smHelperThread(STATE_NOT_RUNNING, SM_EXCLUSIVE_STATES);
 StateMachine smTakeScreenshot(false, SM_EXCLUSIVE_STATES);
+
 unsigned long IGNORED_STATES = GPS_NO_FERRY_DATA |
                                GPS_NO_HOME_PORT_DATA |
                                GPS_INSIDE_HOME_PORT |
@@ -113,13 +116,14 @@ int main(int argc, char *argv[]) {
 
     stat((CONFIG.DATA_DISK + "/../").c_str(), &G_parent_st);
 
-    EM_DATA.sm_em = &smEM;
+    EM_DATA.sm_recorder = &smRecorder;
     EM_DATA.sm_options = &smOptions;
+    EM_DATA.sm_system = &smSystem;
     EM_DATA.sm_helper = &smHelperThread;
 
     pthread_mutex_init(&EM_DATA.mtx, NULL);
 
-    smEM.SetState(STATE_RUNNING);
+    smRecorder.UnsetState(STATE_NOT_RUNNING); smRecorder.SetState(STATE_RUNNING);
 
     if(_AD) {
         CONFIG.ARDUINO_DEV = getConfig("ARDUINO_DEV", DEFAULT_ARDUINO_DEV);
@@ -199,7 +203,7 @@ int main(int argc, char *argv[]) {
                     EM_DATA.GPS_satQuality,
                     EM_DATA.GPS_hdop,
                     EM_DATA.GPS_eph,
-                    iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState());
+                    iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState() | smSystem.GetState());
             pthread_mutex_unlock(&EM_DATA.mtx);
 
             TRACK_lastHash = writeLog(string(CONFIG.OS_DISK) + "/" + FN_TRACK_LOG, buf, TRACK_lastHash);
@@ -224,7 +228,7 @@ int main(int argc, char *argv[]) {
                     EM_DATA.GPS_satQuality,
                     EM_DATA.GPS_hdop,
                     EM_DATA.GPS_eph,
-                    iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState());
+                    iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState() | smSystem.GetState());
             pthread_mutex_unlock(&EM_DATA.mtx);
 
             SCAN_lastHash = writeLog(string(CONFIG.OS_DISK) + "/" + FN_SCAN_LOG, buf, SCAN_lastHash);
@@ -260,7 +264,7 @@ int main(int argc, char *argv[]) {
         usleep(POLL_PERIOD - tdiff);
     }
 
-    // smEM is now STATE_NOT_RUNNING
+    // smRecorder is now STATE_NOT_RUNNING
 
     if(pthread_join(pt_helper, NULL) == 0) {
         smHelperThread.SetState(STATE_NOT_RUNNING);
@@ -311,25 +315,34 @@ void *thr_helperLoop(void *arg) {
     
         // process position, set special area states, and if we're in the home port ...
         if(iGPSSensor.InSpecialArea() && iGPSSensor.GetState() & GPS_INSIDE_HOME_PORT) { // pause
-            if(!(cmVideo.GetState() & STATE_NOT_RUNNING)) {
-                pthread_mutex_lock(&EM_DATA.mtx);
-                    latitude = EM_DATA.GPS_latitude;
-                    longitude = EM_DATA.GPS_longitude;
-                pthread_mutex_unlock(&EM_DATA.mtx);
-                cout << "INFO: Entered home port (" << latitude << "," << longitude << "), pausing video capture" << endl;
-            }
+            // once either of the video capture routines is able to get video data, they set
+            // SYS_VIDEO_AVAILABLE, and at that point we can actually play conductor; when we don't
+            // know if video is available we keep trying to start it
+            if(smSystem.GetState() & SYS_VIDEO_AVAILABLE) {
+                if(!(cmVideo.GetState() & STATE_NOT_RUNNING)) {
+                    pthread_mutex_lock(&EM_DATA.mtx);
+                        latitude = EM_DATA.GPS_latitude;
+                        longitude = EM_DATA.GPS_longitude;
+                    pthread_mutex_unlock(&EM_DATA.mtx);
+                    cout << "INFO: Entered home port (" << latitude << "," << longitude << "), pausing video capture" << endl;
+                }
 
-            cmVideo.Stop();
+                cmVideo.Stop();
+            } else {
+                cmVideo.Start();
+            }
         } else {
-            if(!(cmVideo.GetState() & STATE_RUNNING)) { // resume
-                pthread_mutex_lock(&EM_DATA.mtx);
-                    latitude = EM_DATA.GPS_latitude;
-                    longitude = EM_DATA.GPS_longitude;
-                pthread_mutex_unlock(&EM_DATA.mtx);
-                cout << "INFO: Left home port or was never there (" << latitude << "," << longitude << "), starting video capture" << endl;
-            }
+            if(!(_OS_DISK_FULL)) {
+                if(!(cmVideo.GetState() & STATE_RUNNING)) { // resume
+                    pthread_mutex_lock(&EM_DATA.mtx);
+                        latitude = EM_DATA.GPS_latitude;
+                        longitude = EM_DATA.GPS_longitude;
+                    pthread_mutex_unlock(&EM_DATA.mtx);
+                    cout << "INFO: Left home port or was never there (" << latitude << "," << longitude << "), starting video capture" << endl;
+                }
 
-            cmVideo.Start(); // what this program is really all about =)
+                cmVideo.Start(); // what this program is really all about =)
+            }
         }
 
         // checks for errors that are screenshot-worthy
@@ -384,23 +397,29 @@ void *thr_helperLoop(void *arg) {
 }
 
 void writeLog(string prefix, string buf) {
-    FILE *fp;
-    char date_suffix[9];
-    strftime(date_suffix, sizeof(date_suffix), "%Y%m%d", G_timeinfo);
-    string file = prefix + "_" + date_suffix + ".csv";
+    if(!(_OS_DISK_FULL)) {
+        FILE *fp;
+        char date_suffix[9];
+        strftime(date_suffix, sizeof(date_suffix), "%Y%m%d", G_timeinfo);
+        string file = prefix + "_" + date_suffix + ".csv";
 
-    buf += "\n";
+        buf += "\n";
 
-    if(!(fp = fopen(file.c_str(), "a"))) {
-        cerr << C_RED << "ERROR: Can't write to data file " << file << C_RESET << endl;
-    } else {
-        fwrite(buf.c_str(), buf.length(), 1, fp);
-        fclose(fp);
+        if(!(fp = fopen(file.c_str(), "a"))) {
+            cerr << C_RED << "ERROR: Can't write to data file " << file << C_RESET << endl;
+        } else {
+            if(fwrite(buf.c_str(), buf.length(), 1, fp) < 1 && errno == ENOSPC) {
+                D("fwrite error, setting OS_DISK_FULL");
+                smSystem.SetState(SYS_OS_DISK_FULL);
+            } 
+            fclose(fp);
+        }
     }
 }
 
 string writeLog(string prefix, string buf, string lastHash) {
     string lastHashFile = prefix + ".lh";
+    string newHash;
 
     if(lastHash.empty()) {
         cout << "INFO: Seeding last hash from " << lastHashFile << endl;
@@ -412,16 +431,20 @@ string writeLog(string prefix, string buf, string lastHash) {
         }
     }
 
-    MD5 md5 = MD5(MD5_SALT + buf + lastHash);
-    string newHash = md5.hexdigest();
-    buf += "*" + newHash;
+    if(!(_OS_DISK_FULL)) {
+        MD5 md5 = MD5(MD5_SALT + buf + lastHash);
+        newHash = md5.hexdigest();
+        buf += "*" + newHash;
 
-    writeLog(prefix, buf);
+        writeLog(prefix, buf);
 
-    ofstream fout(lastHashFile.c_str());
-    if (!fout.fail()) {
-        fout << newHash << endl;
-        fout.close();
+        ofstream fout(lastHashFile.c_str());
+        if (!fout.fail()) {
+            fout << newHash << endl;
+            fout.close();
+        }
+    } else {
+        newHash = lastHash;
     }
 
     return newHash;
@@ -437,6 +460,7 @@ void writeJSONState(EM_DATA_TYPE* em_data) {
             "\"currentDateTime\": \"%s\", "
             "\"runIterations\": %lu, "
             "\"SYS\": { "
+                "\"state\": %lu, "
                 "\"fishingArea\": \"%s\", "
                 "\"numCams\": %hu, "
                 "\"uptime\": \"%s\", "
@@ -454,8 +478,7 @@ void writeJSONState(EM_DATA_TYPE* em_data) {
                 "\"dataDiskFreeBlocks\": %lu, "
                 "\"dataDiskTotalBlocks\": %lu, "
                 "\"dataDiskMinutesLeft\": %lu, "
-                "\"dataDiskMinutesLeftFake\": %lu, "
-                "\"videoIsRecording\": \"%s\" "
+                "\"dataDiskMinutesLeftFake\": %lu "
             "}, "
             "\"GPS\": { "
                 "\"state\": %lu, "
@@ -484,6 +507,7 @@ void writeJSONState(EM_DATA_TYPE* em_data) {
             em_data->currentDateTime,
             em_data->runIterations,
 
+            smSystem.GetState(),
             em_data->SYS_fishingArea.c_str(),
             em_data->SYS_numCams,
             em_data->SYS_uptime.c_str(),
@@ -502,7 +526,6 @@ void writeJSONState(EM_DATA_TYPE* em_data) {
             em_data->SYS_dataDiskTotalBlocks,
             em_data->SYS_dataDiskMinutesLeft,
             em_data->SYS_dataDiskMinutesLeftFake,
-            em_data->SYS_videoIsRecording ? "true" : "false",
 
             iGPSSensor.GetState(),
             em_data->GPS_latitude,
@@ -547,14 +570,6 @@ bool isDataDiskThere(EM_DATA_TYPE *em_data) {
             pthread_mutex_unlock(&(em_data->mtx));
 
             cout << "INFO: Data disk PRESENT, label = " << em_data->SYS_dataDiskLabel << endl;
-
-            //em_data->SENSOR_DATA_files.push_back(string(CONFIG.DATA_DISK) + "/" + CONFIG.SENSOR_DATA);
-            //em_data->SYSTEM_DATA_files.push_back(string(CONFIG.DATA_DISK) + "/" + CONFIG.SYSTEM_DATA);
-            //if(_RFID) em_data->RFID_DATA_files.push_back(string(CONFIG.DATA_DISK) + "/" + CONFIG.RFID_DATA);
-            
-            //unlink(CONFIG.VIDEOS_DIR);
-            //symlink(CONFIG.DATA_DISK, CONFIG.VIDEOS_DIR);
-            //cout << "INFO: Created symlink " << CONFIG.VIDEOS_DIR << " to " << CONFIG.DATA_DISK << endl;
         }
 
         return true;
@@ -566,10 +581,6 @@ bool isDataDiskThere(EM_DATA_TYPE *em_data) {
             
             blkid_gc_cache(blkid_cache);
             cout << "INFO: Data disk NOT PRESENT" << endl;
-        
-            //unlink(CONFIG.VIDEOS_DIR);
-            //symlink(CONFIG.OS_DISK, CONFIG.VIDEOS_DIR);
-            //cout << "INFO: Created symlink " << CONFIG.VIDEOS_DIR << " to " << CONFIG.OS_DISK << endl;
         }
     }
 
@@ -577,7 +588,7 @@ bool isDataDiskThere(EM_DATA_TYPE *em_data) {
 }
 
 #define PROC_STAT_VALS          7
-#define DISK_USAGE_SAMPLES      24
+#define DISK_USAGE_SAMPLES      12
 #define DISK_USAGE_START_VAL    30240
 string updateSystemStats(EM_DATA_TYPE *em_data) {
     static unsigned long long lastJiffies[PROC_STAT_VALS];
@@ -682,6 +693,14 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
             em_data->SYS_osDiskTotalBlocks = vfs.f_blocks;
             em_data->SYS_osDiskFreeBlocks = osDiskLastFree = vfs.f_bavail;
         pthread_mutex_unlock(&(em_data->mtx));
+
+        // if less than 16 MB left (assuming 4K block size)
+        if(vfs.f_bavail < 4096 && osDiskMinutesLeft_index > 1) {
+            smSystem.SetState(SYS_OS_DISK_FULL);
+            D("Set OS_DISK_FULL");
+        } else {
+            smSystem.UnsetState(SYS_OS_DISK_FULL);
+        }
     }
 
     if(dataDiskPresent) {
@@ -689,18 +708,30 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
             if(dataDiskLastFree >= vfs.f_bavail) {
                 dataDiskMinutesLeft_total -= dataDiskMinutesLeft[dataDiskMinutesLeft_index];
                 dataDiskDiff = dataDiskLastFree - vfs.f_bavail;
-                if(dataDiskDiff <= 0) dataDiskMinutesLeft[dataDiskMinutesLeft_index] = dataDiskMinutesLeft[dataDiskMinutesLeft_index - 1];
-                else dataDiskMinutesLeft[dataDiskMinutesLeft_index] = (int)((double)vfs.f_bavail / (double)(60000000 / POLL_PERIOD / HELPER_INTERVAL * dataDiskDiff));
+                // since we store things on the OS disk before moving them to the data disk (buffering), the total
+                // space "consumed" on the data disk is whatever it is now + whatever it will be in the near future,
+                // meaning that whatever was consumed on the OS disk is tacked on
+                dataDiskDiff += osDiskDiff;
+
+                // if nothing was written, or something was deleted
+                if(dataDiskDiff <= 0) {
+                    // use last difference value
+                    dataDiskMinutesLeft[dataDiskMinutesLeft_index] = dataDiskMinutesLeft[dataDiskMinutesLeft_index - 1];
+                } else {
+                    dataDiskMinutesLeft[dataDiskMinutesLeft_index] = (int)((double)vfs.f_bavail / (double)(60000000 / POLL_PERIOD / HELPER_INTERVAL * dataDiskDiff));
+                }
+
                 dataDiskMinutesLeft_total += dataDiskMinutesLeft[dataDiskMinutesLeft_index];
                 
                 dataDiskMinutesLeft_index++;
                 if(dataDiskMinutesLeft_index >= DISK_USAGE_SAMPLES) dataDiskMinutesLeft_index = 0;
                 pthread_mutex_lock(&(em_data->mtx));
                     // the real calculation
-                    //em_data->SYS_dataDiskMinutesLeft = dataDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
+                    em_data->SYS_dataDiskMinutesLeft = dataDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
 
                     // the fake calculation that bases data disk consumption rate on the OS disk, since we now buffer things there
-                    em_data->SYS_dataDiskMinutesLeft = (int)(((double)em_data->SYS_osDiskMinutesLeft / (double)em_data->SYS_osDiskFreeBlocks) * (double)vfs.f_bavail);
+                    // actually this sucks, forget it
+                    //em_data->SYS_dataDiskMinutesLeft = (int)(((double)em_data->SYS_osDiskMinutesLeft / (double)em_data->SYS_osDiskFreeBlocks) * (double)vfs.f_bavail);
                 pthread_mutex_unlock(&(em_data->mtx));
             }
 
@@ -732,6 +763,13 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
                 em_data->SYS_dataDiskTotalBlocks = vfs.f_blocks;
                 em_data->SYS_dataDiskFreeBlocks = dataDiskLastFree = vfs.f_bavail;
             pthread_mutex_unlock(&(em_data->mtx));
+
+            if(vfs.f_bavail < 4096 && dataDiskMinutesLeft_index > 1) {
+               smSystem.SetState(SYS_DATA_DISK_FULL);
+               D("Set DATA_DISK_FULL");
+            } else {
+               smSystem.UnsetState(SYS_DATA_DISK_FULL);
+            }
         }
     }
 
@@ -752,7 +790,7 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
         si.freeswap * (unsigned long long)si.mem_unit / 1024,
         em_data->SYS_osDiskFreeBlocks * 4096 / 1024 / 1024,
         em_data->SYS_dataDiskFreeBlocks * 4096 / 1024 / 1024,
-        em_data->SYS_videoIsRecording ? 1 : 0);
+        smSystem.GetState() & SYS_VIDEO_RECORDING ? 1 : 0);
 
     return string(buf);
 }
@@ -767,5 +805,5 @@ void reset_trip_scans_handler(int s) { D("Resetting tripScans");
 
 void exit_handler(int s) {
     cout << "INFO: Ecotrust EM Recorder v" << VERSION << " is stopping ..." << endl;
-    smEM.SetState(STATE_NOT_RUNNING);
+    smRecorder.UnsetState(STATE_RUNNING); smRecorder.SetState(STATE_NOT_RUNNING);
 }

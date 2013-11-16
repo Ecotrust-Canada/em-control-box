@@ -6,10 +6,9 @@ block content
       li.active Cams
       li Report
       li Search
-      li Elog 
-    button#toggle_brightness(type='button')
-      i.icon-moon
-    p.datetime initializing
+      li ELog
+      
+    p.datetime
   
   #sensors
     .GPS.inactive
@@ -48,34 +47,34 @@ block content
         span.value-field.available calculating
         input(type='hidden', name='diskavail_mode', id='diskavail_mode', value='fake')
 
-    #inside_home_port.warn.infobox-left
-      h2 IN HOME PORT
+    #recording_status.warn.infobox-left
+      h2 VIDEO NOT RECORDING
 
+    #estimated.fail.infobox-right
+      h2 ESTIMATED FIX
+      
     #inside_ferry_area.fail.infobox-left
       h2 INSIDE FERRY LANE
-
-    #os_disk_full.fail.infobox-left
-      h2 OS DISK FULL
 
     #using_os_disk.fail.infobox-left
       h2 USING OS DISK
 
     #data_disk_full.fail.infobox-left
-        h2 DATA DISK FULL
+      h2 DATA DISK FULL
 
-    #estimated.fail.infobox-right
-      h2 ESTIMATED FIX
-
-    #no_response.fail.infobox-right
-      h2 NO SERVER RESPONSE
+    #os_disk_full.fail.infobox-left
+      h2 OS DISK FULL
 
     #no_recorder.fail.infobox-right
       h2 NO RECORDER RUNNING
 
+    #no_response.fail.infobox-right
+      h2 NO SERVER RESPONSE
+
   #main
     .tab-body.tab-cam
       .cameras
-        p(style="margin: 8px 0 0 8px;") Waiting for cameras to boot ... (45 seconds)
+        p Waiting for cameras to respond ...
     
     .tab-body.tab-report
       form.report
@@ -140,7 +139,7 @@ block content
           th Soak Time
     
     .tab-body.tab-elog
-      iframe(src="http://10.10.40.86:1337", frameborder="0", style="overflow:hidden;height:100%;width:100%", height="100%", width="100%")
+      iframe(src="http://localhost:1337", frameborder="0", style="overflow:auto;height:100%;width:100%", height="100%", width="100%")
  
   #system-info-button.clickable
     p System Info
@@ -196,6 +195,9 @@ block content
       span.label Version:
       span.value
         !=versions
+
+  button#reload-video(type='button') Reload Video
+  button#night-mode(type='button') Night Mode
 
   script(src='/js/jquery-1.4.2.min.js')
   script(src='/js/util.js')

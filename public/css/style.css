@@ -103,7 +103,7 @@ label, input[type=button], input[type=submit], button, ul li, .clickable { curso
 body {
   background-color: black;
   background-image: url(/wood.jpg);
-  //background-size: cover;
+  /*background-size: cover;*/
   color: white;
   font-family: Arial, sans-serif;
   font-size: 14px;
@@ -142,8 +142,6 @@ nav ul li.active {
   padding: 4px 10px 6px 10px;
 }
 
-nav button#toggle_brightness { float: left; margin: 6px 0 0 8px; }
-
 nav p.datetime {
   float: right;
   font-family: monospace;
@@ -165,27 +163,37 @@ nav p.datetime {
   top: 36px;
 }
 
+#main .tab-cam .cameras {
+    font-size: 22px;
+    font-weight: bold;
+    margin: 14px 0 0 18px;
+    text-shadow: #000000 0 0 3px;
+}
+
 #main .tab-report, #main .tab-search { padding: 10px; }
 #main .tab-report p { margin-top: 4px; margin-bottom: 12px; }
 #main .tab-report label { display: block; margin: 6px 0 0 4px; }
 #main .tab-report textarea { margin-top: 3px; }
 #main .tab-search td, #main .tab-search th { border: 1px dotted #EEE; padding: 4px; }
 #main .tab-search table { font-size: 14px; text-align: center; }
-#main .tab-elog {position: absolute; top:36px; left:0; right:282px; bottom:0;}
+#main .tab-elog {position: absolute; top:36px; left:0; right:282px; bottom:0; }
+
 @media (max-width : 1024px) {
-  #main .tab-elog {right: 0;}
+  #main .tab-elog { right: 0; }
 }
+
 #sensors {
   background-color: #404040;
   border-left: 2px solid #E0E0E0;
   float: right;
   width: 280px;
 }
+/* This breaks the sensor bar at 1024x768 (it's hidden on all tabs)
 @media (max-width : 1024px) {
   #sensors div:not(#no_recorder) {
     display : none;
   }
-}
+}*/
 #sensors div {
   border-bottom: 2px solid #E0E0E0;
   padding: 6px;
@@ -225,7 +233,7 @@ nav p.datetime {
 
 #main label#search_rfid_error,
 #sensors div#inside_ferry_area,
-#sensors div#inside_home_port,
+#sensors div#recording_status,
 #sensors div#os_disk_full,
 #sensors div#data_disk_full,
 #sensors div#using_os_disk,
@@ -256,24 +264,36 @@ nav p.datetime {
 #system-info .label { display: inline-block; margin-right: 4px; text-align: right; width: 80px; }
 #system-info .value { display: inline-block; font-weight: bold; width: 150px; }
 .ok { background-color: #008800; }
-.ok:after { 
+/*.ok:after { 
   content: "\e81a";
   font-family: fontello;
   position: absolute;
   top: 1px;
   left: 1px;
   color: #005500;
-}
-.fail { background-color: #CC0000 !important; position: relative;}
-.fail:after { 
+}*/
+.fail { background-color: #CC0000; }
+/*.fail:after { 
   content: "\e823";
   font-family: fontello;
   position: absolute;
   top: 1px;
   left: 1px;
   color: #880000;
-}
+}*/
 .warn { background-color: #aa6800;}
 .inactive { background-color: #404040; }
 
+button#night-mode {
+  position: absolute;
+  bottom: 4px;
+  right: 5px;
+  /*float: left; margin: 6px 0 0 8px;*/
+}
 
+button#reload-video {
+  position: absolute;
+  bottom: 4px;
+  right: 102px;
+  /*float: left; margin: 6px 0 0 8px;*/
+}

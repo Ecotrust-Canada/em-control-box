@@ -25,11 +25,21 @@ window.VMS = {};
 VMS.sensorStates = {};
 // List of selectors (or elements) that subscribe to post messages of sensor data.
 VMS.subscribers = {
-    ".tab-elog iframe": "http://localhost:1337"
+    ".tab-elog iframe": "http://localhost:1337/"
 };
 // I don't expect these to change throughout a run of the software so it's
 // safe to make them global (they come from SYS{} in the state file)
-var fishingArea, numCams, zoomedCam = 0, aspectH, aspectV;
+var fishingArea,
+    numCams,
+    zoomedCam = 0,
+    aspectH,
+    aspectV,
+    noResponseCount = 0,
+    noRecorderCount = 0,
+    lastIteration = 0,
+    video_available = false,
+    recorderResponding = false,
+    serverResponding = false;
 
 /**
  * Initialization after DOM loads.
@@ -38,24 +48,19 @@ $(function (undef) {
     $TABS = $('.tab-body');
     
     $.getJSON('/em_state.json', function (state) {
-
-        if (state) {
-
+        if(state) {
             fishingArea = state.SYS.fishingArea;
             numCams = state.SYS.numCams;
 
-            if(fishingArea == "GM") {
+            if(fishingArea == "A") {
+                $('#diskavail_mode').val('fake');
+                aspectH = 4;
+                aspectV = 3;
+            } else {
                 $('.RFID').hide();
                 $('#diskavail_mode').val('real');
                 aspectH = 16;
                 aspectV = 9;
-                setTimeout(function() {
-                    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-                }, (48 - state.runIterations) * 1000);
-            } else {
-                aspectH = 4;
-                aspectV = 3;
-                $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
             }
         }
     });
@@ -66,14 +71,11 @@ $(function (undef) {
 
     function getAvailableDimensions() {
         var videoWidthMax = $(window).width() - 280;
-        //if (videoWidthMax > 1024) videoWidthMax = 1024;
 
         if ($('#system-info').css('display') != 'none') {
             var videoHeightMax = $(window).height() - 162;
-            //if (videoHeightMax > 768) videoHeightMax = 768;
         } else {
             var videoHeightMax = $(window).height() - 86;
-            //if (videoHeightMax > 768) videoHeightMax = 768;
         }
 
         if (Math.floor(videoWidthMax / aspectH * aspectV) > videoHeightMax) {
@@ -85,11 +87,12 @@ $(function (undef) {
 
     function getCameraEmbeds() {
         var viewportDims = getAvailableDimensions();
-        var divOpen = '<div class="cameras" style="width: ' + viewportDims[0] + 'px; height: ' + viewportDims[1] + 'px;">';
-        //var divOpen = '<div class="cameras">';
+        var divOpen = '<div class="cameras" style="width: ' + viewportDims[0] + 'px; height: ' + viewportDims[1] + 'px; margin: 0;">';
         var divClose = '</div>';
 
-        if(fishingArea == 'GM') {
+        if(fishingArea == "A") {
+            return divOpen + '<embed src="file:///dev/cam0" type="video/raw" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />' + divClose;
+        } else {
             if(numCams > 1) {
                 if (zoomedCam == 0) {
                     var content = ''
@@ -100,20 +103,18 @@ $(function (undef) {
                     for (var i = 1; i <= numCams; i++) {
                         //if (i == 1 || i == 3) content = content + '<tr>';
                         //content = content + '<td><embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(viewportDims[0]/2) + '" height="' + Math.floor(viewportDims[1]/2) + '" /></td>';
-                        content = content + '<embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(heightMax / 2 / aspectV * aspectH) + '" height="' + Math.floor(heightMax / 2) + '" />';
+                        content = content + '<embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(heightMax / 2 / aspectV * aspectH) + '" height="' + Math.floor(heightMax / 2) + '" loop=999 />';
                         //if (i == 2 || i == 4) content = content + '</tr>';
                     }
                     content = content + '';
                 } else {
-                    var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" />';
+                    var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />';
                 }
 
                 return divOpen + content + divClose;
             } else {
-                return divOpen + '<embed src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" />' + divClose;
+                return divOpen + '<embed src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />' + divClose;
             }
-        } else {
-            return divOpen + '<embed src="file:///dev/cam0" type="video/raw" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" />' + divClose;
         }
     }
 
@@ -175,10 +176,6 @@ $(function (undef) {
         danger: 90,
         tick_size: 20
     })).draw();
-
-    noResponseCount = 0;
-    noRecorderCount = 0;
-    lastIterationTimer = 0;
     
     function updateUI() {
         // TODO: check for memory leaks
@@ -187,8 +184,19 @@ $(function (undef) {
 
             if (status) {
                 $('#no_response').hide();
+                serverResponding = true;
 
-                // Send to subscribers (currently on the Elog)
+                if(status.SYS.state & VMS.sensorStates.SYS_VIDEO_AVAILABLE.flag) {
+                    if(!video_available) {
+                        video_available = true;
+                        $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+                    }
+                } else {
+                    video_available = false;
+                    $('.tab-cam .cameras').replaceWith('<div class="cameras"><p>Waiting for cameras to respond ...</p></div>');
+                }
+
+                // Send to subscribers (currently only the Elog)
                 for (var sub_key in VMS.subscribers) {
                     var win = $(sub_key).get(0).contentWindow;
                     win.postMessage(
@@ -197,99 +205,53 @@ $(function (undef) {
                     );
                 }
 
-                if (parseInt('' + status.runIterations) == parseInt('' + lastIterationTimer)) {
+                if (parseInt('' + status.runIterations) == parseInt('' + lastIteration)) {
                     if (noRecorderCount >= 2) {
                         $("#no_recorder").show();
-                        console.error('ERROR: No Recorder');
-
-                        VMS.GPS.$.addClass('inactive');
-                        VMS.RFID.$.addClass('inactive');
-                        VMS.AD.$.addClass('inactive');
-                        VMS.SYS.$.addClass('inactive');
+                        recorderResponding = false;
                     }
 
                     noRecorderCount++;
                 } else {
                     $("#no_recorder").hide();
+                    recorderResponding = true;
 
                     status.GPS.datetime = status.currentDateTime;
-
-                    if (status.GPS.latitude != 0) {
-                        VMS.GPS.$.removeClass('inactive');
-                    } else {
-                        VMS.GPS.$.addClass('inactive');
-                    }
-                    VMS.RFID.$.removeClass('inactive');
-                    VMS.AD.$.removeClass('inactive');
-                    VMS.SYS.$.removeClass('inactive');
-
-                    if (status.GPS.state & VMS.sensorStates.GPS_ESTIMATED.flag) {
-                        $('#estimated').show();
-                    } else {
-                        $('#estimated').hide();
-                    }
-
-                    if (status.GPS.state & VMS.sensorStates.GPS_INSIDE_FERRY_LANE.flag) {
-                        $('#inside_ferry_area').show();
-                    } else {
-                        $('#inside_ferry_area').hide();
-                    }
-
-                    if (status.GPS.state & VMS.sensorStates.GPS_INSIDE_HOME_PORT.flag) {
-                        $('#inside_home_port').show();
-                    } else {
-                        $('#inside_home_port').hide();
-                    }
-
-                    VMS.GPS.update(status.GPS);
-                    if(status.SYS.fishingArea != "GM") VMS.RFID.update(status.RFID);
-                    VMS.AD.update(status.AD);
-                    VMS.SYS.update(status.SYS);
-
-                    lastIterationTimer = status.runIterations;
+                    lastIteration = status.runIterations;
                     noResponseCount = 0;
                     noRecorderCount = 0;
                 }
             } else {
                 if(noResponseCount >= 2) {
                     $('#no_response').show();
-                    VMS.GPS.$.addClass('inactive');
-                    VMS.RFID.$.addClass('inactive');
-                    VMS.AD.$.addClass('inactive');
-                    VMS.SYS.$.addClass('inactive');
+                    serverResponding = false;
                 }
                 noResponseCount++;
+
+                status.GPS.state = 0;
+                status.GPS.datetime = 0;
+                status.RFID.state = 0;
+                status.AD.state = 0;
+                status.SYS.state = 0;
+            }
+
+            VMS.GPS.update(status.GPS);
+            if(status.SYS.fishingArea != "GM") VMS.RFID.update(status.RFID);
+            VMS.AD.update(status.AD);
+            VMS.SYS.update(status.SYS);
+
+            if(!recorderResponding || !serverResponding) {
+                //$('#recording_status').hide();
+                $('#estimated').hide();
+                $('#inside_ferry_area').hide();
+                $('#recording_status').hide();
+
+                if(!recorderResponding) {
+                    $('#recording_status').text(VMS.sensorStates[SYS_VIDEO_NOT_RECORDING].msg.toUpperCase());
+                    $('#recording_status').show();
+                }
             }
         });
-
-        // stuff we want to happen every interval regardless of whether we got state
-        if ($('#using_os_disk').css('display') != 'none') {
-            if ($('#using_os_disk h2').text() == 'USING OS DISK') {
-                $('#using_os_disk h2').text('CALL ECOTRUST NOW!');
-            } else {
-                $('#using_os_disk h2').text('USING OS DISK');
-            }
-        }
-
-        if ($('#os_disk_full').css('display') != 'none') {
-            if ($('#os_disk_full h2').text() == 'OS DISK FULL') {
-                $('#os_disk_full h2').text('CALL ECOTRUST NOW!');
-            } else {
-                $('#os_disk_full h2').text('OS DISK FULL');
-            }
-        }
-
-        if ($('#data_disk_full').css('display') != 'none') {
-            if ($('#data_disk_full h2').text() == 'DATA DISK FULL') {
-                if(fishingArea == 'GM') {
-                    $('#data_disk_full h2').text('NEW DISK REQUIRED');
-                } else {
-                    $('#data_disk_full h2').text('DFO REQUIRED SWAP');
-                }
-            } else {
-                $('#data_disk_full h2').text('DATA DISK FULL');
-            }
-        }
     }
 
     $('nav li').click(function (e) {
@@ -298,14 +260,16 @@ $(function (undef) {
 
         $TABS.hide().eq($('nav ul').children().index(e.target)).show();
 
-        if($(e.target).text() == "ELog") {
+        if($(e.target).text() == "ELog" && $(window).width() <= 1024) {
             $('#sensors').hide();
+            $('#night-mode').hide();
         } else {
             $('#sensors').show();
+            $('#night-mode').show();
         }
     });
 
-    $('#toggle_brightness').click(function () {
+    $('#night-mode').click(function () {
         if($('body').css("opacity") == "1") {
             $('body').css({
                 "opacity": "0.5",
@@ -317,6 +281,10 @@ $(function (undef) {
                 'background-image': 'url(/wood.jpg)'
             });
         }
+    });
+
+    $('#reload-video').click(function () {
+        $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
     });
 
     $('.tab-cam').click(function () {

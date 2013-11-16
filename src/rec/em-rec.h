@@ -63,7 +63,9 @@ using namespace std;
 #define OPTION_ANALOG_CAMERAS		0x0010
 #define OPTION_IP_CAMERAS			0x0020
 
-#define _EM_RUNNING smEM.GetState() & STATE_RUNNING
+#define _EM_RUNNING   smRecorder.GetState() & STATE_RUNNING
+#define _OS_DISK_FULL smSystem.GetState() & SYS_OS_DISK_FULL
+#define _DATA_DISK_FULL smSystem.GetState() & SYS_DATA_DISK_FULL
 #define _AD     smOptions.GetState() & OPTION_USING_AD
 #define _RFID   smOptions.GetState() & OPTION_USING_RFID
 #define _GPS    smOptions.GetState() & OPTION_USING_GPS
@@ -71,7 +73,9 @@ using namespace std;
 #define _ANALOG smOptions.GetState() & OPTION_ANALOG_CAMERAS
 #define _IP     smOptions.GetState() & OPTION_IP_CAMERAS
 
-#define __EM_RUNNING ((StateMachine *)em_data->sm_em)->GetState() & STATE_RUNNING
+#define __EM_RUNNING ((StateMachine *)em_data->sm_recorder)->GetState() & STATE_RUNNING
+#define __OS_DISK_FULL ((StateMachine *)em_data->sm_system)->GetState() & SYS_OS_DISK_FULL
+#define __DATA_DISK_FULL ((StateMachine *)em_data->sm_system)->GetState() & SYS_DATA_DISK_FULL
 #define __AD     ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_AD
 #define __RFID   ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_RFID
 #define __GPS    ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_GPS
@@ -104,8 +108,9 @@ typedef struct {
 	// program state data
 	unsigned long runIterations;
 	char currentDateTime[32];
-	void *sm_em;
+	void *sm_recorder;
 	void *sm_options;
+	void *sm_system;
 	void *sm_helper;
 
 	// System
@@ -127,7 +132,6 @@ typedef struct {
 	unsigned long SYS_dataDiskTotalBlocks;
 	unsigned long SYS_dataDiskMinutesLeft;
 	unsigned long SYS_dataDiskMinutesLeftFake;
-	bool SYS_videoIsRecording;
 	string SYS_currentVideoFile[MAX_CAMS];
 
 	// GPS

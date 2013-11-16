@@ -10,6 +10,9 @@ if [ "$?" != "0" ]; then
 	exit 0
 fi
 
+mkdir -p ${OS_DISK}/archived
+mkdir -p ${DATA_DISK}/elog
+mkdir -p ${DATA_DISK}/journal
 mkdir -p ${DATA_DISK}/reports
 mkdir -p ${DATA_DISK}/screenshots
 mkdir -p ${DATA_DISK}/video
@@ -90,6 +93,9 @@ if [ -n "${VIDEO_FILES}" ]; then
     fi
 fi
 
+# elog
+cp -Rp --remove-destination /var/elog/* ${DATA_DISK}/elog/
+
 # now dump the systemd journal
 DATE=`date "+%Y-%m-%d %H:%M:%S"`
 NICE_DATE=`date "+%Y%m%d-%H%M%S"`
@@ -106,7 +112,7 @@ if [ ${?} -ne 0 ]; then
 fi
 
 IFS='%'
-journalctl -a --output=short ${EXTRA_PARAMS} > ${DATA_DISK}/journal-${NICE_DATE}.log
+journalctl -a --output=short ${EXTRA_PARAMS} > ${DATA_DISK}/journal/${NICE_DATE}.log
 unset IFS
 echo -n ${DATE} > ${LAST_DUMP}
 

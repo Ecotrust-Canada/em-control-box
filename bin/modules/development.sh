@@ -91,7 +91,7 @@ installem_start() {
 
 	echo -ne "	${STAR} Creating skeleton structure and swap file ... " &&
 	cd /mnt/install
-	mkdir -p boot/grub var/cache/fontconfig var/cache/ldconfig var/em/data/archived var/em/data/reports var/em/data/screenshots var/em/data/video var/lib/dbus var/lib/hwclock var/lib/sshd var/lib/systemd/catalog var/lib/xkb var/log/journal
+	mkdir -p boot/grub var/cache/fontconfig var/cache/ldconfig var/em/data/archived var/em/data/reports var/em/data/screenshots var/em/data/video var/elog var/lib/dbus var/lib/hwclock var/lib/sshd var/lib/systemd/catalog var/lib/xkb var/log/journal
 	chmod 750 var/cache/ldconfig
 	ln -s /run/lock var/lock
 	ln -s /run var/run
@@ -104,7 +104,7 @@ installem_start() {
 	dbus-uuidgen --ensure=/mnt/install/var/lib/dbus/machine-id
 	journalctl --update-catalog
 	cp --preserve=all /var/lib/systemd/catalog/database /mnt/install/var/lib/systemd/catalog/
-	chown -R ecotrust:ecotrust var/em
+	#chown -R ecotrust:ecotrust var/em
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Installing ${IMAGE} ... " &&

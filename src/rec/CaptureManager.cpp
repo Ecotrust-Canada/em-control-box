@@ -73,80 +73,81 @@ unsigned long CaptureManager::Start() {
     string currentVideoFile;
     struct stat st;
 
-    // Do all the boring checks and pre-emptory stuff
-    if(GetState() & STATE_RUNNING) { // if already running
-        D2("CM Start()");
+    if(!(__OS_DISK_FULL)) {
+        // Do all the boring checks and pre-emptory stuff
+        if(GetState() & STATE_RUNNING) { // if already running
+            D2("CM Start()");
 
-        pthread_mutex_lock(&(em_data->mtx));
-            em_runIterations = em_data->runIterations;
-        pthread_mutex_unlock(&(em_data->mtx));
+            pthread_mutex_lock(&(em_data->mtx));
+                em_runIterations = em_data->runIterations;
+            pthread_mutex_unlock(&(em_data->mtx));
 
-        for(_ACTIVE_CAMS) {
-            pthread_mutex_lock(&mtx_threadStartedAtIteration);
-                threadStartedAtIteration = startedAtIteration[i];
-            pthread_mutex_unlock(&mtx_threadStartedAtIteration);
-
-            if(threadStartedAtIteration > 0 &&
-               em_runIterations - threadStartedAtIteration > MAX_CLIP_LENGTH) {
+            for(_ACTIVE_CAMS) {
                 pthread_mutex_lock(&mtx_threadStartedAtIteration);
-                    startedAtIteration[i] = 0;
+                    threadStartedAtIteration = startedAtIteration[i];
                 pthread_mutex_unlock(&mtx_threadStartedAtIteration);
-                smCaptureThread[i]->SetState(STATE_CLOSING_OR_UNDEFINED);
-                D2("MAX_CLIP_LENGTH reached for " << i << ", restarting");
-            }
 
-            if(smCaptureThread[i]->GetState() & STATE_RUNNING) {
-                pthread_mutex_lock(&(em_data->mtx));
-                    currentVideoFile = em_data->SYS_currentVideoFile[i];
-                pthread_mutex_unlock(&(em_data->mtx));
-
-                stat(currentVideoFile.c_str(), &st);
-                
-                if(lastFileSize[i] == st.st_size) {
-                    D2("File not growing, restarting that thread");
+                if(threadStartedAtIteration > 0 &&
+                   em_runIterations - threadStartedAtIteration > MAX_CLIP_LENGTH) {
+                    pthread_mutex_lock(&mtx_threadStartedAtIteration);
+                        startedAtIteration[i] = 0;
+                    pthread_mutex_unlock(&mtx_threadStartedAtIteration);
                     smCaptureThread[i]->SetState(STATE_CLOSING_OR_UNDEFINED);
-                    lastFileSize[i] = -1;
-                } else {
-                    lastFileSize[i] = st.st_size;
+                    D2("MAX_CLIP_LENGTH reached for " << i << ", restarting");
+                }
+
+                if(smCaptureThread[i]->GetState() & STATE_RUNNING) {
+                    pthread_mutex_lock(&(em_data->mtx));
+                        currentVideoFile = em_data->SYS_currentVideoFile[i];
+                    pthread_mutex_unlock(&(em_data->mtx));
+
+                    stat(currentVideoFile.c_str(), &st);
+                    
+                    if(lastFileSize[i] == st.st_size) {
+                        D2("File not growing, restarting that thread");
+                        lastFileSize[i] = -1;
+                        smCaptureThread[i]->SetState(STATE_CLOSING_OR_UNDEFINED);
+                    } else {
+                        lastFileSize[i] = st.st_size;
+                    }
+                }
+            }
+        }
+
+        // Now actually start things up
+        if(__ANALOG) {
+            D2("Start Analog");
+            cerr << "Analog captures not supported in this release!" << endl;
+            //SetState(STATE_RUNNING);
+        } else if(__IP) {
+            D2("About to sync CM threads");
+            SyncCaptureThreads(); // this will turn threads in STATE_CLOSING_OR_UNDEFINED into STATE_NOT_RUNNING
+
+            SetState(STATE_RUNNING);
+
+            for(_ACTIVE_CAMS) {
+                D("Before pthread_create " << i << ", state = " << smCaptureThread[i]->GetState());
+                if(smCaptureThread[i]->GetState() & STATE_NOT_RUNNING) {
+                    if(pthread_create(&pt_capture[i], NULL, &thr_CaptureLoopLauncher, (void *)this) != 0) {
+                        smCaptureThread[i]->SetState(STATE_NOT_RUNNING); // eh why not
+                        cerr << "ERROR: Couldn't create IP camera capture thread " << i << endl;
+                    } else {
+                        D2("CREATED " << i);
+                        usleep(POLL_PERIOD / 10); // delay the thread creation a bit
+                    }
                 }
             }
         }
     }
-
-    // Now actually start things up
-    if(__ANALOG) {
-        D2("Start Analog");
-        cerr << "Analog captures not supported in this release!" << endl;
-        //SetState(STATE_RUNNING);
-    } else if(__IP) {
-        D2("About to sync CM threads");
-        SyncCaptureThreads(); // this will turn threads in STATE_CLOSING_OR_UNDEFINED into STATE_NOT_RUNNING
-
-        SetState(STATE_RUNNING);
-
-        for(_ACTIVE_CAMS) {
-            D("Before pthread_create " << i << ", state = " << smCaptureThread[i]->GetState());
-            if(smCaptureThread[i]->GetState() & STATE_NOT_RUNNING) {
-                if(pthread_create(&pt_capture[i], NULL, &thr_CaptureLoopLauncher, (void *)this) != 0) {
-                    smCaptureThread[i]->SetState(STATE_NOT_RUNNING); // eh why not
-                    cerr << "ERROR: Couldn't create IP camera capture thread " << i << endl;
-                } else {
-                    D2("CREATED " << i);
-                    usleep(POLL_PERIOD / 10); // delay the thread creation a bit
-                }
-            }
-        }
-    }
-
-    pthread_mutex_lock(&(em_data->mtx));
-        em_data->SYS_videoIsRecording = true;
-    pthread_mutex_unlock(&(em_data->mtx));
     
     return initialState;
 }
 
 unsigned long CaptureManager::Stop() {
     unsigned long initialState = GetState();
+
+    ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_RECORDING);
+    ((StateMachine *)em_data->sm_system)->SetState(SYS_VIDEO_NOT_RECORDING);
 
     if(__ANALOG) {
         D2("Stop Analog");
@@ -156,10 +157,6 @@ unsigned long CaptureManager::Stop() {
         SetState(STATE_NOT_RUNNING);
         SyncCaptureThreads();
     }
-
-    pthread_mutex_lock(&(em_data->mtx));
-        em_data->SYS_videoIsRecording = false;
-    pthread_mutex_unlock(&(em_data->mtx));
 
     return initialState;
 }
@@ -172,7 +169,7 @@ void CaptureManager::SyncCaptureThreads() {
     #ifdef DEBUG
     for(_ACTIVE_CAMS) {
         signed long s = smCaptureThread[i]->GetState();
-        D2("thread " << i << " = " << s);
+        D2("Thread " << i << " = " << s);
     }
     #endif
 
@@ -218,9 +215,13 @@ void CaptureManager::thr_CaptureLoop() {
         pthread_exit(NULL);
     }
 
+    ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_RECORDING);
+    ((StateMachine *)em_data->sm_system)->SetState(SYS_VIDEO_NOT_RECORDING);
+
     if(GetState() & STATE_RUNNING &&
         smCaptureThread[threadIndex]->GetState() & STATE_RUNNING &&
-        __EM_RUNNING) {
+        __EM_RUNNING &&
+        !(__OS_DISK_FULL)) {
         
         time_t rawtime;
         struct tm *timeinfo;
@@ -244,6 +245,7 @@ void CaptureManager::thr_CaptureLoop() {
 
             if ((_rtsp_ctrl = rtsp_init(&_rtsp_hints)) == NULL) {
                 cerr << C_RED << "ERROR: Cannot init RTSP for camera " << threadIndex << C_RESET << endl;
+                ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
                 smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
                 pthread_mutex_unlock(&mtx_rtspStuff);
                 pthread_exit(NULL);
@@ -251,6 +253,9 @@ void CaptureManager::thr_CaptureLoop() {
 
             if (rtsp_open(_rtsp_ctrl, url)) {
                 cerr << C_RED << "ERROR: Cannot open RTSP for camera " << threadIndex << C_RESET << endl;
+                rtsp_uninit(_rtsp_ctrl);
+
+                ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
                 smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
                 pthread_mutex_unlock(&mtx_rtspStuff);
                 pthread_exit(NULL);
@@ -261,6 +266,11 @@ void CaptureManager::thr_CaptureLoop() {
 
             if (!_rtsp_session) {
                 cerr << C_RED << "ERROR: No RTSP session available for camera " << threadIndex << C_RESET << endl;
+                rtsp_close(_rtsp_ctrl);
+                rtsp_wait(_rtsp_ctrl);
+                rtsp_uninit(_rtsp_ctrl);
+
+                ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_AVAILABLE);
                 smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
                 pthread_mutex_unlock(&mtx_rtspStuff);
                 pthread_exit(NULL);
@@ -287,32 +297,57 @@ void CaptureManager::thr_CaptureLoop() {
         
         if((fd = creat(fileName, 00644)) == -1) {
             cerr << C_RED << "ERROR: Couldn't create file " << fileName << C_RESET << endl;
+
+            if(errno == ENOSPC) {
+                ((StateMachine *)em_data->sm_system)->SetState(SYS_OS_DISK_FULL);
+            }
+
+            rtsp_close(_rtsp_ctrl);
+            rtsp_wait(_rtsp_ctrl);
+            rtsp_uninit(_rtsp_ctrl);
+            
             smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
             pthread_exit(NULL);
         }
 
+        // no more pthread_exits beyond this point
+        // everything now in a loop dependent on run states
+
+        ((StateMachine *)em_data->sm_system)->SetState(SYS_VIDEO_AVAILABLE);
+        
+        ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_NOT_RECORDING);
+        ((StateMachine *)em_data->sm_system)->SetState(SYS_VIDEO_RECORDING);
+
         while(GetState() & STATE_RUNNING &&
             smCaptureThread[threadIndex]->GetState() & STATE_RUNNING &&
             __EM_RUNNING &&
+            !(__OS_DISK_FULL) &&
             !rtp_fill_buffers(_rtp_thread)) {
             for (_rtp_ssrc = rtp_active_ssrc_queue(rtsp_get_rtp_queue(_rtsp_ctrl)); _rtp_ssrc; _rtp_ssrc = rtp_next_active_ssrc(_rtp_ssrc)) {
                 if (!rtp_fill_buffer(_rtp_ssrc, &_rtp_frame, &_rtp_buff)) { // parse the stream
                     if (write(fd, _rtp_frame.data, _rtp_frame.len) < _rtp_frame.len) {
                         cerr << C_RED << "ERROR: Couldn't write whole RTSP packet for camera " << threadIndex << C_RESET << endl;
+
+                        ((StateMachine *)em_data->sm_system)->SetState(SYS_OS_DISK_FULL);
                         smCaptureThread[threadIndex]->SetState(STATE_CLOSING_OR_UNDEFINED);
+                        break;
                     }
                 }
             }
-        }
-        D3("Capture loop broken for " << threadIndex);
+        } D3("Capture loop broken for " << threadIndex);
 
+        ((StateMachine *)em_data->sm_system)->UnsetState(SYS_VIDEO_RECORDING);
+        ((StateMachine *)em_data->sm_system)->SetState(SYS_VIDEO_NOT_RECORDING);
+        
         close(fd);
         rename(fileName, (string(fileName) + ".h264").c_str());
         
         pthread_mutex_lock(&mtx_rtspStuff);
             rtsp_close(_rtsp_ctrl);
-            rtsp_wait(_rtsp_ctrl);
-            rtsp_uninit(_rtsp_ctrl);
+            if(lastFileSize[threadIndex] != -1) {
+                rtsp_wait(_rtsp_ctrl);
+                rtsp_uninit(_rtsp_ctrl);
+            }
         pthread_mutex_unlock(&mtx_rtspStuff);
     } // end massive if
 

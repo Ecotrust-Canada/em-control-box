@@ -173,7 +173,7 @@ void RFIDSensor::resetTripScans() {
 }
 
 void RFIDSensor::Close() {
-    if(!scanCountsFile.empty()) {
+    if(!scanCountsFile.empty() && !(__OS_DISK_FULL)) {
         ofstream fout(scanCountsFile.c_str());
 
         if(!fout.fail()) {
