@@ -26,28 +26,16 @@ using namespace std;
 #ifndef EM_REC_H
 #define EM_REC_H
 
-#define VERSION "2.2.1"
+#include "settings.h"
 
-#define FN_CONFIG				"/etc/em.conf"
-#define FN_TRACK_LOG			"TRACK"
-#define FN_SCAN_LOG				"SCAN"
-#define FN_SYSTEM_LOG			"SYSTEM"
-#define FN_SCAN_COUNT			"scan_count.dat"
-#define FN_VIDEO_DIR			"/data/video"
+#define VERSION "2.2.2"
 
+// YOU PROBABLY SHOULDN'T CHANGE THESE WITHOUT A GOOD REASON
+////////////////////////////////////////////////////////////
 #define POLL_PERIOD 				1000000 // how many microseconds (default 1 sec) DO NOT ALTER
-#define HELPER_INTERVAL				5       // how many POLL_PERIODs before something different happens (all intervals in units of POLL_PERIOD) 5 seconds
-#define HELPER_INNER_INTERVAL		24		// currently used only for screenshotting (every 2 minutes)
-#define NOTIFY_SCAN_INTERVAL		6	 	// wait this many between honks
-#define RECORD_SCAN_INTERVAL		300		// 5 minutes
-#define USE_WARNING_HONK			false
-#define DATA_DISK_FAKE_DAYS_START	21
-#define MAX_CAMS        			4
-#define MAX_CLIP_LENGTH     		1800    // force new movie file every X POLL_PERIODs
-//#define MAX_CLIP_LENGTH     		12    // force new movie file every X POLL_PERIODs
-
-// DON'T CHANGE ANYTHING PAST THIS POINT
-////////////////////////////////////////
+#define AUX_INTERVAL				5       // how many POLL_PERIODs before something different happens (all intervals in units of POLL_PERIOD) 5 seconds
+#define PROC_STAT_VALS          	7
+#define DISK_USAGE_START_VAL        30240
 #define HONK_SCAN_SUCCESS			1
 #define HONK_SCAN_DUPLICATE			2
 #define HONK_SCAN_WARNING			3
@@ -61,25 +49,28 @@ using namespace std;
 #define OPTION_ANALOG_CAMERAS		0x0010
 #define OPTION_IP_CAMERAS			0x0020
 
-#define _EM_RUNNING   smRecorder.GetState() & STATE_RUNNING
-#define _OS_DISK_FULL smSystem.GetState() & SYS_OS_DISK_FULL
+#define _EM_RUNNING   	smRecorder.GetState() & STATE_RUNNING
+#define _OS_DISK_FULL 	smSystem.GetState() & SYS_OS_DISK_FULL
 #define _DATA_DISK_FULL smSystem.GetState() & SYS_DATA_DISK_FULL
-#define _AD     smOptions.GetState() & OPTION_USING_AD
-#define _RFID   smOptions.GetState() & OPTION_USING_RFID
-#define _GPS    smOptions.GetState() & OPTION_USING_GPS
-#define _GPRMC  smOptions.GetState() & OPTION_GPRMC_ONLY_HACK
-#define _ANALOG smOptions.GetState() & OPTION_ANALOG_CAMERAS
-#define _IP     smOptions.GetState() & OPTION_IP_CAMERAS
+#define _AD   	  		smOptions.GetState() & OPTION_USING_AD
+#define _RFID   		smOptions.GetState() & OPTION_USING_RFID
+#define _GPS    		smOptions.GetState() & OPTION_USING_GPS
+#define _GPRMC 			smOptions.GetState() & OPTION_GPRMC_ONLY_HACK
+#define _ANALOG 		smOptions.GetState() & OPTION_ANALOG_CAMERAS
+#define _IP     		smOptions.GetState() & OPTION_IP_CAMERAS
 
-#define __EM_RUNNING ((StateMachine *)em_data->sm_recorder)->GetState() & STATE_RUNNING
-#define __OS_DISK_FULL ((StateMachine *)em_data->sm_system)->GetState() & SYS_OS_DISK_FULL
-#define __DATA_DISK_FULL ((StateMachine *)em_data->sm_system)->GetState() & SYS_DATA_DISK_FULL
-#define __AD     ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_AD
-#define __RFID   ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_RFID
-#define __GPS    ((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_GPS
-#define __GPRMC  ((StateMachine *)em_data->sm_options)->GetState() & OPTION_GPRMC_ONLY_HACK
-#define __ANALOG ((StateMachine *)em_data->sm_options)->GetState() & OPTION_ANALOG_CAMERAS
-#define __IP     ((StateMachine *)em_data->sm_options)->GetState() & OPTION_IP_CAMERAS
+#define __EM_RUNNING 		((StateMachine *)em_data->sm_recorder)->GetState() & STATE_RUNNING
+#define __OS_DISK_FULL 		((StateMachine *)em_data->sm_system)->GetState() & SYS_OS_DISK_FULL
+#define __DATA_DISK_FULL 	((StateMachine *)em_data->sm_system)->GetState() & SYS_DATA_DISK_FULL
+#define __AD     			((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_AD
+#define __RFID   			((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_RFID
+#define __GPS    			((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_GPS
+#define __GPRMC  			((StateMachine *)em_data->sm_options)->GetState() & OPTION_GPRMC_ONLY_HACK
+#define __ANALOG 			((StateMachine *)em_data->sm_options)->GetState() & OPTION_ANALOG_CAMERAS
+#define __IP     			((StateMachine *)em_data->sm_options)->GetState() & OPTION_IP_CAMERAS
+#define __SYS_GET_STATE     ((StateMachine *)em_data->sm_system)->GetState()
+#define __SYS_SET_STATE(s)  ((StateMachine *)em_data->sm_system)->SetState(s)
+#define __SYS_UNSET_STATE(s)  ((StateMachine *)em_data->sm_system)->UnsetState(s)
 
 #include <string>
 
@@ -90,10 +81,10 @@ typedef struct {
 	void *sm_recorder;
 	void *sm_options;
 	void *sm_system;
-	void *sm_helper;
+	void *sm_aux;
 
 	// System
-	bool SYS_dataDiskPresent;
+	string SYS_targetDisk;
 	string SYS_dataDiskLabel;
 	string SYS_fishingArea;
 	unsigned short SYS_numCams;
@@ -111,7 +102,6 @@ typedef struct {
 	unsigned long SYS_dataDiskTotalBlocks;
 	unsigned long SYS_dataDiskMinutesLeft;
 	unsigned long SYS_dataDiskMinutesLeftFake;
-	string SYS_currentVideoFile[MAX_CAMS];
 
 	// GPS
 	string GPS_homePortDataFile;
@@ -144,11 +134,10 @@ typedef struct {
 } EM_DATA_TYPE;
 
 int main(int, char**);
-void *thr_helperLoop(void*);
+void *thr_auxiliaryLoop(void*);
 void writeLog(string, string);
 string writeLog(string, string, string);
 void writeJSONState(EM_DATA_TYPE*);
-bool isDataDiskThere(EM_DATA_TYPE*);
 string updateSystemStats(EM_DATA_TYPE*);
 void reset_string_scans_handler(int);
 void reset_trip_scans_handler(int);

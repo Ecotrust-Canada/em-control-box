@@ -47,7 +47,7 @@ server.configure(function() {
 
 server.get('/em',                   routes.index);
 server.get('/em_state.json',        routes.em_state);
-server.get('/sensorStates.json',    routes.sensorStates);
+server.get('/states.json',          routes.states);
 server.get('/500',                  function(req, res) { throw new Error("500 - Internal server error"); });
 
 server.post('/report',              routes.report);

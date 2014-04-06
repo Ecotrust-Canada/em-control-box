@@ -1,30 +1,42 @@
+#include <string>
+
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
-    extern pthread_mutex_t mtxOut;
+#define THREAD_MAIN     0
+#define THREAD_AUX      1
+#define THREAD_GPS      2
+#define THREAD_CAPTURE  3
 
-    #define C_RED    "\33[0;31m"
-    #define C_GREEN  "\33[0;32m"
-    #define C_YELLOW "\33[0;33m"
-    #define C_MAGENTA "\33[0;35m"
-    #define C_CYAN   "\33[0;36m"
-    #define C_RESET  "\33[0m"
+#define OUTPUT_NORMAL   0
+#define OUTPUT_INFO     1
+#define OUTPUT_WARN     2
+#define OUTPUT_ERROR    3
+#define OUTPUT_DEBUG    4
 
-    #define O(s) pthread_mutex_lock(&mtxOut); cout << s << endl; pthread_mutex_unlock(&mtxOut);
-    #define I(s) pthread_mutex_lock(&mtxOut); cout << "INFO: " << s << endl; pthread_mutex_unlock(&mtxOut);
-    #define W(s) pthread_mutex_lock(&mtxOut); cout << C_YELLOW << "WARN: " << s << C_RESET << endl; pthread_mutex_unlock(&mtxOut);
-    #define E(s) pthread_mutex_lock(&mtxOut); cout << C_RED << "ERROR: " << s << C_RESET << endl; pthread_mutex_unlock(&mtxOut);
+#define C_RED     "\33[0;31m"
+#define C_GREEN   "\33[0;32m"
+#define C_YELLOW  "\33[0;33m"
+#define C_BLUE    "\33[1;34m"
+#define C_MAGENTA "\33[0;35m"
+#define C_CYAN    "\33[0;36m"
+#define C_WHITE   "\33[1;37m"
+#define C_RESET   "\33[0m"
 
-    #ifdef DEBUG
-        #define D(s) pthread_mutex_lock(&mtxOut); cerr << C_GREEN << "DEBUG: " << s << C_RESET << endl; pthread_mutex_unlock(&mtxOut);
-        #define D2(s) pthread_mutex_lock(&mtxOut); cerr << C_MAGENTA << "DEBUG: " << s << C_RESET << endl; pthread_mutex_unlock(&mtxOut);
-        #define D3(s) pthread_mutex_lock(&mtxOut); cerr << C_CYAN << "DEBUG: " << s << C_RESET << endl; pthread_mutex_unlock(&mtxOut);
-        #define OVERRIDE_SILENCE        true
-    #else
-        #define D(s)
-        #define D2(s)
-        #define D3(s)
-        #define OVERRIDE_SILENCE        false
-    #endif
+void msgOut(std::string, std::string, unsigned short);
+std::string intToString(int);
+
+#define O(s) msgOut(moduleName, string("") + s, OUTPUT_NORMAL);
+#define I(s) msgOut(moduleName, string("") + s, OUTPUT_INFO);
+#define W(s) msgOut(moduleName, string("") + s, OUTPUT_WARN);
+#define E(s) msgOut(moduleName, string("") + s, OUTPUT_ERROR);
+
+#ifdef DEBUG
+    #define D(s) msgOut(moduleName, string("") + s, OUTPUT_DEBUG);
+    #define OVERRIDE_SILENCE        true
+#else
+    #define D(s)
+    #define OVERRIDE_SILENCE        false
+#endif
 
 #endif

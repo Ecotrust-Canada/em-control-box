@@ -224,7 +224,7 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         if (opts.state & VMS.sensorStates.SYS_VIDEO_RECORDING.flag) {
             $('#recording_status h2').text(VMS.sensorStates.SYS_VIDEO_RECORDING.msg.toUpperCase());
         } else {
-            $('#recording_status h2').text(VMS.sensorStates.SYS_VIDEO_NOT_RECORDING.msg.toUpperCase());
+            $('#recording_status h2').text("VIDEO NOT RECORDING");
         }
 
         $('#recording_status').show();
@@ -243,10 +243,7 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         if($('#os_disk_full').css('display') != 'none')   $('#os_disk_full h2').text('CALL ECOTRUST NOW!');
     }
 
-    opts.state = opts.state
-        & (~VMS.sensorStates.SYS_VIDEO_AVAILABLE.flag)
-        & (~VMS.sensorStates.SYS_VIDEO_RECORDING.flag)
-        & (~VMS.sensorStates.SYS_VIDEO_NOT_RECORDING.flag);
+    opts.state = opts.state & (~VMS.sensorStates.SYS_VIDEO_RECORDING.flag);
 
     if(delayCounter > 3 && lastIteration >= 8) {
         var osDiskPercentUsed = Math.floor(100 * (1 - opts.osDiskFreeBlocks / opts.osDiskTotalBlocks));

@@ -24,25 +24,6 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define DEFAULT_fishing_area		"A"
-#define DEFAULT_vessel 				"NOT_CONFIGURED"
-#define DEFAULT_vrn					"00000"
-#define DEFAULT_arduino 			"5V"
-#define DEFAULT_psi_vmin			"0.90"
-#define DEFAULT_cam 				"1"
-
-#define DEFAULT_EM_DIR				"/var/em"
-#define DEFAULT_OS_DISK				"/var/em/data"
-#define DEFAULT_DATA_DISK 			"/mnt/data"
-#define DEFAULT_JSON_STATE_FILE 	"/tmp/em_state.json"
-#define DEFAULT_ARDUINO_DEV 		"/dev/arduino"
-#define DEFAULT_GPS_DEV 			"/dev/ttyS0"
-#define DEFAULT_RFID_DEV 			"/dev/ttyS1"
-//#define DEFAULT_HOME_PORT_DATA 		"/opt/em/public/a_home_ports.kml"
-//#define DEFAULT_FERRY_DATA			"/opt/em/public/a_ferry_lanes.kml"
-#define DEFAULT_HOME_PORT_DATA 		"/need/to/set/this"
-#define DEFAULT_FERRY_DATA			"/need/to/set/this"
-
 #include <string>
 
 typedef struct {
@@ -59,6 +40,10 @@ typedef struct {
 			RFID_DEV,
 			HOME_PORT_DATA,
 			FERRY_DATA;
+
+	unsigned short psi_low_threshold,
+				   psi_high_threshold,
+				   fps_low_delay;
 } CONFIG_TYPE;
 
 /**

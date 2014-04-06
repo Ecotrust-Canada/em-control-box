@@ -28,9 +28,6 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-// WTF?
-//static signed long futureIterations[sizeof(long int)*8] = { -1 };
-
 StateMachine::StateMachine(unsigned long initialState, bool _exclusiveStyle) {
     pthread_mutex_init(&mtx_state, NULL);
     state = initialState;
@@ -52,6 +49,7 @@ unsigned short StateMachine::bitmaskIndex(unsigned long b) {
 }
 
 void StateMachine::SetState(unsigned long errorFlag, unsigned short futureIteration) {
+    string moduleName = "SM";
     unsigned short flagIndex = bitmaskIndex(errorFlag);
     signed long savedFutureIteration = futureIterations[flagIndex];
 
@@ -61,7 +59,7 @@ void StateMachine::SetState(unsigned long errorFlag, unsigned short futureIterat
     pthread_mutex_lock(&mtx_state);
         if(futureIteration) {
             if(futureIterations[flagIndex] >= futureIteration - 1) {
-                D("Reached delayed error state, restarting counter (" << errorFlag << ": " << futureIterations[flagIndex] << ")");
+                D("Reached delayed error state, restarting counter (" + to_string(errorFlag) + ": " + to_string(futureIterations[flagIndex]) + ")");
                 futureIterations[flagIndex] = 0;
             } else {
                 futureIterations[flagIndex]++;

@@ -24,43 +24,54 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #ifndef CAPTUREMANAGER_H
 #define CAPTUREMANAGER_H
 
+#include "settings.h"
 #include "StateMachine.h"
+#include "liveRTSP.h"
+#include <queue>
 #include <sys/types.h>
 #include <unistd.h>
 
-extern "C" {
-    #include <nemesi/rtsp.h>
-    //#include <nemesi/rtp.h>
-    //#include <nemesi/sdp.h>
-}
-
-#define RTSP_URL        "rtsp://1.1.1.%d:7070/track1"
-#define _ACTIVE_CAMS    unsigned short i = 0; i < em_data->SYS_numCams; i++
+#define _ACTIVE_CAMS   unsigned short i = 0; i < em_data->SYS_numCams; i++
 
 class CaptureManager: public StateMachine {
     private:
-        pthread_t pt_capture[MAX_CAMS];
-        StateMachine *smCaptureThread[MAX_CAMS];
+        string moduleName;
         EM_DATA_TYPE *em_data;
-        pthread_mutex_t mtx_threadIndex, mtx_rtspStuff, mtx_threadStartedAtIteration;
-        string baseVideoDirectory;
-        unsigned long startedAtIteration[MAX_CAMS];
-        off_t lastFileSize[MAX_CAMS];
+        string videoDirectory;
+        char encoderArgs[512];
+        char encoderArgsSlow[512];
+        //unsigned short lastRecordMode, nextRecordMode;
+        bool wasInReducedBitrateMode;
+        pid_t pid_encoder[ANALOG_MAX_CAMS];
+        std::queue<pid_t> pidReaperQueue;
 
-        rtsp_ctrl *_rtsp_ctrl[MAX_CAMS];
-        rtsp_session *_rtsp_session[MAX_CAMS];
-        bool rtsp_init_done[MAX_CAMS];
-
-        static void *thr_CaptureLoopLauncher(void*);
-        void thr_CaptureLoop();
-        void SyncCaptureThreads();
-    
     public:
         CaptureManager(EM_DATA_TYPE*, string);
         ~CaptureManager();
-        
         unsigned long Start();
         unsigned long Stop();
+        unsigned short GetSecondsUntilNextClipTime();
+        void KillAndReapZombieChildren(bool); // sounds fantastic
+
+#ifdef WITH_IP
+    private:
+        pthread_t pt_capture;
+        char captureLoopWatchVar;
+        MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
+        //unsigned long startedAtIteration[IP_MAX_CAMS]; // ? needed?
+        //off_t lastFileSize[IP_MAX_CAMS]; /// ? needed?
+        
+        static void *thr_IPCaptureLoopLauncher(void*);
+        void thr_IPCaptureLoop();
+        void JoinIPCaptureThreadBlocking();
+        void JoinIPCaptureThreadNonblocking();
+        //void SetIPOutputFrameRate(unsigned short);
+
+    public:
+        //void ShutdownRTSPStreams(MultiRTSPClient**); // gets called by Stop() at some point, in addition to any outsiders who want to guarantee interruption of the capture
+        //void ShutdownRTSPStreams();
+
+#endif
 };
 
 #endif

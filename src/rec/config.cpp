@@ -33,10 +33,12 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-char NOTFOUND[] = "\0"; ///< The value returned by the getter function when the required configuration is found.
-int config_length = 0;
+extern bool ARG_DUMP_CONFIG;
 
+char NOTFOUND[] = "\0"; ///< The value returned by the getter function when the required configuration is found.
 char config[32][2][255]; ///< Hold all the configurations.
+int config_length = 0;
+const string moduleName = "CONF";
 
 /**
  * Get a configuration by key.
@@ -45,10 +47,14 @@ char config[32][2][255]; ///< Hold all the configurations.
  */
 string getConfig(const char* key, const char* default_value) {
     for(int i = 0; i < config_length; i++) {
-        if (strcmp(key, config[i][0]) == 0) return string(config[i][1]);
+        if (strcmp(key, config[i][0]) == 0) {
+            if(ARG_DUMP_CONFIG) cout << key << "=" << config[i][1] << endl;
+            return string(config[i][1]);
+        }
     }
 
-    E("Missing key '" << key << "' in config file, using default '" << default_value << "'");
+    if(ARG_DUMP_CONFIG) cout << key << "=" << default_value << endl;
+    else E("Missing key '" + key + "' in config file, using default '" + default_value + "'");
     return string(default_value);
 }
 
@@ -60,8 +66,10 @@ int readConfigFile(const char *file) {
     config_fd = fopen(file, "r");
 
     if (!config_fd) {
-        E("Couldn't load config file " << file);
+        E("Failed to load config file " + file);
         return 1;
+    } else if(ARG_DUMP_CONFIG) {
+        cout << "# Settings from '" << file << "' with defaults where applicable" << endl;
     }
 
     config[config_length][1][0] = '\0';  // this value will change if line is read.

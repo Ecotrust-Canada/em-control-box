@@ -1,7 +1,7 @@
 #!/bin/bash
 PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
-source /opt/em/bin/read-config.func
+eval "`/opt/em/bin/em-rec --dump-config`"
 
 /usr/bin/setserial -z ${GPS_DEV} low_latency
 /usr/bin/setserial -z ${RFID_DEV} low_latency

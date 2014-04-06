@@ -24,12 +24,13 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #ifndef STATEMACHINE_H
 #define STATEMACHINE_H
 
-#define STATE_CLOSING_OR_UNDEFINED 0x0001
-#define STATE_NOT_RUNNING          0x0002
-#define STATE_RUNNING              0x0004
+#define STATE_NOT_RUNNING   0x0001
+#define STATE_STARTING      0x0002
+#define STATE_RUNNING       0x0004
+#define STATE_CLOSING       0x0008
 
-#define SM_EXCLUSIVE_STATES         true
-#define SM_MULTIPLE_STATES          false
+#define SM_EXCLUSIVE_STATES  true
+#define SM_MULTIPLE_STATES   false
 
 #include "em-rec.h"
 #include "states.h"
@@ -64,9 +65,7 @@ class StateMachine {
          * Reset all the error states.
          */
         void UnsetAllStates();
-
         void PrintState();
-
         unsigned long GetState();
 
     private:

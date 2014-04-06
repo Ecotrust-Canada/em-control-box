@@ -33,7 +33,6 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define GPS_THREAD_CLOSE_DELAY 100
 #define MAX_POLYS           10
 #define MAX_POINTS          20
-//#define MAXTAGLEN           8 
 
 struct POINT {
     double x;
@@ -55,7 +54,7 @@ struct POINT {
 class GPSSensor: public Sensor {
     private:
         pthread_t pt_receiveLoop;
-        StateMachine smMyThread;
+        StateMachine smGPSConsumerThread;
         EM_DATA_TYPE *em_data;
         struct gps_data_t GPS_DATA, GPS_DATA_buf, GPS_DATA_empty;
         POINT home_ports[MAX_POLYS][MAX_POINTS];

@@ -73,7 +73,7 @@ class Sensor: public StateMachine {
          */
         Sensor(const char*, unsigned long, unsigned long);
 
-        const char* name; ///< The name of the sensor, i.e., GPS, AD, RFID
+        string moduleName; ///< The name of the sensor, i.e., GPS, AD, RFID
 
         void SetPort(const char*);
         void SetBaudRate(int);

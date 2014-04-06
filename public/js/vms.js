@@ -23,15 +23,12 @@ You may contact Ecotrust Canada via our websitehttp://ecotrust.ca
 
 window.VMS = {};
 VMS.sensorStates = {};
-// List of selectors (or elements) that subscribe to post messages of sensor data.
-VMS.subscribers = {
-    ".tab-elog iframe": "http://localhost:1337/"
-};
+
 // I don't expect these to change throughout a run of the software so it's
 // safe to make them global (they come from SYS{} in the state file)
 var fishingArea,
     numCams,
-    zoomedCam = 0,
+    zoomedCam = 1,
     aspectH,
     aspectV,
     noResponseCount = 0,
@@ -39,13 +36,21 @@ var fishingArea,
     lastIteration = 0,
     video_available = false,
     recorderResponding = false,
-    serverResponding = false;
+    serverResponding = false,
+    eLogURL = "http://" + window.location.hostname + ":1337/";
+
+// List of selectors (or elements) that subscribe to post messages of sensor data.
+VMS.subscribers = {
+    ".tab-elog iframe": eLogURL
+};
 
 /**
  * Initialization after DOM loads.
  */
 $(function (undef) {
     $TABS = $('.tab-body');
+
+    $('.tab-elog').append("<iframe src=\"" + eLogURL + "\" frameborder=\"0\" style='overflow:auto;height:100%;width:100%' height=\"100%\" width=\"100%\"></iframe>");
     
     $.getJSON('/em_state.json', function (state) {
         if(state) {
@@ -65,18 +70,20 @@ $(function (undef) {
         }
     });
 
-    $.getJSON('/sensorStates.json', function (states) {
+    $.getJSON('/states.json', function (states) {
         if (states) VMS.sensorStates = states;
     });
 
     function getAvailableDimensions() {
-        var videoWidthMax = $(window).width() - 280;
-
-        if ($('#system-info').css('display') != 'none') {
+        var videoWidthMax = $(window).width() - 282;
+        var videoHeightMax = $(window).height();
+        
+        // Ugly hack for when sys info box was below the videos
+        /*if ($('#system-info').css('display') != 'none') {
             var videoHeightMax = $(window).height() - 162;
         } else {
             var videoHeightMax = $(window).height() - 86;
-        }
+        }*/
 
         if (Math.floor(videoWidthMax / aspectH * aspectV) > videoHeightMax) {
             return [Math.floor(videoHeightMax / aspectV * aspectH), videoHeightMax];
@@ -87,35 +94,22 @@ $(function (undef) {
 
     function getCameraEmbeds() {
         var viewportDims = getAvailableDimensions();
-        var divOpen = '<div class="cameras" style="width: ' + viewportDims[0] + 'px; height: ' + viewportDims[1] + 'px; margin: 0;">';
+        var divOpen = '<div class="cameras" style="margin: 0;">';
         var divClose = '</div>';
 
         if(fishingArea == "A") {
             return divOpen + '<embed src="file:///dev/cam0" type="video/raw" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />' + divClose;
         } else {
-            if(numCams > 1) {
-                if (zoomedCam == 0) {
-                    var content = ''
-                    
-                    //var heightMax = $(window).height() - 88;
-                    var heightMax = $(window).height() - 160;
-                    
-                    for (var i = 1; i <= numCams; i++) {
-                        //if (i == 1 || i == 3) content = content + '<tr>';
-                        //content = content + '<td><embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(viewportDims[0]/2) + '" height="' + Math.floor(viewportDims[1]/2) + '" /></td>';
-                        content = content + '<embed src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.floor(heightMax / 2 / aspectV * aspectH) + '" height="' + Math.floor(heightMax / 2) + '" loop=999 />';
-                        // HACK for single cam testing: content = content + '<embed src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + Math.floor(heightMax / 2 / aspectV * aspectH) + '" height="' + Math.floor(heightMax / 2) + '" loop=999 />';
-                        //if (i == 2 || i == 4) content = content + '</tr>';
-                    }
-                    content = content + '';
-                } else {
-                    var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />';
-                }
+            var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + (viewportDims[0]) + '" height="' + viewportDims[1] + '" loop=999 id=' + zoomedCam + ' />';
 
-                return divOpen + content + divClose;
-            } else {
-                return divOpen + '<embed src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />' + divClose;
+            for (var i = 1; i <= numCams; i++) {
+                if(i == zoomedCam) continue;
+
+                content = content + '<embed class="thumbnail" src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.ceil(viewportDims[0] / 2) + '" height="' + Math.ceil(viewportDims[1] / 2) + '" loop=999 id=' + i + ' />';
+                //content = content + '';
             }
+            
+            return divOpen + content + divClose;
         }
     }
 
@@ -187,7 +181,7 @@ $(function (undef) {
                 $('#no_response').hide();
                 serverResponding = true;
 
-                if(status.SYS.state & VMS.sensorStates.SYS_VIDEO_AVAILABLE.flag) {
+                /*if(status.SYS.state & VMS.sensorStates.SYS_VIDEO_AVAILABLE.flag) {
                     if(!video_available) {
                         video_available = true;
                         $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
@@ -195,16 +189,7 @@ $(function (undef) {
                 } else {
                     video_available = false;
                     $('.tab-cam .cameras').replaceWith('<div class="cameras"><p>Waiting for cameras to respond ...</p></div>');
-                }
-
-                // Send to subscribers (currently only the Elog)
-                for (var sub_key in VMS.subscribers) {
-                    var win = $(sub_key).get(0).contentWindow;
-                    win.postMessage(
-                        status,
-                        $(sub_key).attr('src')
-                    );
-                }
+                }*/
 
                 if (parseInt('' + status.runIterations) == parseInt('' + lastIteration)) {
                     if (noRecorderCount >= 2) {
@@ -221,6 +206,20 @@ $(function (undef) {
                     lastIteration = status.runIterations;
                     noResponseCount = 0;
                     noRecorderCount = 0;
+                }
+
+                if(!video_available) {
+                    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+                    video_available = true;
+                }
+
+                // Send to subscribers (currently only the Elog)
+                for (var sub_key in VMS.subscribers) {
+                    var win = $(sub_key).get(0).contentWindow;
+                    win.postMessage(
+                        status,
+                        $(sub_key).attr('src')
+                    );
                 }
             } else {
                 if(noResponseCount >= 2) {
@@ -292,7 +291,7 @@ $(function (undef) {
 
     $('.tab-cam').click(function () {
         if (numCams > 1) {
-            if (zoomedCam == numCams) zoomedCam = 0;
+            if (zoomedCam == numCams) zoomedCam = 1;
             else if (zoomedCam < numCams) zoomedCam++;
 
             $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
@@ -364,23 +363,11 @@ $(function (undef) {
     $('#system-info-button').click(function () {
         $('#system-info-button').hide();
         $('#system-info').show();
-
-        var viewportDims = getAvailableDimensions();
-
-        if($('.tab-cam .cameras').width() /*+ 4*/ != viewportDims[0] || $('.tab-cam .cameras').height() /*+ 2*/ != viewportDims[1]) {
-            $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-        }
     });
 
     $('#system-info').click(function () {
         $('#system-info').hide();
         $('#system-info-button').show();
-
-        var viewportDims = getAvailableDimensions();
-
-        if($('.tab-cam .cameras').width() /*+ 4*/ != viewportDims[0] || $('.tab-cam .cameras').height() /*+ 2*/ != viewportDims[1]) {
-            $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-        }
     });
 
     $('.SYS .available').click(function (e) {

@@ -5,7 +5,7 @@ FFMPEG_OPTS="-loglevel warning -y -an -f rawvideo -c:v rawvideo -s 640x480 -r 30
 ENCODING_OPTS="-vf fps=30000/3003 -x264opts crf=24:subq=2:weightp=2:keyint=60:frameref=1:rc-lookahead=10:trellis=0:me=hex:merange=8 -maxrate 1200000 -bufsize 1300000"
 LENGTH=3600
 
-source /opt/em/bin/read-config.func
+eval "`/opt/em/bin/em-rec --dump-config`"
 
 if [ -r "${EM_DIR}/encoding.conf" ]; then
     source ${EM_DIR}/encoding.conf

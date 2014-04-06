@@ -24,6 +24,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #include "Sensor.h"
 #include "output.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <cstring>
 #include <fcntl.h>
@@ -33,8 +34,8 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-Sensor::Sensor(const char* aName, unsigned long _NO_CONNECTION, unsigned long _NO_DATA):StateMachine(_NO_CONNECTION, false) {
-    name = aName;
+Sensor::Sensor(const char* _moduleName, unsigned long _NO_CONNECTION, unsigned long _NO_DATA):StateMachine(_NO_CONNECTION, false) {
+    moduleName = string(_moduleName);
     state = _NO_CONNECTION;
     NO_CONNECTION = _NO_CONNECTION;
     NO_DATA = _NO_DATA;
@@ -61,7 +62,7 @@ int Sensor::Connect() {
 
         if (serialHandle == -1) {
             if(!silenceConnectErrors) {
-                E(name << ": Failed to open port '" << serialPort << "'");
+                E("Failed to open port '" + serialPort + "'");
             }
             continue;
         }
@@ -69,7 +70,7 @@ int Sensor::Connect() {
         // enable blocking I/O (read() blocks until bytes available)
         if(fcntl(serialHandle, F_SETFL, 0) == -1) {
             if(!silenceConnectErrors) {
-                E(name << ": Failed SETFL");
+                E("Failed SETFL");
             }
             continue;
         }
@@ -77,21 +78,21 @@ int Sensor::Connect() {
         // fill options struct
         if(tcgetattr(serialHandle, &options) == -1) {
             if(!silenceConnectErrors) {
-                E(name << ": Failed to get serial config");
+                E("Failed to get serial config");
             }
             continue;
         }
 
         if(cfsetispeed(&options, baudRate) == -1) { // sets baud rates
             if(!silenceConnectErrors) {
-                E(name << ": Failed to set input baud rate");
+                E("Failed to set input baud rate");
             }
             continue;
         }
 
         if(cfsetospeed(&options, baudRate) == -1) { // sets baud rates
             if(!silenceConnectErrors) {
-                E(name << ": Failed to set output baud rate");
+                E("Failed to set output baud rate");
             }
             continue;
         }
@@ -130,17 +131,17 @@ int Sensor::Connect() {
 
         if(tcsetattr(serialHandle, TCSANOW, &options) == -1) {
             if(!silenceConnectErrors) {
-                E(name << ": Failed to set config");
+                E("Failed to set config");
             }
             continue;
         }
 
         UnsetState(NO_CONNECTION);
-        O(name << ": Connected");
+        O("Connected");
     }
 
     if(GetState() & NO_CONNECTION && (!silenceConnectErrors || OVERRIDE_SILENCE)) {
-        E(name << ": Failed to connect after " << MAX_TRY_COUNT << " tries; will keep at it but silencing further Connect() errors");
+        E("Failed to connect after " + std::to_string(MAX_TRY_COUNT) + " tries; will keep at it but silencing further Connect() errors");
         silenceConnectErrors = true;
         return -1;
     }

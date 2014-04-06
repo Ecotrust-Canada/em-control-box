@@ -107,7 +107,7 @@ body {
   color: white;
   font-family: Arial, sans-serif;
   font-size: 14px;
-  line-height:1.22;  
+  line-height: 1.22;
 }
 
 #container { height: auto; overflow: hidden; }
@@ -152,7 +152,8 @@ nav p.datetime {
 }
 
 #main { overflow: hidden; width: auto; }
-#main embed { border: 2px solid #E0E0E0; border-top: none; display: block; float: left; margin: 0 2px 0 0; padding: 0; }
+#main embed { border-width: 0 0 2px 2px; border-color: #E0E0E0; border-style: solid; display: block; float: left; margin: 0; padding: 0; }
+#main embed.thumbnail { }
 #main h1 { font-size: 16px; margin-bottom: 8px; text-decoration: underline; }
 
 #main .tab-body {
@@ -260,7 +261,7 @@ nav p.datetime {
   border-width: 0 2px 0 2px;
 }
 
-#system-info, #system-info-button { background: rgba(0,0,0,0.5); border: 1px solid #909090; bottom: 8px; box-shadow: 0 0 5px 1px #000; font-size: 15px; left: 6px; line-height: 1.28; padding: 5px; position: absolute; text-shadow: 0 0 2px #000; }
+#system-info, #system-info-button { background: rgba(0,0,0,0.5); border: 1px solid #909090; bottom: 4px; box-shadow: 0 0 5px 1px #000; font-size: 13px; right: 5px; padding: 5px; position: absolute; text-shadow: 0 0 2px #000; }
 #system-info .label { display: inline-block; margin-right: 4px; text-align: right; width: 80px; }
 #system-info .value { display: inline-block; font-weight: bold; width: 150px; }
 .ok { background-color: #008800; }
@@ -287,13 +288,13 @@ nav p.datetime {
 button#night-mode {
   position: absolute;
   bottom: 4px;
-  right: 5px;
+  left: 5px;
   /*float: left; margin: 6px 0 0 8px;*/
 }
 
 button#reload-video {
   position: absolute;
   bottom: 4px;
-  right: 102px;
+  left: 102px;
   /*float: left; margin: 6px 0 0 8px;*/
 }

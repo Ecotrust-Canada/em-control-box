@@ -35,11 +35,9 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-GPSSensor::GPSSensor(EM_DATA_TYPE* _em_data):
-    Sensor("GPS", GPS_NO_CONNECTION, GPS_NO_DATA),
-    smMyThread(STATE_NOT_RUNNING, true) {
+GPSSensor::GPSSensor(EM_DATA_TYPE* _em_data):Sensor("GPS", GPS_NO_CONNECTION, GPS_NO_DATA), smGPSConsumerThread(STATE_NOT_RUNNING, true) {
     em_data = _em_data;
-    smMyThread.SetState(STATE_NOT_RUNNING);
+    smGPSConsumerThread.SetState(STATE_NOT_RUNNING);
     pthread_mutex_init(&mtx_GPS_DATA_buf, NULL);
 }
 
@@ -54,7 +52,7 @@ int GPSSensor::Connect() {
     
     if (gps_open("localhost", DEFAULT_GPSD_PORT, &GPS_DATA) != 0) {
         if(!silenceConnectErrors || OVERRIDE_SILENCE) {
-            E(name << ": Failed to connect to GPSd (is it running?); will keep at it but silencing further Connect() errors");
+            E("Failed to connect to GPSd (is it running?); will keep at it but silencing further Connect() errors");
             silenceConnectErrors = true;
         }
 
@@ -70,7 +68,7 @@ int GPSSensor::Connect() {
     UnsetState(GPS_NO_DATA);
     UnsetState(GPS_NO_FIX);
 
-    O(name << ": Connected (GPSd)");
+    O("Connected (GPSd)");
 
     // bug: condition of having a KML file with NO polys = reread every time
     if(!(GetState() & GPS_NO_HOME_PORT_DATA) && num_home_ports == 0) {
@@ -93,10 +91,10 @@ int GPSSensor::Receive() {
 
     // whenever the thread self-closes (sets THREAD_CLOSING), we do a full
     // reconnection to GPSd, because we don't know (or care) why it closed
-    // but we know something is wrong
-    switch(smMyThread.GetState()) {
+    // but we know something went wrong
+    switch(smGPSConsumerThread.GetState()) {
         // thread should always set this when it wants to exit
-        case STATE_CLOSING_OR_UNDEFINED:
+        case STATE_CLOSING:
             // there's no guarantee this will get run if the program is
             // halted (CTRL+C) so it is done again by em-rec after the record loop
             Close();
@@ -112,26 +110,26 @@ int GPSSensor::Receive() {
                     return -1;
                 }
 
-                smMyThread.SetState(STATE_RUNNING);
+                smGPSConsumerThread.SetState(STATE_RUNNING);
                 if((retVal = pthread_create(&pt_receiveLoop, NULL, &thr_ReceiveLoopLauncher, (void *)this)) != 0) {
-                    smMyThread.SetState(STATE_NOT_RUNNING);
-                    E(name << ": Couldn't create GPS consumer thread");
-                } D("GPS::pthread_create(): " << retVal);
+                    smGPSConsumerThread.SetState(STATE_NOT_RUNNING);
+                    E("Couldn't create GPS consumer thread");
+                } D("GPS::pthread_create(): " + to_string(retVal));
             }
 
         case STATE_RUNNING:
-            if (isConnected() /*&& smMyThread.GetState() & STATE_RUNNING*/) {
+            if (isConnected() /*&& smGPSConsumerThread.GetState() & STATE_RUNNING*/) {
                 pthread_mutex_lock(&mtx_GPS_DATA_buf);
                 pthread_mutex_lock(&(em_data->mtx));
                     em_data->GPS_time = GPS_DATA_buf.fix.time;
-                    em_data->GPS_latitude = isnan(GPS_DATA_buf.fix.latitude) ? 0 : GPS_DATA_buf.fix.latitude;
-                    em_data->GPS_longitude = isnan(GPS_DATA_buf.fix.longitude) ? 0 : GPS_DATA_buf.fix.longitude;
-                    em_data->GPS_heading = isnan(GPS_DATA_buf.fix.track) ? 0 : GPS_DATA_buf.fix.track;
-                    em_data->GPS_speed = isnan(GPS_DATA_buf.fix.speed) ? 0 : GPS_DATA_buf.fix.speed * MPS_TO_KNOTS;
+                    em_data->GPS_latitude = std::isnan(GPS_DATA_buf.fix.latitude) ? 0 : GPS_DATA_buf.fix.latitude;
+                    em_data->GPS_longitude = std::isnan(GPS_DATA_buf.fix.longitude) ? 0 : GPS_DATA_buf.fix.longitude;
+                    em_data->GPS_heading = std::isnan(GPS_DATA_buf.fix.track) ? 0 : GPS_DATA_buf.fix.track;
+                    em_data->GPS_speed = std::isnan(GPS_DATA_buf.fix.speed) ? 0 : GPS_DATA_buf.fix.speed * MPS_TO_KNOTS;
                     em_data->GPS_satQuality = GPS_DATA_buf.status;
                     em_data->GPS_satsUsed = GPS_DATA_buf.satellites_used;
-                    em_data->GPS_hdop = isnan(GPS_DATA_buf.dop.hdop) ? 0 : GPS_DATA_buf.dop.hdop;
-                    em_data->GPS_eph = isnan(GPS_DATA_buf.fix.epx) && isnan(GPS_DATA_buf.fix.epy) ? 0 : EMIX(GPS_DATA_buf.fix.epx, GPS_DATA_buf.fix.epy);
+                    em_data->GPS_hdop = std::isnan(GPS_DATA_buf.dop.hdop) ? 0 : GPS_DATA_buf.dop.hdop;
+                    em_data->GPS_eph = std::isnan(GPS_DATA_buf.fix.epx) && std::isnan(GPS_DATA_buf.fix.epy) ? 0 : EMIX(GPS_DATA_buf.fix.epx, GPS_DATA_buf.fix.epy);
                 pthread_mutex_unlock(&(em_data->mtx));
                 pthread_mutex_unlock(&mtx_GPS_DATA_buf);
             }
@@ -143,6 +141,8 @@ int GPSSensor::Receive() {
 }
 
 void *GPSSensor::thr_ReceiveLoopLauncher(void *self) {
+    extern __thread unsigned short threadId;
+    threadId = THREAD_GPS;
     ((GPSSensor*)self)->thr_ReceiveLoop();
     return NULL;
 }
@@ -151,16 +151,16 @@ void *GPSSensor::thr_ReceiveLoopLauncher(void *self) {
 void GPSSensor::thr_ReceiveLoop() {
     unsigned short threadCloseDelayCounter = 0;
 
-    O(name << ": Consumer thread running");
+    O("Consumer thread running");
 
-    while(smMyThread.GetState() & STATE_RUNNING && __EM_RUNNING) {
+    while(smGPSConsumerThread.GetState() & STATE_RUNNING && __EM_RUNNING) {
         if (isConnected()) {
             if(gps_waiting(&GPS_DATA, POLL_PERIOD / 5)) {
                 if(!gps_read(&GPS_DATA)) {
                     D("gps_read() didn't succeed, closing connection");
                     SetState(GPS_NO_CONNECTION); // want to force a reconnect
 
-                    smMyThread.SetState(STATE_CLOSING_OR_UNDEFINED);
+                    smGPSConsumerThread.SetState(STATE_CLOSING);
                     pthread_exit(NULL);
                 } else {                        
                     // this stuff processed with every run of the read loop ONLY when there was data
@@ -173,29 +173,29 @@ void GPSSensor::thr_ReceiveLoop() {
                     }
                 }
             } else {
-                D("No GPS data to read, setting delayed GPS_NO_DATA");
+                //D("No GPS data to read, setting delayed GPS_NO_DATA");
                 SetState(GPS_NO_DATA, GPS_STATE_DELAY); // after 300000?
             }
 /*
-            c0ut << GPS_DATA.status << "\t" << GPS_DATA.fix.mode << "\t" << GPS_DATA.online << "\t" << setw(10) << GPS_DATA.fix.time << "\t" << setw(10) << GPS_DATA.skyview_time << "\t" << GPS_DATA.satellites_used << "\t" << GPS_DATA.satellites_visible << "\t" << GPS_DATA.fix.epx << "\t" << setw(12) << GPS_DATA.fix.latitude << "\t" << setw(12) << GPS_DATA.fix.longitude << "\t" << GPS_DATA.tag << "\t";
+            c0ut + GPS_DATA.status + "\t" + GPS_DATA.fix.mode + "\t" + GPS_DATA.online + "\t" + setw(10) + GPS_DATA.fix.time + "\t" + setw(10) + GPS_DATA.skyview_time + "\t" + GPS_DATA.satellites_used + "\t" + GPS_DATA.satellites_visible + "\t" + GPS_DATA.fix.epx + "\t" + setw(12) + GPS_DATA.fix.latitude + "\t" + setw(12) + GPS_DATA.fix.longitude + "\t" + GPS_DATA.tag + "\t";
 
-            if (GPS_DATA.set & ONLINE_SET) c0ut << " ONLINE";
-            if (GPS_DATA.set & TIME_SET) c0ut << ",TIME";
-            if (GPS_DATA.set & LATLON_SET) c0ut << ",LATLON";
-            if (GPS_DATA.set & ALTITUDE_SET) c0ut << ",ALTITUDE";
-            if (GPS_DATA.set & SPEED_SET) c0ut << ",SPEED";
-            if (GPS_DATA.set & TRACK_SET) c0ut << ",TRACK";
-            if (GPS_DATA.set & CLIMB_SET) c0ut << ",CLIMB";
-            if (GPS_DATA.set & STATUS_SET) c0ut << ",STATUS";
-            if (GPS_DATA.set & MODE_SET) c0ut << ",MODE";
-            if (GPS_DATA.set & DOP_SET) c0ut << ",DOP";
-            if (GPS_DATA.set & HERR_SET) c0ut << ",HERR";
-            if (GPS_DATA.set & VERR_SET) c0ut << ",VERR";
-            if (GPS_DATA.set & VERSION_SET) c0ut << ",VERSION";
-            if (GPS_DATA.set & POLICY_SET) c0ut << ",POLICY";
-            if (GPS_DATA.set & SATELLITE_SET) c0ut << ",SATELLITE";
-            if (GPS_DATA.set & DEVICE_SET) c0ut << ",DEVICE";
-            c0ut << endl;
+            if (GPS_DATA.set & ONLINE_SET) c0ut + " ONLINE";
+            if (GPS_DATA.set & TIME_SET) c0ut + ",TIME";
+            if (GPS_DATA.set & LATLON_SET) c0ut + ",LATLON";
+            if (GPS_DATA.set & ALTITUDE_SET) c0ut + ",ALTITUDE";
+            if (GPS_DATA.set & SPEED_SET) c0ut + ",SPEED";
+            if (GPS_DATA.set & TRACK_SET) c0ut + ",TRACK";
+            if (GPS_DATA.set & CLIMB_SET) c0ut + ",CLIMB";
+            if (GPS_DATA.set & STATUS_SET) c0ut + ",STATUS";
+            if (GPS_DATA.set & MODE_SET) c0ut + ",MODE";
+            if (GPS_DATA.set & DOP_SET) c0ut + ",DOP";
+            if (GPS_DATA.set & HERR_SET) c0ut + ",HERR";
+            if (GPS_DATA.set & VERR_SET) c0ut + ",VERR";
+            if (GPS_DATA.set & VERSION_SET) c0ut + ",VERSION";
+            if (GPS_DATA.set & POLICY_SET) c0ut + ",POLICY";
+            if (GPS_DATA.set & SATELLITE_SET) c0ut + ",SATELLITE";
+            if (GPS_DATA.set & DEVICE_SET) c0ut + ",DEVICE";
+            c0ut + endl;
 */
             // this stuff processed every run of read loop even when no data
 
@@ -237,7 +237,7 @@ void GPSSensor::thr_ReceiveLoop() {
                 GPS_DATA.satellites_used = 0;
 
                 threadCloseDelayCounter++;
-                D("TCC = " << threadCloseDelayCounter);
+                D("TCC = " + to_string(threadCloseDelayCounter));
             } else {
                 threadCloseDelayCounter = 0;
             }
@@ -249,7 +249,7 @@ void GPSSensor::thr_ReceiveLoop() {
             if(threadCloseDelayCounter >= GPS_THREAD_CLOSE_DELAY) {
                 D("Thread close counter reached");    
 
-                smMyThread.SetState(STATE_CLOSING_OR_UNDEFINED);
+                smGPSConsumerThread.SetState(STATE_CLOSING);
                 pthread_exit(NULL);
             }
         } else {
@@ -260,7 +260,7 @@ void GPSSensor::thr_ReceiveLoop() {
     }
 
     D("Broke out of GPS consumer thread");
-    smMyThread.SetState(STATE_CLOSING_OR_UNDEFINED);
+    smGPSConsumerThread.SetState(STATE_CLOSING);
     pthread_exit(NULL);
 }
 
@@ -273,11 +273,11 @@ void GPSSensor::Close() {
     } // by now consumer thread should be waiting for a join
 
     // by now the thread should be in THREAD_CLOSING
-    if(smMyThread.GetState() & STATE_CLOSING_OR_UNDEFINED) {
+    if(smGPSConsumerThread.GetState() & STATE_CLOSING) {
         if(pthread_join(pt_receiveLoop, NULL) == 0) {
             // thread is gone, no need for mutexes
-            smMyThread.SetState(STATE_NOT_RUNNING);
-            O(name << ": Consumer thread stopped");
+            smGPSConsumerThread.SetState(STATE_NOT_RUNNING);
+            O("Consumer thread stopped");
         }
     }
     
@@ -295,11 +295,11 @@ unsigned short GPSSensor::LoadKML(string file, POINT polygons[MAX_POLYS][MAX_POI
     stringstream buffer;
     string contents;
 
-    D("Loading KML file " << file);
+    D("Loading KML file " + file);
     
     ifstream in(file.c_str());
     if(in.fail()) {
-        E(name << ": Couldn't load KML file " << file);
+        E("Couldn't load KML file " + file);
         return 0;
     }
 
@@ -334,7 +334,7 @@ unsigned short GPSSensor::LoadKML(string file, POINT polygons[MAX_POLYS][MAX_POI
             polygons[num_polys_found][num_edges[num_polys_found]].x = x;
             polygons[num_polys_found][num_edges[num_polys_found]].y = y;
             num_edges[num_polys_found]++;
-            D("Found x,y = " << x << ", " << y << " -- now have " << num_edges[num_polys_found] << " edges");
+            D("Found x,y = " + to_string(x) + ", " + to_string(y) + " -- now have " + to_string(num_edges[num_polys_found]) + " edges");
 
             // there can be an optional ,altitude value in <coordinates>; eat it if necessary
             if(coordinates.peek() == ',') {
@@ -345,7 +345,7 @@ unsigned short GPSSensor::LoadKML(string file, POINT polygons[MAX_POLYS][MAX_POI
         num_polys_found++;
     }
 
-    O(name << ": Loaded " << num_polys_found << " polygons from " << file);
+    O("Loaded " + std::to_string(num_polys_found) + " polygons from " + file);
 
     return num_polys_found;
 }
@@ -411,7 +411,7 @@ bool GPSSensor::InSpecialArea() {
 
         if(!(GetState() & GPS_NO_HOME_PORT_DATA)) {
             for (unsigned int k = 0; k < num_home_ports; k++) {
-                D("Checking if in home port " << k);
+                D("Checking if in home port " + to_string(k));
                 if (IsPointInsidePoly((POINT){longitude, latitude}, home_ports[k], num_home_port_edges[k] - 1)) {
                     D("IN SPECIAL AREA: home port");
                     SetState(GPS_INSIDE_HOME_PORT);
@@ -423,7 +423,7 @@ bool GPSSensor::InSpecialArea() {
 
         if(!(GetState() & GPS_NO_FERRY_DATA)) {
             for (unsigned int k = 0; k < num_ferry_lanes; k++) {
-                D("Checking if in ferry lane " << k);
+                D("Checking if in ferry lane " + to_string(k));
                 if (IsPointInsidePoly((POINT){longitude, latitude}, ferry_lanes[k], num_ferry_lane_edges[k] - 1)) {
                     D("IN SPECIAL AREA: ferry lane");
                     SetState(GPS_INSIDE_FERRY_LANE);

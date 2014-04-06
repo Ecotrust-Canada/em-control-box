@@ -2,7 +2,7 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin
 LAST_DUMP="/var/log/journal/last_dump.date"
 
-source /opt/em/bin/read-config.func
+eval "`/opt/em/bin/em-rec --dump-config`"
 
 mountpoint -q ${DATA_DISK}
 
@@ -10,15 +10,15 @@ if [ "$?" != "0" ]; then
 	exit 0
 fi
 
+# power up
+touch ${DATA_DISK}/
+
 mkdir -p ${OS_DISK}/archived
 mkdir -p ${DATA_DISK}/elog
 mkdir -p ${DATA_DISK}/journal
 mkdir -p ${DATA_DISK}/reports
 mkdir -p ${DATA_DISK}/screenshots
 mkdir -p ${DATA_DISK}/video
-
-# power up
-touch ${DATA_DISK}/
 
 # find all TRACK_*.csv / RFID / SYSTEM files
 TRACK_FILES=`find ${OS_DISK} -maxdepth 1 -name "TRACK_*.csv"  | sort`
@@ -72,6 +72,7 @@ if [ -n "${REPORT_FILES}" ]; then
     fi
 fi
 
+# I can't remember why I did head -n-1 here
 SCREENSHOT_FILES=`find ${OS_DISK}/screenshots -maxdepth 1 -name "*.jpg" | sort | head -n-1`
 if [ -n "${SCREENSHOT_FILES}" ]; then
     cp -p --remove-destination ${SCREENSHOT_FILES} ${DATA_DISK}/screenshots/
@@ -83,7 +84,8 @@ if [ -n "${SCREENSHOT_FILES}" ]; then
 fi
 
 # finally videos
-VIDEO_FILES=`find ${OS_DISK}/video -maxdepth 1 -name "*.h264" | sort`
+VIDEO_FILES=`find ${OS_DISK}/video -maxdepth 1 -name "*.mp4" | sort`
+VIDEO_FILES=`echo ${VIDEO_FILES} | sed 's/[[:alnum:]\/\._\-]*$//'`
 if [ -n "${VIDEO_FILES}" ]; then
     cp -p --remove-destination ${VIDEO_FILES} ${DATA_DISK}/video/
     if [ ${?} -eq 0 ]; then
@@ -102,7 +104,12 @@ NICE_DATE=`date "+%Y%m%d-%H%M%S"`
 
 if [ -e ${LAST_DUMP} ]; then
     PREV_DATE=`cat ${LAST_DUMP}`
-    EXTRA_PARAMS="--since=${PREV_DATE}"
+    if [ -n "${PREV_DATE}" ]; then
+        EXTRA_PARAMS=""
+    else
+        EXTRA_PARAMS="--since=${PREV_DATE}"
+    fi
+    
 fi
 
 # misc
