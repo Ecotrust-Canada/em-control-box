@@ -22,109 +22,57 @@ You may contact Ecotrust Canada via our websitehttp://ecotrust.ca
 */
 
 window.VMS = {};
-VMS.sensorStates = {};
+VMS.stateDefinitions = {};
+VMS.optionDefinitions = {};
+VMS.lastIteration = 0;
+VMS.recorderResponding = false;
+VMS.serverResponding = false;
+VMS.OPTIONS = {};
+VMS.SYS = {};
+VMS.GPS = {};
+VMS.AD = {};
+VMS.RFID = {};
+VMS.UISensors = {};
 
-// I don't expect these to change throughout a run of the software so it's
-// safe to make them global (they come from SYS{} in the state file)
-var fishingArea,
-    numCams,
-    zoomedCam = 1,
-    aspectH,
-    aspectV,
-    noResponseCount = 0,
-    noRecorderCount = 0,
-    lastIteration = 0,
-    video_available = false,
-    recorderResponding = false,
-    serverResponding = false,
-    eLogURL = "http://" + window.location.hostname + ":1337/";
+function isSet(state) {
+    var component = state.substr(0, state.indexOf('_'));
 
-// List of selectors (or elements) that subscribe to post messages of sensor data.
-VMS.subscribers = {
-    ".tab-elog iframe": eLogURL
-};
+    if (component == "OPTIONS") {
+        if(VMS.OPTIONS.state & VMS.optionDefinitions[state].flag) return true;
+    } else {
+        if(VMS[component].state & VMS.stateDefinitions[state].flag) return true;
+    }
+
+    return false;
+}
+
+function getMsg(state, isset) {
+    var msg;
+    var msgIndex = VMS.lastIteration % 2;
+
+    if (isset) {
+        if (VMS.stateDefinitions[state].msg_set.length == 1) msgIndex = 0;
+        msg = VMS.stateDefinitions[state].msg_set[msgIndex];
+    } else {
+        if (VMS.stateDefinitions[state].msg_unset.length == 1) msgIndex = 0;
+        msg = VMS.stateDefinitions[state].msg_unset[msgIndex];
+    }
+
+    return msg;
+}
 
 /**
  * Initialization after DOM loads.
  */
 $(function (undef) {
-    $TABS = $('.tab-body');
+    var zoomedCam = 1,
+        aspectH,
+        aspectV,
+        noResponseCount = 0,
+        noRecorderCount = 0,
+        eLogURL = "http://" + window.location.hostname + ":1337/";
 
-    $('.tab-elog').append("<iframe src=\"" + eLogURL + "\" frameborder=\"0\" style='overflow:auto;height:100%;width:100%' height=\"100%\" width=\"100%\"></iframe>");
-    
-    $.getJSON('/em_state.json', function (state) {
-        if(state) {
-            fishingArea = state.SYS.fishingArea;
-            numCams = state.SYS.numCams;
-
-            if(fishingArea == "A") {
-                $('#diskavail_mode').val('fake');
-                aspectH = 4;
-                aspectV = 3;
-            } else {
-                $('.RFID').hide();
-                $('#diskavail_mode').val('real');
-                aspectH = 16;
-                aspectV = 9;
-            }
-        }
-    });
-
-    $.getJSON('/states.json', function (states) {
-        if (states) VMS.sensorStates = states;
-    });
-
-    function getAvailableDimensions() {
-        var videoWidthMax = $(window).width() - 282;
-        var videoHeightMax = $(window).height();
-        
-        // Ugly hack for when sys info box was below the videos
-        /*if ($('#system-info').css('display') != 'none') {
-            var videoHeightMax = $(window).height() - 162;
-        } else {
-            var videoHeightMax = $(window).height() - 86;
-        }*/
-
-        if (Math.floor(videoWidthMax / aspectH * aspectV) > videoHeightMax) {
-            return [Math.floor(videoHeightMax / aspectV * aspectH), videoHeightMax];
-        } else {
-            return [videoWidthMax, Math.floor(videoWidthMax / aspectH * aspectV)];
-        }
-    }
-
-    function getCameraEmbeds() {
-        var viewportDims = getAvailableDimensions();
-        var divOpen = '<div class="cameras" style="margin: 0;">';
-        var divClose = '</div>';
-
-        if(fishingArea == "A") {
-            return divOpen + '<embed src="file:///dev/cam0" type="video/raw" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />' + divClose;
-        } else {
-            var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + (viewportDims[0]) + '" height="' + viewportDims[1] + '" loop=999 id=' + zoomedCam + ' />';
-
-            for (var i = 1; i <= numCams; i++) {
-                if(i == zoomedCam) continue;
-
-                content = content + '<embed class="thumbnail" src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.ceil(viewportDims[0] / 2) + '" height="' + Math.ceil(viewportDims[1] / 2) + '" loop=999 id=' + i + ' />';
-                //content = content + '';
-            }
-            
-            return divOpen + content + divClose;
-        }
-    }
-
-    var _components = ["GPS", "RFID", "AD", "SYS"];
-
-    $.each(_components, function (i, sys) {
-        VMS[sys] = new(VMS.SENSOR_CLASSES[sys] || VMS.Component)({
-            name: sys
-        });
-    });
-    
     // dials setup
-    var psi_paper = Raphael("psi_holder", 124, 124);
-    var gps_paper = Raphael("gps_holder", 246, 132);
-    var disk_paper = Raphael("disk_holder", 124, 124);
     var ALL_DIALS = {
             x: 2,
             y: 3,
@@ -136,65 +84,181 @@ $(function (undef) {
         MED_DIAL = $.extend({}, ALL_DIALS, {}),
         LRG_DIAL = $.extend({}, ALL_DIALS, {});
 
-    VMS.GPS.speedometer = Dial($.extend({},MED_DIAL,{
-        paper: gps_paper,
-        label_text:"SPD",
-        range: 15,
-        danger: 10,
-        tick_size: 5,
-        y: 10,
-    })).draw();
-
-    VMS.GPS.compass = Dial($.extend({},LRG_DIAL,{
-        paper: gps_paper,
-        label_text:"DIR",
-        x:125,
-        range: 360,
-        angle0:0,
-        arange:360,
-        tick_size: 90,
-        y: 10,
-    })).draw();
-
-    VMS.AD.dial = Dial($.extend({},MED_DIAL,{
-        paper: psi_paper,
-        label_text:"PSI",
-        range: 2500,
-        danger: 2000,
-        tick_size: 1250
-    })).draw();
-
-    VMS.SYS.dial = Dial($.extend({},SML_DIAL,{
-        paper:disk_paper,
-        label_text:"%",
-        range: 100,
-        danger: 90,
-        tick_size: 20
-    })).draw();
+    $TABS = $('.tab-body');
     
+    $.getJSON('/states.json', function (definitions) {
+        if (definitions) {
+            VMS.stateDefinitions = definitions;
+        }
+    });
+
+    $.getJSON('/options.json', function (options) {
+        if (options) {
+            VMS.optionDefinitions = options;
+        }
+
+        $.getJSON('/em_state.json', function (state) {
+            if(state) {
+                VMS.OPTIONS = state.OPTIONS;
+
+                // List of selectors (or elements) that subscribe to post messages of sensor data.
+                VMS.subscribers = {
+                    ".tab-elog iframe": eLogURL
+                };
+
+                // SYS
+                VMS.UISensors.SYS = new(VMS.SENSOR_CLASSES.SYS)({
+                    name: "SYS"
+                });
+                var disk_paper = Raphael("disk_holder", 124, 124);
+                VMS.UISensors.SYS.dial = Dial($.extend({},SML_DIAL,{
+                    paper:disk_paper,
+                    label_text:"%",
+                    range: 100,
+                    danger: 90,
+                    tick_size: 20
+                })).draw();
+
+                // GPS
+                VMS.UISensors.GPS = new(VMS.SENSOR_CLASSES.GPS)({
+                    name: "GPS"
+                });
+                var gps_paper = Raphael("gps_holder", 246, 132);
+                VMS.UISensors.GPS.speedometer = Dial($.extend({},MED_DIAL,{
+                    paper: gps_paper,
+                    label_text: "SPD",
+                    range: 15,
+                    danger: 10,
+                    tick_size: 5,
+                    y: 10,
+                })).draw();
+                VMS.UISensors.GPS.compass = Dial($.extend({},LRG_DIAL,{
+                    paper: gps_paper,
+                    label_text:"DIR",
+                    x:125,
+                    range: 360,
+                    angle0:0,
+                    arange:360,
+                    tick_size: 90,
+                    y: 10,
+                })).draw();
+
+                if (isSet("OPTIONS_USING_AD")) {
+                    VMS.UISensors.AD = new(VMS.SENSOR_CLASSES.AD)({
+                        name: "AD"
+                    });
+                    var psi_paper = Raphael("psi_holder", 124, 124);
+                    VMS.UISensors.AD.dial = Dial($.extend({},MED_DIAL,{
+                        paper: psi_paper,
+                        label_text:"PSI",
+                        range: 2500,
+                        danger: 2000,
+                        tick_size: 1250
+                    })).draw();
+                }
+
+                if (isSet("OPTIONS_USING_RFID")) {
+                    VMS.RFID = state.RFID;
+                    VMS.UISensors.RFID = new(VMS.SENSOR_CLASSES.RFID)({
+                        name: "RFID"
+                    });
+                } else {
+                    $('.RFID').hide();
+                }
+
+                if (isSet("OPTIONS_USING_DIGITAL_CAMERAS")) {
+                    aspectH = 16;
+                    aspectV = 9;
+                } else if (isSet("OPTIONS_USING_ANALOG_CAMERAS")) {
+                    aspectH = 4;
+                    aspectV = 3;
+                }
+
+                if (VMS.SYS.fishingArea == "A") {
+                    $('#diskavail_mode').val('fake');
+                } else {
+                    $('#diskavail_mode').val('real');
+                }
+
+                $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+            }
+        });
+    });
+
+    $('.tab-elog').append("<iframe src=\"" + eLogURL + "\" frameborder=\"0\" style='overflow:auto;height:100%;width:100%' height=\"100%\" width=\"100%\"></iframe>");
+
+    function getAvailableDimensions(extra_height_subtract) {
+        extra_height_subtract = extra_height_subtract || 0;
+        var videoWidthMax = $(window).width() - 270; //orig 280
+        var videoHeightMax = $(window).height() - 34 - extra_height_subtract;
+
+        //alert(videoWidthMax + ' ' + videoHeightMax);
+
+        // ROUND or FLOOR?
+        if (Math.round(videoWidthMax / aspectH * aspectV) > videoHeightMax) {
+            return [Math.round(videoHeightMax / aspectV * aspectH), videoHeightMax];
+        } else {
+            return [videoWidthMax, Math.round(videoWidthMax / aspectH * aspectV)];
+        }
+    }
+
+    function getCameraEmbeds() {
+        var viewportDims = getAvailableDimensions();
+        var thumbDims = getAvailableDimensions(viewportDims[1]);
+        var divOpen = '<div class="cameras" style="margin: 0; width: ' + viewportDims[0] + 'px; height: ' + viewportDims[1] + 'px;">';
+        var divClose = '</div>';
+
+        if (isSet("OPTIONS_USING_ANALOG_CAMERAS")) {
+            return divOpen + '<embed src="file:///dev/cam0" type="video/raw" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />' + divClose;
+
+        } else if (isSet("OPTIONS_USING_DIGITAL_CAMERAS")) {
+            var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + (viewportDims[0]) + '" height="' + viewportDims[1] + '" loop=999 id=' + zoomedCam + ' />';
+
+            for (var i = 1; i <= VMS.SYS.numCams; i++) {
+                if(i == zoomedCam) continue;
+
+                content = content + '<embed class="thumbnail" src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
+                //content = content + '';
+            }
+            
+            // hack to give us two more cams b/c we don't have 4 in the lab
+            
+            content = content + '<embed class="thumbnail" src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
+
+            content = content + '<embed class="thumbnail" src="rtsp://1.1.1.2:7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
+            
+
+            return divOpen + content + divClose;
+        }
+    }
+
+    /*
+    var _components = ["SYS", "GPS", "AD", "RFID" ];
+    $.each(_components, function (i, sys) {
+        VMS.UISensors[sys] = new(VMS.SENSOR_CLASSES[sys] || VMS.Component)({
+            name: sys
+        });
+    });
+*/
+
     function updateUI() {
         // TODO: check for memory leaks
-        $.getJSON('/em_state.json', function (status) {
-            var out, err;
+        $.getJSON('/em_state.json', function (em_state) {
+            //var out, err;
 
-            if (status) {
+            if (em_state) {
                 $('#no_response').hide();
                 serverResponding = true;
 
-                /*if(status.SYS.state & VMS.sensorStates.SYS_VIDEO_AVAILABLE.flag) {
-                    if(!video_available) {
-                        video_available = true;
-                        $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-                    }
-                } else {
-                    video_available = false;
-                    $('.tab-cam .cameras').replaceWith('<div class="cameras"><p>Waiting for cameras to respond ...</p></div>');
-                }*/
-
-                if (parseInt('' + status.runIterations) == parseInt('' + lastIteration)) {
+                if (parseInt('' + em_state.runIterations) == parseInt('' + VMS.lastIteration)) {
                     if (noRecorderCount >= 2) {
                         $("#no_recorder").show();
                         recorderResponding = false;
+
+                        VMS.UISensors.GPS.disable(VMS.GPS);
+                        VMS.UISensors.SYS.disable(VMS.SYS);
+                        if (isSet("OPTIONS_USING_RFID")) VMS.UISensors.RFID.disable(VMS.RFID);
+                        if (isSet("OPTIONS_USING_AD")) VMS.UISensors.AD.disable(VMS.AD);
                     }
 
                     noRecorderCount++;
@@ -202,22 +266,17 @@ $(function (undef) {
                     $("#no_recorder").hide();
                     recorderResponding = true;
 
-                    status.GPS.datetime = status.currentDateTime;
-                    lastIteration = status.runIterations;
+                    em_state.GPS.datetime = em_state.currentDateTime;
+                    VMS.lastIteration = em_state.runIterations;
                     noResponseCount = 0;
                     noRecorderCount = 0;
-                }
-
-                if(!video_available) {
-                    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-                    video_available = true;
                 }
 
                 // Send to subscribers (currently only the Elog)
                 for (var sub_key in VMS.subscribers) {
                     var win = $(sub_key).get(0).contentWindow;
                     win.postMessage(
-                        status,
+                        em_state,
                         $(sub_key).attr('src')
                     );
                 }
@@ -225,30 +284,31 @@ $(function (undef) {
                 if(noResponseCount >= 2) {
                     $('#no_response').show();
                     serverResponding = false;
-                }
-                noResponseCount++;
 
-                status.GPS.state = 0;
-                status.GPS.datetime = 0;
-                status.RFID.state = 0;
-                status.AD.state = 0;
-                status.SYS.state = 0;
+                    VMS.UISensors.GPS.disable(VMS.GPS);
+                    VMS.UISensors.SYS.disable(VMS.SYS);
+                    if (isSet("OPTIONS_USING_RFID")) VMS.UISensors.RFID.disable(VMS.RFID);
+                    if (isSet("OPTIONS_USING_AD")) VMS.UISensors.AD.disable(VMS.AD);
+                }
+
+                noResponseCount++;
             }
 
-            VMS.GPS.update(status.GPS);
-            if(status.SYS.fishingArea != "GM") VMS.RFID.update(status.RFID);
-            VMS.AD.update(status.AD);
-            VMS.SYS.update(status.SYS);
+            if(serverResponding && recorderResponding) {
+                VMS.SYS = em_state.SYS;
+                VMS.UISensors.SYS.update(VMS.SYS);
 
-            if(!recorderResponding || !serverResponding) {
-                //$('#recording_status').hide();
-                $('#estimated').hide();
-                $('#inside_ferry_area').hide();
-                $('#recording_status').hide();
+                VMS.GPS = em_state.GPS;
+                VMS.UISensors.GPS.update(VMS.GPS);
 
-                if(!recorderResponding) {
-                    $('#recording_status').text(VMS.sensorStates[SYS_VIDEO_NOT_RECORDING].msg.toUpperCase());
-                    $('#recording_status').show();
+                if (isSet("OPTIONS_USING_RFID")) {
+                    VMS.RFID = em_state.RFID;
+                    VMS.UISensors.RFID.update(VMS.RFID);
+                }
+
+                if (isSet("OPTIONS_USING_AD")) {
+                    VMS.AD = em_state.AD;
+                    VMS.UISensors.AD.update(VMS.AD);
                 }
             }
         });
@@ -263,11 +323,22 @@ $(function (undef) {
         if($(e.target).text() == "ELog" && $(window).width() <= 1024) {
             $('#sensors').hide();
             $('#night-mode').hide();
-            $('#reload-video').hide();
+            //$('#reload-video').hide();
+        } else if($(e.target).text() == "Search") {
+            $('#sensors').show();
+            $('#night-mode').show();
+            $('#system-info').hide();
+            $('#system-info-button').show();
+
+            if(!isSet("OPTIONS_USING_RFID")) {
+                $('.tab-search').hide();
+            }
         } else {
             $('#sensors').show();
             $('#night-mode').show();
-            $('#reload-video').show();
+            //$('#reload-video').show();
+            $('#system-info').hide();
+            $('#system-info-button').hide();
         }
     });
 
@@ -285,14 +356,14 @@ $(function (undef) {
         }
     });
 
-    $('#reload-video').click(function () {
-        $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-    });
+    //$('#reload-video').click(function () {
+    //    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+    //});
 
     $('.tab-cam').click(function () {
-        if (numCams > 1) {
-            if (zoomedCam == numCams) zoomedCam = 1;
-            else if (zoomedCam < numCams) zoomedCam++;
+        if (VMS.SYS.numCams > 1) {
+            if (zoomedCam == VMS.SYS.numCams) zoomedCam = 1;
+            else if (zoomedCam < VMS.SYS.numCams) zoomedCam++;
 
             $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
         }
@@ -371,7 +442,7 @@ $(function (undef) {
     });
 
     $('.SYS .available').click(function (e) {
-        if (fishingArea == 'A' && e.ctrlKey) {
+        if (VMS.SYS.fishingArea == 'A' && e.ctrlKey) {
             if($('#diskavail_mode').val() == 'fake') {
                 $('#diskavail_mode').val('real');
             } else {
@@ -379,7 +450,7 @@ $(function (undef) {
             }
         }
 
-        VMS.SYS.update(null, true);
+        VMS.UISensors.SYS.update(null, true);
     });
     
     // focus the leftmost tab

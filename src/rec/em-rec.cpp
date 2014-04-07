@@ -69,7 +69,7 @@ StateMachine smTakeScreenshot(false, SM_EXCLUSIVE_STATES);
 
 unsigned long IGNORED_STATES = GPS_NO_FERRY_DATA |
                                GPS_NO_HOME_PORT_DATA |
-                               GPS_INSIDE_HOME_PORT |
+                               GPS_IN_HOME_PORT |
                                AD_BATTERY_LOW |
                                AD_BATTERY_HIGH |
                                RFID_CHECKSUM_FAILED;
@@ -139,12 +139,12 @@ int main(int argc, char *argv[]) {
 
     // should be user-configurable in the future
     if(EM_DATA.SYS_fishingArea == "A") {
-        smOptions.SetState(OPTION_USING_AD | OPTION_USING_RFID | OPTION_USING_GPS | OPTION_GPRMC_ONLY_HACK | OPTION_ANALOG_CAMERAS);
+        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_GPRMC_ONLY_HACK | OPTIONS_USING_ANALOG_CAMERAS);
     } else if(EM_DATA.SYS_fishingArea == "GM") {
-        smOptions.SetState(OPTION_USING_AD | OPTION_USING_GPS | OPTION_IP_CAMERAS);
+        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
         IGNORED_STATES = IGNORED_STATES | RFID_NO_CONNECTION;
     } else {
-        smOptions.SetState(OPTION_USING_AD | OPTION_USING_RFID | OPTION_USING_GPS | OPTION_IP_CAMERAS);
+        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
     }
 
     // get FS stats of PARENT of root of data disk, meaning the OS disk
@@ -366,7 +366,7 @@ void *thr_auxiliaryLoop(void *arg) {
         writeLog(targetDisk + "/" + FN_SYSTEM_LOG, buf);
 
         // process position, set special area states, and if we're in the home port ...
-        if(iGPSSensor.InSpecialArea() && iGPSSensor.GetState() & GPS_INSIDE_HOME_PORT) { // pause
+        if(iGPSSensor.InSpecialArea() && iGPSSensor.GetState() & GPS_IN_HOME_PORT) { // pause
             // once either of the video capture routines is able to get video data, they set
             // SYS_VIDEO_AVAILABLE, and at that point we can actually play conductor; when we don't
             // know if video is available we keep trying to start it regardless of where we are
@@ -403,7 +403,7 @@ void *thr_auxiliaryLoop(void *arg) {
                 iADSensor.GetState() & AD_PSI_LOW_OR_ZERO) {
                 smSystem.UnsetState(SYS_REDUCED_VIDEO_BITRATE);
                 D("Unset SYS_REDUCED_VIDEO_BITRATE");
-            } else if(last_psi < CONFIG.psi_low_threshold && iADSensor.GetState() & AD_) {
+            } else if(last_psi < CONFIG.psi_low_threshold) {
                 // want to see this state set repeatedly over a period of
                 // fps_low_delay minutes before we actually get a reduction
                 smSystem.SetState(SYS_REDUCED_VIDEO_BITRATE, (unsigned short)(CONFIG.fps_low_delay * 60 * 1000000 / AUX_INTERVAL / POLL_PERIOD));
@@ -574,6 +574,9 @@ void writeJSONState(EM_DATA_TYPE* em_data) {
                 "\"state\": %lu, "
                 "\"psi\": %f, "
                 "\"battery\": %f "
+            "}, "
+            "\"OPTIONS\": { "
+                "\"state\": %lu "
             "} "
         "}",
             VERSION,
@@ -617,7 +620,9 @@ void writeJSONState(EM_DATA_TYPE* em_data) {
 
             iADSensor.GetState(),
             std::isnan(em_data->AD_psi) ? 0 : em_data->AD_psi,
-            std::isnan(em_data->AD_battery) ? 0 : em_data->AD_battery
+            std::isnan(em_data->AD_battery) ? 0 : em_data->AD_battery,
+
+            smOptions.GetState()
         );
     pthread_mutex_unlock(&(em_data->mtx));
 

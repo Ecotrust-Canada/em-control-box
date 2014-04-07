@@ -29,20 +29,14 @@ VMS.Component = function (props) {
 };
 
 VMS.Component.prototype.update = function (opts) {
+    this.$.removeClass('inactive');
     this.$.removeClass('ok').removeClass('fail').addClass(opts.state === 0 ? "ok" : "fail");
-
-    if(!recorderResponding || !serverResponding) {
-        this.$.addClass('inactive');
-        $('#recording_status').hide();
-    } else {
-        this.$.removeClass('inactive');
-    }
 
     // states that will invalidate data being shown; thus the else if
     if(opts.state) { // if there is an error state
-        for(var e in VMS.sensorStates) {
-            if(VMS.sensorStates[e].flag & opts.state) {
-                this.$value.text(VMS.sensorStates[e].msg.toUpperCase());
+        for(var e in VMS.stateDefinitions) {
+            if(VMS.stateDefinitions[e].flag & opts.state) {
+                this.$value.text(VMS.stateDefinitions[e].msg_set[0].toUpperCase());
                 break;
             }
         }
@@ -50,6 +44,11 @@ VMS.Component.prototype.update = function (opts) {
         this.$value.html(opts.value);
         if (this.dial) { this.dial.update(parseInt('' + opts.value)); }
     }
+}
+
+VMS.Component.prototype.disable = function (opts) {
+    this.$.addClass('inactive').removeClass('ok').removeClass('fail');
+    if (this.dial) { this.dial.update(0); }
 }
 
 VMS.SENSOR_CLASSES = {};
@@ -69,35 +68,43 @@ VMS.SENSOR_CLASSES.GPS = function () {
 
 VMS.SENSOR_CLASSES.GPS.prototype = new VMS.Component({
     name: 'GPS'
-});
+}); 
+
+VMS.SENSOR_CLASSES.GPS.prototype.disable = function (opts) {
+    $('#estimated').hide();
+    $('#in_ferry_lane').hide();
+    this.$speed.text('0');
+    this.$heading.text('0');
+    $('.GPS .value').text('0,0');
+    this.$datetime.empty();
+
+    VMS.Component.prototype.disable.apply(this, [opts]);
+}
 
 VMS.SENSOR_CLASSES.GPS.prototype.update = function (opts) {
-    if(recorderResponding && serverResponding) {
-        if(opts.state & VMS.sensorStates.GPS_ESTIMATED.flag) {
-            $('#estimated').show();
-        } else {
-            $('#estimated').hide();
-        }
+    if (isSet("GPS_ESTIMATED")) {
+        $('#estimated').show();
+    } else {
+        $('#estimated').hide();
+    }
 
-        if (opts.state & VMS.sensorStates.GPS_INSIDE_FERRY_LANE.flag) {
-            $('#inside_ferry_area').show();
-        } else {
-            $('#inside_ferry_area').hide();
-        }
+    if (isSet("GPS_IN_FERRY_LANE")) {
+        $('#in_ferry_lane').show();
+    } else {
+        $('#in_ferry_lane').hide();
+    }
 
-        if (opts.state & VMS.sensorStates.GPS_INSIDE_HOME_PORT.flag) {
-            $('#recording_status h2').text(VMS.sensorStates[GPS_INSIDE_HOME_PORT].msg.toUpperCase());
-            $('#recording_status').show();
-        } else {
-            $('#recording_status').hide();
-        }
+    if (isSet("GPS_IN_HOME_PORT")) {
+        $('#in_home_port').show();
+    } else {
+        $('#in_home_port').hide();
     }
 
     // we don't want to expose any of these GPS states as a sensor error
     opts.state = opts.state
-        & (~VMS.sensorStates.GPS_ESTIMATED.flag)
-        & (~VMS.sensorStates.GPS_INSIDE_FERRY_LANE.flag)
-        & (~VMS.sensorStates.GPS_INSIDE_HOME_PORT.flag);
+        & (~VMS.stateDefinitions.GPS_ESTIMATED.flag)
+        & (~VMS.stateDefinitions.GPS_IN_FERRY_LANE.flag)
+        & (~VMS.stateDefinitions.GPS_IN_HOME_PORT.flag);
     
     if (this.$latlon_mode.val() == 'dec') {
         opts.value = opts.latitude + ',' + opts.longitude;
@@ -150,6 +157,14 @@ VMS.SENSOR_CLASSES.RFID.prototype = new VMS.Component({
     name: 'RFID'
 });
 
+VMS.SENSOR_CLASSES.RFID.prototype.disable = function (opts) {
+    this.$trip_scans.text('0');
+    this.$string_scans.text('0');
+    $('.RFID .value').empty();
+
+    VMS.Component.prototype.disable.apply(this, [opts]);
+}
+
 VMS.SENSOR_CLASSES.RFID.prototype.update = function (opts) {
     if (!opts.lastScannedTag) {
         opts.lastScannedTag = 'no scans yet';
@@ -178,8 +193,14 @@ VMS.SENSOR_CLASSES.AD.prototype = new VMS.Component({
     name: 'AD'
 });
 
+VMS.SENSOR_CLASSES.AD.prototype.disable = function (opts) {
+    $('.AD .value').text('0');
+
+    VMS.Component.prototype.disable.apply(this, [opts]);
+}
+
 VMS.SENSOR_CLASSES.AD.prototype.update = function (opts) {
-    opts.state = opts.state & (~VMS.sensorStates.AD_BATTERY_LOW.flag);
+    opts.state = opts.state & (~VMS.stateDefinitions.AD_BATTERY_LOW.flag);
     opts.value = Math.max(0, Math.floor(opts.psi));
     VMS.Component.prototype.update.apply(this, [opts]);
     this.$battery.text(opts.battery.toFixed(2));
@@ -210,6 +231,17 @@ VMS.SENSOR_CLASSES.SYS.prototype = new VMS.Component({
     name: 'SYS'
 });
 
+VMS.SENSOR_CLASSES.SYS.prototype.disable = function (opts) {
+    $('#recording_status').hide();
+    $('#using_os_disk').hide();
+    $('#data_disk_full').hide();
+    $('#os_disk_full').hide();
+    this.$available.text('0');
+    this.$disk_number.text('---');
+
+    VMS.Component.prototype.disable.apply(this, [opts]);
+}
+
 delayCounter = 999;
 blocksToMB = 4096 / 1024 / 1024;
 lastPercentUsed = 999;
@@ -220,73 +252,91 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         return; // WTF?
     }
 
-    if(recorderResponding && serverResponding) {
-        if (opts.state & VMS.sensorStates.SYS_VIDEO_RECORDING.flag) {
-            $('#recording_status h2').text(VMS.sensorStates.SYS_VIDEO_RECORDING.msg.toUpperCase());
-        } else {
-            $('#recording_status h2').text("VIDEO NOT RECORDING");
-        }
+    var diskMinutesLeft,
+        lastMinutesLeft,
+        percentUsed,
+        lastPercentUsed,
+        dataDiskPercentUsed;
 
-        $('#recording_status').show();
-    }
-
-    if(lastIteration % 2 == 0) {
-        if($('#using_os_disk').css('display') != 'none')  $('#using_os_disk h2').text('USING OS DISK');
-        if($('#data_disk_full').css('display') != 'none') $('#data_disk_full h2').text('DATA DISK FULL');
-        if($('#os_disk_full').css('display') != 'none')   $('#os_disk_full h2').text('OS DISK FULL');
+    if (isSet("SYS_VIDEO_RECORDING")) {
+        $('#recording_status h2').text(getMsg("SYS_VIDEO_RECORDING", true).toUpperCase());
     } else {
-        if($('#using_os_disk').css('display') != 'none')  $('#using_os_disk h2').text('CALL ECOTRUST NOW!');
-        if($('#data_disk_full').css('display') != 'none') {
-            if(fishingArea == "A") $('#data_disk_full h2').text('DFO REQUIRED SWAP');
-            else $('#data_disk_full h2').text('NEW DISK REQUIRED');
-        }
-        if($('#os_disk_full').css('display') != 'none')   $('#os_disk_full h2').text('CALL ECOTRUST NOW!');
+        $('#recording_status h2').text(getMsg("SYS_VIDEO_RECORDING", false).toUpperCase());
+    }
+    $('#recording_status').show();
+
+    opts.state = opts.state & (~VMS.stateDefinitions.SYS_VIDEO_RECORDING.flag);
+
+    if (isSet("SYS_OS_DISK_FULL")) {
+        /*if (osDiskPercentUsed >= 90) {*/
+        $('#os_disk_full h2').text(getMsg("SYS_OS_DISK_FULL", true).toUpperCase());
+        $('#os_disk_full').show();
+    } else {
+        $('#os_disk_full').hide();
     }
 
-    opts.state = opts.state & (~VMS.sensorStates.SYS_VIDEO_RECORDING.flag);
+    if (isSet("SYS_DATA_DISK_PRESENT")) {
+        $('#using_os_disk').hide();
 
-    if(delayCounter > 3 && lastIteration >= 8) {
-        var osDiskPercentUsed = Math.floor(100 * (1 - opts.osDiskFreeBlocks / opts.osDiskTotalBlocks));
-
-        if (opts.dataDiskPresent == "true") {
+        if(delayCounter > 3) {
             if (this.$diskavail_mode.val() == "fake") {
-                var diskMinutesLeft = opts.dataDiskMinutesLeftFake;
+                diskMinutesLeft = opts.dataDiskMinutesLeftFake;
+                dataDiskPercentUsed = Math.floor(100 * (1 - opts.dataDiskMinutesLeftFake / 30240));
             } else {
-                var diskMinutesLeft = opts.dataDiskMinutesLeft;
+                diskMinutesLeft = opts.dataDiskMinutesLeft;
+                dataDiskPercentUsed = Math.floor(100 * (1 - opts.dataDiskFreeBlocks / opts.dataDiskTotalBlocks));
             }
-            
-            if (opts.fishingArea == 'A') var dataDiskPercentUsed = Math.floor(100 * (1 - opts.dataDiskMinutesLeftFake / 30240));
-            else var dataDiskPercentUsed = Math.floor(100 * (1 - opts.dataDiskFreeBlocks / opts.dataDiskTotalBlocks));
-            
-            var percentUsed = dataDiskPercentUsed;
+
+            percentUsed = dataDiskPercentUsed;
             this.$disk_number.text('#' + opts.dataDiskLabel.substring(5, opts.dataDiskLabel.length));
-            opts.state = opts.state || 0;
-            $('#using_os_disk').hide();
-        } else {
-            var diskMinutesLeft = opts.osDiskMinutesLeft;
-            var percentUsed = osDiskPercentUsed;
-            this.$disk_number.text('OS');
-            opts.state = opts.state | 1;
-            if(lastIteration >= 12) {
-                $('#using_os_disk').show();
-            }
+
+            this.$data_free.text(Math.floor(opts.dataDiskFreeBlocks * blocksToMB));
+            this.$data_total.text(Math.floor(opts.dataDiskTotalBlocks * blocksToMB));
         }
 
+        opts.state = opts.state || 0; /// ?
+
+        // <= 3 days for Area A, <= 1 day for Maine
+        if (isSet("SYS_DATA_DISK_FULL") ||
+            VMS.SYS.fishingArea == 'A' && opts.dataDiskMinutesLeftFake <= 4320 ||
+            opts.dataDiskMinutesLeft <= 720) {
+            $('#data_disk_full h2').text(getMsg("SYS_DATA_DISK_FULL", true).toUpperCase());
+            $('#data_disk_full').show();
+        } else {
+            $('#data_disk_full').hide();
+        }
+    } else {
+        $('#using_os_disk h2').text(getMsg("SYS_DATA_DISK_PRESENT", false).toUpperCase());
+        $('#using_os_disk').show();
+
+        if(delayCounter > 3) {
+            diskMinutesLeft = opts.osDiskMinutesLeft;
+            percentUsed = Math.floor(100 * (1 - opts.osDiskFreeBlocks / opts.osDiskTotalBlocks));
+            this.$disk_number.text('OS');
+
+            this.$data_free.text("N/A");
+            this.$data_total.text("N/A");
+        }
+
+        opts.state = opts.state | 1;
+    }
+
+    if(delayCounter > 3 /*&& VMS.lastIteration >= 8*/) {
         if (this.dial && percentUsed != lastPercentUsed) {
             this.dial.update(percentUsed);
             lastPercentUsed = percentUsed;
         }
 
         if (!isNaN(diskMinutesLeft)) {
+            /* Hacks, have to redo this nicely
             if(opts.fishingArea == 'A' && diskMinutesLeft < 3 * 24 * 60 ||
                 diskMinutesLeft < 1 * 12 * 60) {
-                if(opts.dataDiskPresent == "true") opts.state = opts.state | VMS.sensorStates.SYS_DATA_DISK_FULL.flag;
-                else opts.state = opts.state | VMS.sensorStates.SYS_OS_DISK_FULL.flag;
+                if(opts.dataDiskPresent == "true") opts.state = opts.state | VMS.stateDefinitions.SYS_DATA_DISK_FULL.flag;
+                else opts.state = opts.state | VMS.stateDefinitions.SYS_OS_DISK_FULL.flag;
             } else {
                 opts.state = opts.state || 0;
             }
-
-            VMS.Component.prototype.update.apply(this, [opts]);
+            */
 
             var minutes = diskMinutesLeft;
             var hours = Math.floor(minutes / 60) || 0;
@@ -311,30 +361,8 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         this.$temp_core1.text(opts.tempCore1);
         this.$os_free.text(Math.floor(opts.osDiskFreeBlocks * blocksToMB));
         this.$os_total.text(Math.floor(opts.osDiskTotalBlocks * blocksToMB));
-        
-        if (opts.dataDiskPresent == "true") {
-            // <= 3 days for Area A, <= 1 day for Maine
-            if(opts.state & VMS.sensorStates.SYS_DATA_DISK_FULL.flag ||
-               opts.fishingArea == 'A' && opts.dataDiskMinutesLeftFake <= 4320 ||
-               opts.dataDiskMinutesLeft <= 720) {
-                $('#data_disk_full').show();
-            } else {
-                $('#data_disk_full').hide();
-            }
 
-            this.$data_free.text(Math.floor(opts.dataDiskFreeBlocks * blocksToMB));
-            this.$data_total.text(Math.floor(opts.dataDiskTotalBlocks * blocksToMB));
-        } else {
-            this.$data_free.text("N/A");
-            this.$data_total.text("N/A");
-        }
-
-        if(opts.state & VMS.sensorStates.SYS_OS_DISK_FULL.flag) {
-        /*if (osDiskPercentUsed >= 90) {*/
-            $('#os_disk_full').show();
-        } else {
-            $('#os_disk_full').hide();
-        }
+        VMS.Component.prototype.update.apply(this, [opts]);
 
         delayCounter = 0;
     } else {

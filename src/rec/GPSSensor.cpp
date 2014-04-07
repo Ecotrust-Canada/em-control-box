@@ -397,8 +397,8 @@ short GPSSensor::IsPointInsidePoly(const POINT &P, const POINT *V, unsigned shor
 bool GPSSensor::InSpecialArea() {
     bool inSpecialArea = false;
 
-    UnsetState(GPS_INSIDE_HOME_PORT);
-    UnsetState(GPS_INSIDE_FERRY_LANE);
+    UnsetState(GPS_IN_HOME_PORT);
+    UnsetState(GPS_IN_FERRY_LANE);
 
     if(GetState() & GPS_NO_FIX || GetState() & GPS_NO_DATA) {
         D("Not bothering to check poly because GPS data isn't useful");
@@ -414,7 +414,7 @@ bool GPSSensor::InSpecialArea() {
                 D("Checking if in home port " + to_string(k));
                 if (IsPointInsidePoly((POINT){longitude, latitude}, home_ports[k], num_home_port_edges[k] - 1)) {
                     D("IN SPECIAL AREA: home port");
-                    SetState(GPS_INSIDE_HOME_PORT);
+                    SetState(GPS_IN_HOME_PORT);
                     inSpecialArea = true;
                     break;
                 }
@@ -426,7 +426,7 @@ bool GPSSensor::InSpecialArea() {
                 D("Checking if in ferry lane " + to_string(k));
                 if (IsPointInsidePoly((POINT){longitude, latitude}, ferry_lanes[k], num_ferry_lane_edges[k] - 1)) {
                     D("IN SPECIAL AREA: ferry lane");
-                    SetState(GPS_INSIDE_FERRY_LANE);
+                    SetState(GPS_IN_FERRY_LANE);
                     inSpecialArea = true;
                     break;
                 }

@@ -391,8 +391,7 @@ void CaptureManager::KillAndReapZombieChildren(bool dontBlock) {
 
             captureLoopWatchVar = LOOP_WATCH_VAR_RUNNING;
             SetState(STATE_RUNNING);
-            __SYS_SET_STATE(SYS_VIDEO_RECORDING);
-            //lastRecordMode = nextRecordMode;
+            //__SYS_SET_STATE(SYS_VIDEO_RECORDING);
             
             // does not return unless captureLoopWatchVar set to non-zero
             env->taskScheduler().doEventLoop(&captureLoopWatchVar);

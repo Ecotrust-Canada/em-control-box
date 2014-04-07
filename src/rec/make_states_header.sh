@@ -8,6 +8,7 @@ echo "Making states files ..."
 echo -e "`/usr/bin/python - <<END
 import json
 states = json.loads(open("../../public/states.json","r").read())
+states.update(json.loads(open("../../public/options.json","r").read()))
 for k,v in states.items():
     print "#define %s %s" % (k, v['flag'])
 

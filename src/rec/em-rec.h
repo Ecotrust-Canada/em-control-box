@@ -42,32 +42,25 @@ using namespace std;
 
 #define MD5_SALT "1535bc9732a631bb91f113bcf454c7e8"
 
-#define OPTION_USING_AD				0x0001
-#define OPTION_USING_RFID			0x0002
-#define OPTION_USING_GPS			0x0004
-#define OPTION_GPRMC_ONLY_HACK		0x0008
-#define OPTION_ANALOG_CAMERAS		0x0010
-#define OPTION_IP_CAMERAS			0x0020
-
 #define _EM_RUNNING   	smRecorder.GetState() & STATE_RUNNING
 #define _OS_DISK_FULL 	smSystem.GetState() & SYS_OS_DISK_FULL
 #define _DATA_DISK_FULL smSystem.GetState() & SYS_DATA_DISK_FULL
-#define _AD   	  		smOptions.GetState() & OPTION_USING_AD
-#define _RFID   		smOptions.GetState() & OPTION_USING_RFID
-#define _GPS    		smOptions.GetState() & OPTION_USING_GPS
-#define _GPRMC 			smOptions.GetState() & OPTION_GPRMC_ONLY_HACK
-#define _ANALOG 		smOptions.GetState() & OPTION_ANALOG_CAMERAS
-#define _IP     		smOptions.GetState() & OPTION_IP_CAMERAS
+#define _AD   	  		smOptions.GetState() & OPTIONS_USING_AD
+#define _RFID   		smOptions.GetState() & OPTIONS_USING_RFID
+#define _GPS    		smOptions.GetState() & OPTIONS_USING_GPS
+#define _GPRMC 			smOptions.GetState() & OPTIONS_GPRMC_ONLY_HACK
+#define _ANALOG 		smOptions.GetState() & OPTIONS_ANALOG_CAMERAS
+#define _IP     		smOptions.GetState() & OPTIONS_DIGITAL_CAMERAS
 
 #define __EM_RUNNING 		((StateMachine *)em_data->sm_recorder)->GetState() & STATE_RUNNING
 #define __OS_DISK_FULL 		((StateMachine *)em_data->sm_system)->GetState() & SYS_OS_DISK_FULL
 #define __DATA_DISK_FULL 	((StateMachine *)em_data->sm_system)->GetState() & SYS_DATA_DISK_FULL
-#define __AD     			((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_AD
-#define __RFID   			((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_RFID
-#define __GPS    			((StateMachine *)em_data->sm_options)->GetState() & OPTION_USING_GPS
-#define __GPRMC  			((StateMachine *)em_data->sm_options)->GetState() & OPTION_GPRMC_ONLY_HACK
-#define __ANALOG 			((StateMachine *)em_data->sm_options)->GetState() & OPTION_ANALOG_CAMERAS
-#define __IP     			((StateMachine *)em_data->sm_options)->GetState() & OPTION_IP_CAMERAS
+#define __AD     			((StateMachine *)em_data->sm_options)->GetState() & OPTIONS_USING_AD
+#define __RFID   			((StateMachine *)em_data->sm_options)->GetState() & OPTIONS_USING_RFID
+#define __GPS    			((StateMachine *)em_data->sm_options)->GetState() & OPTIONS_USING_GPS
+#define __GPRMC  			((StateMachine *)em_data->sm_options)->GetState() & OPTIONS_GPRMC_ONLY_HACK
+#define __ANALOG 			((StateMachine *)em_data->sm_options)->GetState() & OPTIONS_USING_ANALOG_CAMERAS
+#define __IP     			((StateMachine *)em_data->sm_options)->GetState() & OPTIONS_USING_DIGITAL_CAMERAS
 #define __SYS_GET_STATE     ((StateMachine *)em_data->sm_system)->GetState()
 #define __SYS_SET_STATE(s)  ((StateMachine *)em_data->sm_system)->SetState(s)
 #define __SYS_UNSET_STATE(s)  ((StateMachine *)em_data->sm_system)->UnsetState(s)

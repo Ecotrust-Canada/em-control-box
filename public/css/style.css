@@ -145,14 +145,15 @@ nav ul li.active {
 nav p.datetime {
   float: right;
   font-family: monospace;
-  font-size: 24px;
+  /*font-size: 24px;*/
+  font-size: 22px;
   font-weight: bold;
   padding: 3px 7px 0 0;
   text-shadow: 0 0 3px #000;
 }
 
 #main { overflow: hidden; width: auto; }
-#main embed { border-width: 0 0 2px 2px; border-color: #E0E0E0; border-style: solid; display: block; float: left; margin: 0; padding: 0; }
+#main embed { /*border-width: 0 0 2px 0; border-color: #E0E0E0; border-style: solid;*/ display: block; float: left; margin: 0; padding: 0; }
 #main embed.thumbnail { }
 #main h1 { font-size: 16px; margin-bottom: 8px; text-decoration: underline; }
 
@@ -179,22 +180,13 @@ nav p.datetime {
 #main .tab-search table { font-size: 14px; text-align: center; }
 #main .tab-elog {position: absolute; top:36px; left:0; right:282px; bottom:0; }
 
-@media (max-width : 1024px) {
-  #main .tab-elog { right: 0; }
-}
-
 #sensors {
   background-color: #404040;
   border-left: 2px solid #E0E0E0;
   float: right;
-  width: 280px;
+  width: 268px;
 }
-/* This breaks the sensor bar at 1024x768 (it's hidden on all tabs)
-@media (max-width : 1024px) {
-  #sensors div:not(#no_recorder) {
-    display : none;
-  }
-}*/
+
 #sensors div {
   border-bottom: 2px solid #E0E0E0;
   padding: 6px;
@@ -233,8 +225,9 @@ nav p.datetime {
 #sensors div.RFID .trip_scans { margin-left: 32px; }
 
 #main label#search_rfid_error,
-#sensors div#inside_ferry_area,
+#sensors div#in_ferry_lane,
 #sensors div#recording_status,
+#sensors div#in_home_port,
 #sensors div#os_disk_full,
 #sensors div#data_disk_full,
 #sensors div#using_os_disk,
@@ -247,7 +240,7 @@ nav p.datetime {
   position: absolute;
   top: 0;
   right: 0;
-  width: 268px;
+  width: 256px;
   border: solid #E0E0E0;
   border-width: 0 0 0 2px;
 }
@@ -255,13 +248,13 @@ nav p.datetime {
 #sensors .infobox-left {
   position: absolute;
   top: 0;
-  right: 280px;
+  right: 268px;
   width: 268px;
   border: solid #E0E0E0;
   border-width: 0 2px 0 2px;
 }
 
-#system-info, #system-info-button { background: rgba(0,0,0,0.5); border: 1px solid #909090; bottom: 4px; box-shadow: 0 0 5px 1px #000; font-size: 13px; right: 5px; padding: 5px; position: absolute; text-shadow: 0 0 2px #000; }
+#system-info, #system-info-button { background: rgba(0,0,0,0.85); border: 1px solid #909090; bottom: 4px; box-shadow: 0 0 5px 1px #000; font-size: 13px; left: 6px; padding: 5px; position: absolute; text-shadow: 0 0 2px #000; }
 #system-info .label { display: inline-block; margin-right: 4px; text-align: right; width: 80px; }
 #system-info .value { display: inline-block; font-weight: bold; width: 150px; }
 .ok { background-color: #008800; }
@@ -287,8 +280,8 @@ nav p.datetime {
 
 button#night-mode {
   position: absolute;
-  bottom: 4px;
-  left: 5px;
+  top: 5px;
+  left: 375px;
   /*float: left; margin: 6px 0 0 8px;*/
 }
 
@@ -297,4 +290,18 @@ button#reload-video {
   bottom: 4px;
   left: 102px;
   /*float: left; margin: 6px 0 0 8px;*/
+}
+
+@media (max-width : 1024px) {
+  #main .tab-elog { right: 0; }
+}
+
+@media (max-height : 600px) {
+  #sensors div .value-field { font-size: 19px; }
+
+  #sensors div.GPS { text-align: left; }
+  #sensors div.GPS svg { display: none; }
+  #sensors div.GPS .value-field { margin-left: 2px; }
+  #sensors div.GPS .speed { margin-left: 2px; }
+  #sensors div.GPS .heading { margin-left: 40px; }
 }

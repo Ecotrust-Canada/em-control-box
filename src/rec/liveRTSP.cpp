@@ -113,9 +113,12 @@ void setupNextSubsession(RTSPClient* rtspClient) {
         int socketNum = scs.subsession->rtpSource()->RTPgs()->socketNum();
         //unsigned curBufferSize = getReceiveBufferSize(*env, socketNum);
         
+        /*
         unsigned newBufferSize;
         newBufferSize = setReceiveBufferTo(*env, socketNum, SOCKET_FILE_BUFFER_SIZE);
         D("Changed socket receive buffer size to " + to_string(newBufferSize) + " bytes");
+        */
+        setReceiveBufferTo(*env, socketNum, SOCKET_FILE_BUFFER_SIZE);
       }
     
       // Continue setting up this subsession, by sending a RTSP "SETUP" command:
@@ -169,6 +172,7 @@ void createOutputFiles(RTSPClient *rtspClient, char const *datePrefix) {
     }
 
     qtOut[camIndex]->startPlaying(closeSinkAfterPlaying, NULL);
+    __SYS_SET_STATE(SYS_VIDEO_RECORDING);
 }
 
 void createPeriodicOutputFiles(RTSPClient* rtspClient) {
@@ -205,6 +209,7 @@ void createPeriodicOutputFiles(RTSPClient* rtspClient) {
   } else {
     D("No writable disks; can't create new clip");
     nextClipDelay = 10; // try again in 10 seconds
+    __SYS_UNSET_STATE(SYS_VIDEO_RECORDING);
   }
 
   // Schedule an event for writing the next output file:
@@ -224,9 +229,11 @@ void periodicFileOutputTimerHandler(void* clientData) {
 void closeMediaSinks(RTSPClient* rtspClient) {
   D("closeMediaSinks()");
   unsigned short camIndex = ((MultiRTSPClient*)rtspClient)->camIndex;
+  EM_DATA_TYPE *em_data = ((MultiRTSPClient*)rtspClient)->em_data;
 
   Medium::close(qtOut[camIndex]);
   qtOut[camIndex] = NULL;
+  __SYS_UNSET_STATE(SYS_VIDEO_RECORDING);
   D("Closed QT sink for cam " + to_string(camIndex + 1));
 }
 

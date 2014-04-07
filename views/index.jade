@@ -50,11 +50,14 @@ block content
     #recording_status.warn.infobox-left
       h2 VIDEO NOT RECORDING
 
+    #in_home_port.warn.infobox-left
+      h2 IN HOME PORT
+
     #estimated.fail.infobox-right
       h2 ESTIMATED FIX
       
-    #inside_ferry_area.fail.infobox-left
-      h2 INSIDE FERRY LANE
+    #in_ferry_lane.fail.infobox-left
+      h2 IN FERRY LANE
 
     #using_os_disk.fail.infobox-left
       h2 USING OS DISK
@@ -195,7 +198,7 @@ block content
       span.value
         !=versions
 
-  button#reload-video(type='button') Reload Video
+  //button#reload-video(type='button') Reload Video
   button#night-mode(type='button') Night Mode
 
   script(src='/js/jquery-1.4.2.min.js')

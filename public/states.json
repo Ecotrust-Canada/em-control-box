@@ -23,11 +23,11 @@
         "flag": "0x20",
         "msg_set": [ "No Home Port Data" ]
     },
-    "GPS_INSIDE_FERRY_LANE": {
+    "GPS_IN_FERRY_LANE": {
         "flag": "0x40",
         "msg_set": [ "In Ferry Lane" ]
     },
-    "GPS_INSIDE_HOME_PORT": {
+    "GPS_IN_HOME_PORT": {
         "flag": "0x80",
         "msg_set": [ "In Home Port" ]
     },
@@ -74,7 +74,7 @@
     },
     "SYS_DATA_DISK_FULL": {
         "flag": "0x40000",
-        "msg_set": [ "Data Disk Full", "Swap Required!" ]
+        "msg_set": [ "Data Disk Full", "New Disk Required!" ]
     },
     "SYS_TARGET_DISK_WRITABLE": {
         "flag": "0x80000",

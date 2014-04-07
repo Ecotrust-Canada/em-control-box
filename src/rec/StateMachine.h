@@ -33,7 +33,6 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define SM_MULTIPLE_STATES   false
 
 #include "em-rec.h"
-#include "states.h"
 
 #include <pthread.h>
 

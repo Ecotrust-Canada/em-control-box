@@ -1,6 +1,8 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#include "states.h"
+
 #define FN_CONFIG				"/etc/em.conf"
 #define FN_TRACK_LOG			"TRACK"
 #define FN_SCAN_LOG				"SCAN"
@@ -14,8 +16,8 @@
 #define DATA_DISK_FAKE_DAYS_START	21
 #define SCREENSHOT_STATE_DELAY      120     // screenshot state has to be around continuously for this many seconds before it is exposed
 #define DISK_USAGE_SAMPLES          12
-//#define MAX_CLIP_LENGTH             1800    // force new movie file every x seconds
-#define MAX_CLIP_LENGTH           30    // force new movie file every x seconds
+#define MAX_CLIP_LENGTH             1800    // force new movie file every x seconds
+//#define MAX_CLIP_LENGTH           30    // force new movie file every x seconds
 
 #define FFMPEG_BINARY               "/usr/bin/ffmpeg"
 #define FFMPEG_MAX_ARGS             48

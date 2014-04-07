@@ -1,0 +1,20 @@
+{
+    "OPTIONS_USING_AD": {
+        "flag": "0x1"
+    },
+    "OPTIONS_USING_RFID": {
+        "flag": "0x2"
+    },
+    "OPTIONS_USING_GPS": {
+        "flag": "0x4"
+    },
+    "OPTIONS_GPRMC_ONLY_HACK": {
+        "flag": "0x8"
+    },
+    "OPTIONS_USING_ANALOG_CAMERAS": {
+        "flag": "0x10"
+    },
+    "OPTIONS_USING_DIGITAL_CAMERAS": {
+        "flag": "0x20"
+    }
+}
