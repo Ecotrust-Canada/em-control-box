@@ -70,6 +70,7 @@ $(function (undef) {
         aspectV,
         noResponseCount = 0,
         noRecorderCount = 0,
+        videoPreviewLoaded = false,
         eLogURL = "http://" + window.location.hostname + ":1337/";
 
     // dials setup
@@ -107,6 +108,7 @@ $(function (undef) {
                 };
 
                 // SYS
+                VMS.SYS = state.SYS;
                 VMS.UISensors.SYS = new(VMS.SENSOR_CLASSES.SYS)({
                     name: "SYS"
                 });
@@ -179,8 +181,6 @@ $(function (undef) {
                 } else {
                     $('#diskavail_mode').val('real');
                 }
-
-                $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
             }
         });
     });
@@ -222,11 +222,11 @@ $(function (undef) {
             }
             
             // hack to give us two more cams b/c we don't have 4 in the lab
-            
+            /*
             content = content + '<embed class="thumbnail" src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
 
             content = content + '<embed class="thumbnail" src="rtsp://1.1.1.2:7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
-            
+            */
 
             return divOpen + content + divClose;
         }
@@ -309,6 +309,11 @@ $(function (undef) {
                 if (isSet("OPTIONS_USING_AD")) {
                     VMS.AD = em_state.AD;
                     VMS.UISensors.AD.update(VMS.AD);
+                }
+
+                if (!videoPreviewLoaded && (VMS.SYS.uptime.match(/(\d+)m/)[1] >= 2 || VMS.lastIteration >= 40)) {
+                    videoPreviewLoaded = true;
+                    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
                 }
             }
         });

@@ -3,16 +3,14 @@ NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet
 stop_description="Stops all EM services"
 stop_start() {
 	echo -ne "      ${STAR} Stopping all EM services ... " &&
-	/bin/systemctl stop smartctl.timer sensors.timer encode-video.service startx.service web-server.service elog-server.service em-rec.service capture-bttv.service
+	/bin/systemctl stop smartctl.timer sensors.timer startx.service web-server.service elog-server.service em-rec.service capture-bttv.service gpsd.service
 	echo -e ${OK}
 }
 
 start_description="Starts all EM services"
 start_start() {
 	echo -ne "      ${STAR} Starting all EM services " &&
-	/bin/systemctl start capture-bttv.service smartctl.timer sensors.timer
-	echo -n .
-	/bin/systemctl start encode-video.service
+	/bin/systemctl start capture-bttv.service gpsd.service smartctl.timer sensors.timer
 	echo -n .
 	/bin/systemctl start em-rec.service
 	echo -n .
@@ -218,7 +216,7 @@ format_start() {
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Creating a new partition ... " &&
-	sudo echo "0,,L" | sfdisk -qL ${format_DEVICE} > /dev/null 2>&1 &&
+	sudo echo "2048,,L" | sfdisk -uSqL ${format_DEVICE} > /dev/null 2>&1 &&
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Formatting and labelling the partition ... " &&

@@ -1,16 +1,9 @@
 #!/bin/bash
 
-EM_CONF="/etc/em.conf"
 MODULES_DIR="`dirname $0`/modules"
 BOARDS="pro328 pro5v328 promicro16" # arduino boards we use
 
-if [ ! -r ${EM_CONF} ]; then
-	echo "Conf file ${EM_CONF} not readable!"
-	exit 1
-fi
-
-cat ${EM_CONF} | sed 's/=\(.*\)/="\1"/g' > /tmp/.em.conf
-source /tmp/.em.conf && rm -f /tmp/.em.conf
+eval "`/opt/em/bin/em-rec --dump-config`"
 
 if [ "${CRON}" != "true" ]; then
 	source /etc/colors

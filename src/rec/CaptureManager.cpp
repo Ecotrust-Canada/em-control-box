@@ -37,13 +37,11 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-#ifdef WITH_IP
-    UsageEnvironment *env;
-    TaskScheduler *scheduler;
-    char* captureLoopWatchPtr;
-    unsigned rtspClientCount; // shared between me and liveRTSP.cpp
-    //unsigned short nextFrameRate;
-#endif
+UsageEnvironment *env;
+TaskScheduler *scheduler;
+char* captureLoopWatchPtr;
+unsigned rtspClientCount; // shared between me and liveRTSP.cpp
+//unsigned short nextFrameRate;
 
 CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string _videoDirectory):StateMachine(STATE_NOT_RUNNING, SM_EXCLUSIVE_STATES) {
     em_data = _em_data;
@@ -78,28 +76,20 @@ CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string _videoDirectory):S
     } else if(__IP) {
         I("Using *" + std::to_string(em_data->SYS_numCams) + "* IP cameras");
 
-#ifdef WITH_IP
         scheduler = BasicTaskScheduler::createNew();
         env = BasicUsageEnvironment::createNew(*scheduler);
         captureLoopWatchVar = LOOP_WATCH_VAR_NOT_RUNNING;
         captureLoopWatchPtr = &captureLoopWatchVar;
         rtspClientCount = 0;
-#else
-        E("No IP/RTSP support compiled in!")
-        //usleep(500000);
-        //exit(-1);
-#endif
     }
 }
 
 CaptureManager::~CaptureManager() {
     if(__IP) {
-#ifdef WITH_IP
         env->reclaim();
         env = NULL;
         delete scheduler;
         scheduler = NULL;
-#endif
     }
 }
 
@@ -236,7 +226,6 @@ unsigned long CaptureManager::Start() {
         KillAndReapZombieChildren(true);
     }
 
-#ifdef WITH_IP
     else if(__IP) {
         D("In IP mode");
 
@@ -250,7 +239,6 @@ unsigned long CaptureManager::Start() {
             }
         }
     }
-#endif
     
     return initialState;
 }
@@ -265,7 +253,6 @@ unsigned long CaptureManager::Stop() {
         SetState(STATE_NOT_RUNNING);
     }
 
-#ifdef WITH_IP
     else if(__IP) {
         D("CaptureManager::Stop() IP");
 
@@ -278,7 +265,6 @@ unsigned long CaptureManager::Stop() {
         
         JoinIPCaptureThreadBlocking(); // this one sets STATE_NOT_RUNNING
     }
-#endif
 
     return initialState;
 }
@@ -305,113 +291,113 @@ void CaptureManager::KillAndReapZombieChildren(bool dontBlock) {
     }
 }
 
-#ifdef WITH_IP
-    void CaptureManager::JoinIPCaptureThreadBlocking() {
-        if(GetState() & STATE_NOT_RUNNING) return;
+void CaptureManager::JoinIPCaptureThreadBlocking() {
+    if(GetState() & STATE_NOT_RUNNING) return;
 
-        do {
-            D("Waiting to join with capture thread ...");
-            usleep(POLL_PERIOD / 10);
-        } while(GetState() & STATE_RUNNING || GetState() & STATE_STARTING);
-
-        JoinIPCaptureThreadNonblocking();
-    }
-
-    void CaptureManager::JoinIPCaptureThreadNonblocking() {
+    do {
+        D("Waiting to join with capture thread ...");
         usleep(POLL_PERIOD / 10);
+    } while(GetState() & STATE_RUNNING || GetState() & STATE_STARTING);
 
-        if(GetState() & STATE_CLOSING) {
-            D("Found capture thread in STATE_CLOSING, joining ...");
-            if(pthread_join(pt_capture, NULL) == 0) {
-                SetState(STATE_NOT_RUNNING);
-                D("pthread_join() success");
-            }
+    JoinIPCaptureThreadNonblocking();
+}
+
+void CaptureManager::JoinIPCaptureThreadNonblocking() {
+    usleep(POLL_PERIOD / 10);
+
+    if(GetState() & STATE_CLOSING) {
+        D("Found capture thread in STATE_CLOSING, joining ...");
+        if(pthread_join(pt_capture, NULL) == 0) {
+            SetState(STATE_NOT_RUNNING);
+            D("pthread_join() success");
         }
     }
+}
 
-    void *CaptureManager::thr_IPCaptureLoopLauncher(void *self) {
-        extern __thread unsigned short threadId;
-        threadId = THREAD_CAPTURE;
+void *CaptureManager::thr_IPCaptureLoopLauncher(void *self) {
+    extern __thread unsigned short threadId;
+    threadId = THREAD_CAPTURE;
 
-        ((CaptureManager*)self)->thr_IPCaptureLoop();
-        return NULL;
-    }
+    ((CaptureManager*)self)->thr_IPCaptureLoop();
+    return NULL;
+}
 
-    void CaptureManager::thr_IPCaptureLoop() {
-        bool madeProgress = false;
-        char url[64];
-        //unsigned short frameRate;
+void CaptureManager::thr_IPCaptureLoop() {
+    bool madeProgress = false;
+    char url[64];
+    //unsigned short frameRate;
+    
+    if(__EM_RUNNING && __SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
+        SetState(STATE_STARTING);
         
-        if(__EM_RUNNING && __SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
-            SetState(STATE_STARTING);
-            
-            /*if(nextRecordMode == RECORDING_NORMAL) {
-                frameRate = DIGITAL_OUTPUT_FPS_NORMAL;
+        /*if(nextRecordMode == RECORDING_NORMAL) {
+            frameRate = DIGITAL_OUTPUT_FPS_NORMAL;
+        } else {
+            frameRate = DIGITAL_OUTPUT_FPS_SLOW;
+        }
+
+        //if(nextRecordMode != lastRecordMode) {
+        //    SetIPOutputFrameRate(frameRate);
+        //}*/
+
+        D("Beginning Live555 init ...");
+        for(_ACTIVE_CAMS) { // i = cam index
+            snprintf(url, sizeof(url), DIGITAL_RTSP_URL, i + 1); // PRODUCTION
+            //snprintf(url, sizeof(url), DIGITAL_RTSP_URL, 1); // HACK to force multi-cam testing with just one cam
+
+            // open and start streaming each URL
+            /*MultiRTSPClient**/ rtspClients[i] = new MultiRTSPClient(*env,
+                                                    url,
+                                                    LIVERTSP_CLIENT_VERBOSITY_LEVEL,
+                                                    "em-rec",
+                                                    videoDirectory,
+                                                    i, /* cam index */
+                                                    MAX_CLIP_LENGTH,
+                                                    em_data/*,
+                                                    frameRate*/);
+            if (rtspClients[i] == NULL) {
+                E("Failed to create a RTSP client for URL '" + url + "': " + env->getResultMsg());
+                continue;
             } else {
-                frameRate = DIGITAL_OUTPUT_FPS_SLOW;
+                E("Created a RTSP client for URL '" + url + "'");
             }
 
-            //if(nextRecordMode != lastRecordMode) {
-            //    SetIPOutputFrameRate(frameRate);
-            //}*/
+            rtspClientCount++;
+            madeProgress = true;
 
-            D("Beginning Live555 init ...");
-            for(_ACTIVE_CAMS) { // i = cam index
-                snprintf(url, sizeof(url), DIGITAL_RTSP_URL, i + 1); // PRODUCTION
-                //snprintf(url, sizeof(url), DIGITAL_RTSP_URL, 1); // HACK to force multi-cam testing with just one cam
-
-                // open and start streaming each URL
-                /*MultiRTSPClient**/ rtspClients[i] = new MultiRTSPClient(*env,
-                                                        url,
-                                                        LIVERTSP_CLIENT_VERBOSITY_LEVEL,
-                                                        "em-rec",
-                                                        videoDirectory,
-                                                        i, /* cam index */
-                                                        MAX_CLIP_LENGTH,
-                                                        em_data/*,
-                                                        frameRate*/);
-                if (rtspClients[i] == NULL) {
-                    E("Failed to create a RTSP client for URL '" + url + "': " + env->getResultMsg());
-                    continue;
-                }
-
-                rtspClientCount++;
-                madeProgress = true;
-
-                // Next, send a RTSP "DESCRIBE" command, to get a SDP description for the stream.
-                // Note that this command - like all RTSP commands - is sent asynchronously; we do not block, waiting for a response.
-                // Instead, the following function call returns immediately, and we handle the RTSP response later, from within the event loop:
-                rtspClients[i]->sendDescribeCommand(continueAfterDESCRIBE);
-            }
-            D("Finished Live555 init");
+            // Next, send a RTSP "DESCRIBE" command, to get a SDP description for the stream.
+            // Note that this command - like all RTSP commands - is sent asynchronously; we do not block, waiting for a response.
+            // Instead, the following function call returns immediately, and we handle the RTSP response later, from within the event loop:
+            rtspClients[i]->sendDescribeCommand(continueAfterDESCRIBE);
         }
+        D("Finished Live555 init");
+    }
+    
+    if(madeProgress && GetState() & STATE_STARTING && __EM_RUNNING && __SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
+        D("Beginning Live555 doEventLoop() ...");
+
+        captureLoopWatchVar = LOOP_WATCH_VAR_RUNNING;
+        SetState(STATE_RUNNING);
+        //__SYS_SET_STATE(SYS_VIDEO_RECORDING);
         
-        if(madeProgress && GetState() & STATE_STARTING && __EM_RUNNING && __SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
-            D("Beginning Live555 doEventLoop() ...");
+        // does not return unless captureLoopWatchVar set to non-zero
+        env->taskScheduler().doEventLoop(&captureLoopWatchVar);
+        D("Broke out of Live555 doEventLoop()");
 
-            captureLoopWatchVar = LOOP_WATCH_VAR_RUNNING;
-            SetState(STATE_RUNNING);
-            //__SYS_SET_STATE(SYS_VIDEO_RECORDING);
-            
-            // does not return unless captureLoopWatchVar set to non-zero
-            env->taskScheduler().doEventLoop(&captureLoopWatchVar);
-            D("Broke out of Live555 doEventLoop()");
-
-            __SYS_UNSET_STATE(SYS_VIDEO_RECORDING);
-        }
-
-        // Stop(); // ABSOLUTELY NOT
-        // this is here so no one ever thinks to do it ... Stop()/Start() should only be called from a controlling thread
-        // and never this capture thread
-        
-        D("Capture thread stopped, waiting for join ...");
-        SetState(STATE_CLOSING);
-        pthread_exit(NULL);
+        __SYS_UNSET_STATE(SYS_VIDEO_RECORDING);
     }
 
-    // void CaptureManager::ShutdownRTSPStreams() {
-    //     for(_ACTIVE_CAMS) {
-    //         shutdownStream(rtspClient[i], LIVERTSP_EXIT_CLEAN);
-    //     }
-    // }
-#endif
+    // Stop(); // ABSOLUTELY NOT
+    // this is here so no one ever thinks to do it ... Stop()/Start() should only be called from a controlling thread
+    // and never this capture thread
+    
+    D("Capture thread stopped, waiting for join ...");
+    SetState(STATE_CLOSING);
+    pthread_exit(NULL);
+}
+
+// void CaptureManager::ShutdownRTSPStreams() {
+//     for(_ACTIVE_CAMS) {
+//         shutdownStream(rtspClient[i], LIVERTSP_EXIT_CLEAN);
+//     }
+// }

@@ -1,5 +1,3 @@
-#ifdef WITH_IP
-
 #include "settings.h"
 #include "output.h"
 #include "liveRTSP.h"
@@ -231,10 +229,13 @@ void closeMediaSinks(RTSPClient* rtspClient) {
   unsigned short camIndex = ((MultiRTSPClient*)rtspClient)->camIndex;
   EM_DATA_TYPE *em_data = ((MultiRTSPClient*)rtspClient)->em_data;
 
-  Medium::close(qtOut[camIndex]);
-  qtOut[camIndex] = NULL;
+  if(qtOut[camIndex] != NULL) {
+      Medium::close(qtOut[camIndex]);
+      qtOut[camIndex] = NULL;
+      D("Closed QT sink for cam " + to_string(camIndex + 1));
+  }
+  
   __SYS_UNSET_STATE(SYS_VIDEO_RECORDING);
-  D("Closed QT sink for cam " + to_string(camIndex + 1));
 }
 
 void setOutputFrameRate(RTSPClient* rtspClient, unsigned short frameRate) {
@@ -399,7 +400,7 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
     }
   }
 
-  if(shutdownImmediately) continueAfterTEARDOWN(NULL, 0, NULL);
+  if(shutdownImmediately) continueAfterTEARDOWN(rtspClient, exitCode, NULL);
 }
 
 void continueAfterTEARDOWN(RTSPClient* rtspClient, int resultCode, char* resultString) {
@@ -484,5 +485,3 @@ void checkInterPacketGaps(void* clientData) {
     scs.interPacketGapCheckTimerTask = env->taskScheduler().scheduleDelayedTask(LIVERTSP_INTERPACKET_GAP_TIME * 1000000, (TaskFunc*)checkInterPacketGaps, clientData);
   }
 }
-
-#endif
