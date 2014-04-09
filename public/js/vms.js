@@ -187,15 +187,11 @@ $(function (undef) {
 
     $('.tab-elog').append("<iframe src=\"" + eLogURL + "\" frameborder=\"0\" style='overflow:auto;height:100%;width:100%' height=\"100%\" width=\"100%\"></iframe>");
 
-    function getAvailableDimensions(extra_height_subtract) {
-        extra_height_subtract = extra_height_subtract || 0;
-        var videoWidthMax = $(window).width() - 270; //orig 280
-        var videoHeightMax = $(window).height() - 34 - extra_height_subtract;
+    function getAvailableDimensions(start_width, start_height) {
+        var videoWidthMax = start_width || $(window).width() - 270;
+        var videoHeightMax = start_height || $(window).height() - 34;
 
-        //alert(videoWidthMax + ' ' + videoHeightMax);
-
-        // ROUND or FLOOR?
-        if (Math.round(videoWidthMax / aspectH * aspectV) > videoHeightMax) {
+        if ((videoWidthMax / aspectH * aspectV) > videoHeightMax) {
             return [Math.round(videoHeightMax / aspectV * aspectH), videoHeightMax];
         } else {
             return [videoWidthMax, Math.round(videoWidthMax / aspectH * aspectV)];
@@ -204,42 +200,31 @@ $(function (undef) {
 
     function getCameraEmbeds() {
         var viewportDims = getAvailableDimensions();
-        var thumbDims = getAvailableDimensions(viewportDims[1]);
-        var divOpen = '<div class="cameras" style="margin: 0; width: ' + viewportDims[0] + 'px; height: ' + viewportDims[1] + 'px;">';
+        var thumbDims = getAvailableDimensions(start_width=viewportDims[0] / (VMS.SYS.numCams - 1), start_height=$(window).height() - viewportDims[1] - 34);
+        var divOpen = '<div class="cameras" style="margin: 0; width: ' + (viewportDims[0]+3) + 'px; height: ' + (viewportDims[1]+3) + 'px;">';
         var divClose = '</div>';
 
         if (isSet("OPTIONS_USING_ANALOG_CAMERAS")) {
             return divOpen + '<embed src="file:///dev/cam0" type="video/raw" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 />' + divClose;
 
         } else if (isSet("OPTIONS_USING_DIGITAL_CAMERAS")) {
-            var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + (viewportDims[0]) + '" height="' + viewportDims[1] + '" loop=999 id=' + zoomedCam + ' />';
+            var content = '<embed src="rtsp://1.1.1.' + zoomedCam + ':7070/track1" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 id=' + zoomedCam + ' />';
 
             for (var i = 1; i <= VMS.SYS.numCams; i++) {
                 if(i == zoomedCam) continue;
 
-                content = content + '<embed class="thumbnail" src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
-                //content = content + '';
+                content = content + '<embed class="thumbnail" src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + thumbDims[0] + '" height="' + thumbDims[1] + '" loop=999 id=' + i + ' />';
             }
             
             // hack to give us two more cams b/c we don't have 4 in the lab
             /*
-            content = content + '<embed class="thumbnail" src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
-
-            content = content + '<embed class="thumbnail" src="rtsp://1.1.1.2:7070/track1" type="video/mp4" width="' + Math.round(thumbDims[0]) + '" height="' + Math.round(thumbDims[1]) + '" loop=999 id=' + i + ' />';
+            content = content + '<embed class="thumbnail" src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + thumbDims[0] + '" height="' + thumbDims[1] + '" loop=999 id=' + i + ' />';
+            content = content + '<embed class="thumbnail" src="rtsp://1.1.1.2:7070/track1" type="video/mp4" width="' + thumbDims[0] + '" height="' + thumbDims[1] + '" loop=999 id=' + i + ' />';
             */
 
             return divOpen + content + divClose;
         }
     }
-
-    /*
-    var _components = ["SYS", "GPS", "AD", "RFID" ];
-    $.each(_components, function (i, sys) {
-        VMS.UISensors[sys] = new(VMS.SENSOR_CLASSES[sys] || VMS.Component)({
-            name: sys
-        });
-    });
-*/
 
     function updateUI() {
         // TODO: check for memory leaks
@@ -272,13 +257,15 @@ $(function (undef) {
                     noRecorderCount = 0;
                 }
 
-                // Send to subscribers (currently only the Elog)
-                for (var sub_key in VMS.subscribers) {
-                    var win = $(sub_key).get(0).contentWindow;
-                    win.postMessage(
-                        em_state,
-                        $(sub_key).attr('src')
-                    );
+                if(VMS.lastIteration % 2 == 1) {
+                    // Send to subscribers (currently only the Elog)
+                    for (var sub_key in VMS.subscribers) {
+                        var win = $(sub_key).get(0).contentWindow;
+                        win.postMessage(
+                            em_state,
+                            $(sub_key).attr('src')
+                        );
+                    }
                 }
             } else {
                 if(noResponseCount >= 2) {

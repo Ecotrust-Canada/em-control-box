@@ -11,8 +11,10 @@ if [ "$?" != "0" ]; then
 fi
 
 # power up
+echo powering up
 touch ${DATA_DISK}/
 
+echo making dirs
 mkdir -p ${OS_DISK}/archived
 mkdir -p ${DATA_DISK}/elog
 mkdir -p ${DATA_DISK}/journal
@@ -20,6 +22,7 @@ mkdir -p ${DATA_DISK}/reports
 mkdir -p ${DATA_DISK}/screenshots
 mkdir -p ${DATA_DISK}/video
 
+echo copy track
 # find all TRACK_*.csv / RFID / SYSTEM files
 TRACK_FILES=`find ${OS_DISK} -maxdepth 1 -name "TRACK_*.csv"  | sort`
 if [ -n "${TRACK_FILES}" ]; then
@@ -35,6 +38,7 @@ if [ -n "${TRACK_FILES}" ]; then
     fi
 fi
 
+echo copy scan
 SCAN_FILES=`find ${OS_DISK} -maxdepth 1 -name "SCAN_*.csv" | sort`
 if [ -n "${SCAN_FILES}" ]; then
     cp -p --remove-destination ${SCAN_FILES} ${DATA_DISK}/
@@ -48,6 +52,7 @@ if [ -n "${SCAN_FILES}" ]; then
     fi
 fi
 
+echo copy system
 SYSTEM_FILES=`find ${OS_DISK} -maxdepth 1 -name "SYSTEM_*.csv" | sort`
 if [ -n "${SYSTEM_FILES}" ]; then
     cp -p --remove-destination ${SYSTEM_FILES} ${DATA_DISK}/
@@ -61,6 +66,7 @@ if [ -n "${SYSTEM_FILES}" ]; then
     fi
 fi
 
+echo copy other
 # reports, screenshots
 REPORT_FILES=`find ${OS_DISK}/reports -maxdepth 1 -name "*.txt" | sort`
 if [ -n "${REPORT_FILES}" ]; then
@@ -83,28 +89,38 @@ if [ -n "${SCREENSHOT_FILES}" ]; then
     fi
 fi
 
-# finally videos
-VIDEO_FILES=`find ${OS_DISK}/video -maxdepth 1 -name "*.mp4" | sort`
-VIDEO_FILES=`echo ${VIDEO_FILES} | sed 's/[[:alnum:]\/\._\-]*$//'`
-if [ -n "${VIDEO_FILES}" ]; then
-    cp -p --remove-destination ${VIDEO_FILES} ${DATA_DISK}/video/
-    if [ ${?} -eq 0 ]; then
-        rm -f ${VIDEO_FILES}
-    else
-        echo "Copying videos failed, didn't remove"
-    fi
-fi
+echo copy videos
+function copy_videos {
+	# finally videos
+	VIDEO_FILES=`find ${OS_DISK}/video -maxdepth 1 -name "*-cam${1}.mp4" | sort`
+	VIDEO_FILES=`echo ${VIDEO_FILES} | sed 's/[[:alnum:]\/\._\-]*$//'`
+	if [ -n "${VIDEO_FILES}" ]; then
+	    cp -p --remove-destination ${VIDEO_FILES} ${DATA_DISK}/video/
+	    if [ ${?} -eq 0 ]; then
+	        rm -f ${VIDEO_FILES}
+	    else
+	        echo "Copying videos failed, didn't remove"
+	    fi
+	fi
+}
 
+copy_videos 1
+copy_videos 2
+copy_videos 3
+copy_videos 4
+
+echo copy elog
 # elog
 cp -Rp --remove-destination /var/elog/* ${DATA_DISK}/elog/
 
+echo copy journal
 # now dump the systemd journal
 DATE=`date "+%Y-%m-%d %H:%M:%S"`
 NICE_DATE=`date "+%Y%m%d-%H%M%S"`
 
 if [ -e ${LAST_DUMP} ]; then
     PREV_DATE=`cat ${LAST_DUMP}`
-    if [ -n "${PREV_DATE}" ]; then
+    if [ -z "${PREV_DATE}" ]; then
         EXTRA_PARAMS=""
     else
         EXTRA_PARAMS="--since=${PREV_DATE}"
@@ -118,16 +134,20 @@ if [ ${?} -ne 0 ]; then
     cp -p --remove-destination ${EM_DIR}/em.conf ${DATA_DISK}/
 fi
 
+echo actually copy journal here
 IFS='%'
 journalctl -a --output=short ${EXTRA_PARAMS} > ${DATA_DISK}/journal/${NICE_DATE}.log
 unset IFS
 echo -n ${DATE} > ${LAST_DUMP}
 
+echo sync
 sync
 sync
 
+echo power down
 # power down
 hdparm -y /dev/em_data > /dev/null 2>&1
 
-# find all files in archived/ older than 2 weeks and remove
-find ${OS_DISK}/archived -mtime +14 | xargs rm -rf
+echo archive
+# find all files in archived/ older than 21 days and remove
+find ${OS_DISK}/archived -mtime +21 | xargs rm -rf

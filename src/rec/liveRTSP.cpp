@@ -7,6 +7,7 @@ using namespace std;
 
 extern UsageEnvironment *env;
 extern char* captureLoopWatchPtr;
+extern MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
 extern unsigned rtspClientCount;
 extern string moduleName;
 //extern unsigned short nextFrameRate;
@@ -35,6 +36,7 @@ MultiRTSPClient::MultiRTSPClient(UsageEnvironment& env,
                                  unsigned short _clipLength,
                                  EM_DATA_TYPE *_em_data):
   RTSPClient(env, rtspURL, verbosityLevel, applicationName, 0, -1) {
+    origRTSPUrl = rtspURL;
     videoDirectory = _videoDirectory;
     camIndex = _camIndex;
     clipLength = _clipLength;
@@ -375,13 +377,13 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
 
   StreamClientState& scs = ((MultiRTSPClient*)rtspClient)->scs; // alias
 
-  if(exitCode == LIVERTSP_EXIT_SERVER_NOT_RESPONDING) { D("shutdownStream() SERVER_NOT_RESPONDING"); }
+  if(exitCode == LIVERTSP_EXIT_OUTPUT_FILE_PROBLEM) { D("shutdownStream() OUTPUT_FILE_PROBLEM"); }
+  else if(exitCode == LIVERTSP_EXIT_SERVER_NOT_RESPONDING) { D("shutdownStream() SERVER_NOT_RESPONDING"); }
+  else if(exitCode == LIVERTSP_EXIT_GENERAL_RTSP_ERROR) { D("shutdownStream() GENERAL_RTSP_ERROR"); }
   else if(exitCode == LIVERTSP_EXIT_EARLY_RTSP_ERROR) { D("shutdownStream() EARLY_RTSP_ERROR"); }
   else if(exitCode == LIVERTSP_EXIT_CLEAN) { D("shutdownStream() CLEAN"); }
   else if(exitCode == LIVERTSP_EXIT_DURATION_OVER) { D("shutdownStream() DURATION_OVER"); }
-  else if(exitCode == LIVERTSP_EXIT_GENERAL_RTSP_ERROR) { D("shutdownStream() GENERAL_RTSP_ERROR"); }
-  else if(exitCode == LIVERTSP_EXIT_OUTPUT_FILE_PROBLEM) { D("shutdownStream() OUTPUT_FILE_PROBLEM"); }
-
+  
   if (env != NULL) {
     D("Unscheduling delayed tasks ...");
     if(scs.interPacketGapCheckTimerTask != NULL) env->taskScheduler().unscheduleDelayedTask(scs.interPacketGapCheckTimerTask);
@@ -390,7 +392,7 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
   }
 
   Boolean shutdownImmediately = false;
-  if(exitCode < 0) shutdownImmediately = true;
+  if(exitCode < LIVERTSP_EXIT_CLEAN) shutdownImmediately = true;
 
   if (scs.session != NULL) {
     RTSPClient::responseHandler* responseHandlerForTEARDOWN = NULL; // unless:
@@ -400,12 +402,15 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
     }
   }
 
-  if(shutdownImmediately) continueAfterTEARDOWN(rtspClient, exitCode, NULL);
+  if(shutdownImmediately) {
+    continueAfterTEARDOWN(rtspClient, exitCode, NULL);
+  }
 }
 
-void continueAfterTEARDOWN(RTSPClient* rtspClient, int resultCode, char* resultString) {
+void continueAfterTEARDOWN(RTSPClient* rtspClient, int exitCode, char* resultString) {
   D("continueAfterTEARDOWN()");
   StreamClientState& scs = ((MultiRTSPClient*)rtspClient)->scs; // alias
+  EM_DATA_TYPE *em_data = ((MultiRTSPClient*)rtspClient)->em_data;
 
   closeMediaSinks(rtspClient);
 
@@ -436,22 +441,47 @@ void continueAfterTEARDOWN(RTSPClient* rtspClient, int resultCode, char* resultS
     }
   }
 
-  D("Closing scs.session ...");
-  Medium::close(scs.session);
+  if(exitCode >= LIVERTSP_EXIT_CLEAN) {
+      D("Closing scs.session ...");
+      Medium::close(scs.session);
 
-  D("Closing rtspClient ...");
-  Medium::close(rtspClient);
-    // Note that this will also cause this stream's "StreamClientState" structure to get reclaimed.
+      D("Closing rtspClient ...");
+      Medium::close(rtspClient);
+        // Note that this will also cause this stream's "StreamClientState" structure to get reclaimed.
 
-  D("rtspClientCount is " + to_string(rtspClientCount));
-  if (--rtspClientCount == 0) {
-    // The final stream has ended, so exit the application now.
-    // (Of course, if you're embedding this code into your own application, you might want to comment this out,
-    // and replace it with "eventLoopWatchVariable = 1;", so that we leave the LIVE555 event loop, and continue running "main()".)
-    //exit(exitCode);
-    *captureLoopWatchPtr = LOOP_WATCH_VAR_NOT_RUNNING;
+      D("rtspClientCount is " + to_string(rtspClientCount));
+      if (--rtspClientCount == 0) {
+        // The final stream has ended, so exit the application now.
+        // (Of course, if you're embedding this code into your own application, you might want to comment this out,
+        // and replace it with "eventLoopWatchVariable = 1;", so that we leave the LIVE555 event loop, and continue running "main()".)
+        //exit(exitCode);
+        *captureLoopWatchPtr = LOOP_WATCH_VAR_NOT_RUNNING;
+      }
+      D("rtspClientCount is now " + to_string(rtspClientCount));
+  } else {
+      D("Unclean shutdown, assuming we want to keep capturing from this cam");
+      usleep(100000); // wait 100 ms
+      //((MultiRTSPClient*)rtspClient)->setBaseURL( ((MultiRTSPClient*)rtspClient)->origRTSPUrl.c_str() );
+      
+      D("Creating new MultiRTSPClient");
+      MultiRTSPClient* newRTSPClient = new MultiRTSPClient(
+        *env,
+        ((MultiRTSPClient*)rtspClient)->origRTSPUrl.c_str(),
+        LIVERTSP_CLIENT_VERBOSITY_LEVEL,
+        "em-rec",
+        ((MultiRTSPClient*)rtspClient)->videoDirectory,
+        ((MultiRTSPClient*)rtspClient)->camIndex,
+        MAX_CLIP_LENGTH,
+        em_data);
+
+      rtspClients[ ((MultiRTSPClient*)rtspClient)->camIndex ] = newRTSPClient;
+
+      D("Closing old rtspClient ...");
+      Medium::close(rtspClient);
+
+      D("Switcheroo, and send DESCRIBE ...");
+      newRTSPClient->sendDescribeCommand(continueAfterDESCRIBE);
   }
-  D("rtspClientCount is now " + to_string(rtspClientCount));
 
   delete[] resultString;
 }

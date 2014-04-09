@@ -30,7 +30,9 @@ VMS.Component = function (props) {
 
 VMS.Component.prototype.update = function (opts) {
     this.$.removeClass('inactive');
-    this.$.removeClass('ok').removeClass('fail').addClass(opts.state === 0 ? "ok" : "fail");
+    this.$.removeClass('ok');
+    this.$.removeClass('fail');
+    this.$.addClass(opts.state === 0 ? "ok" : "fail");
 
     // states that will invalidate data being shown; thus the else if
     if(opts.state) { // if there is an error state

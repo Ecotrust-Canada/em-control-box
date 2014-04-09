@@ -47,7 +47,7 @@ class CaptureManager: public StateMachine {
         // IP
         pthread_t pt_capture;
         char captureLoopWatchVar;
-        MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
+        //MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
         //unsigned long startedAtIteration[IP_MAX_CAMS]; // ? needed?
         //off_t lastFileSize[IP_MAX_CAMS]; /// ? needed?
         

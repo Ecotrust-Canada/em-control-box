@@ -40,6 +40,7 @@ using namespace std;
 UsageEnvironment *env;
 TaskScheduler *scheduler;
 char* captureLoopWatchPtr;
+MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
 unsigned rtspClientCount; // shared between me and liveRTSP.cpp
 //unsigned short nextFrameRate;
 
@@ -196,8 +197,6 @@ unsigned long CaptureManager::Start() {
                     secsUntilNextClip = MAX_CLIP_LENGTH;
                 }
 
-// FIX ME
-
                 // determine filename based on current time and add it as an arg
                 time(&rawtime);
                 timeinfo = localtime(&rawtime);
@@ -237,7 +236,12 @@ unsigned long CaptureManager::Start() {
             } else {
                 D("Created IP camera capture thread");
             }
-        }
+        } /*else if(GetState() & STATE_RUNNING) {
+            // check that rtspClientCount == number of cams
+            if (rtspClientCount != em_data->SYS_numCams) {
+
+            }
+        }*/
     }
     
     return initialState;
@@ -359,7 +363,7 @@ void CaptureManager::thr_IPCaptureLoop() {
                 E("Failed to create a RTSP client for URL '" + url + "': " + env->getResultMsg());
                 continue;
             } else {
-                E("Created a RTSP client for URL '" + url + "'");
+                D("Created a RTSP client for URL '" + url + "'");
             }
 
             rtspClientCount++;

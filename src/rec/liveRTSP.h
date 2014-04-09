@@ -12,12 +12,12 @@
 #define LIVERTSP_CLIENT_VERBOSITY_LEVEL     0
 #define LIVERTSP_INTERPACKET_GAP_TIME       3 // how long between no packets to declare stream dead and shut down
 
-#define LIVERTSP_EXIT_SERVER_NOT_RESPONDING -2 // doesn't need a teardown
+#define LIVERTSP_EXIT_OUTPUT_FILE_PROBLEM   -4 // doesn't need a teardown
+#define LIVERTSP_EXIT_SERVER_NOT_RESPONDING -3 // doesn't need a teardown
+#define LIVERTSP_EXIT_GENERAL_RTSP_ERROR    -2 // doesn't need a teardown
 #define LIVERTSP_EXIT_EARLY_RTSP_ERROR      -1 // doesn't need a teardown
 #define LIVERTSP_EXIT_CLEAN                  0
 #define LIVERTSP_EXIT_DURATION_OVER          1
-#define LIVERTSP_EXIT_GENERAL_RTSP_ERROR     2
-#define LIVERTSP_EXIT_OUTPUT_FILE_PROBLEM    3
 
 #define REQUEST_STREAMING_OVER_TCP  false
 #define SOCKET_FILE_BUFFER_SIZE     262144
@@ -78,6 +78,7 @@ class MultiRTSPClient: public RTSPClient {
                     EM_DATA_TYPE* _em_data);
     virtual ~MultiRTSPClient();
 
+    string origRTSPUrl;
     StreamClientState scs;
     std::string videoDirectory;
     unsigned short camIndex;
