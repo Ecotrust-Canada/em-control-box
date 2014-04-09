@@ -33,6 +33,10 @@ check_var_safety() {
 
 flashard_description="Flashes Arduino with analog data collector image"
 flashard_start() {
+	if [ ${#} -eq 1 ]; then
+		arduino=${1}
+	fi
+
 	if [ "${arduino}" == "3.3V" -o "${arduino}" == "3.3VD" ]; then
 		BOARD="pro328"
 		AVRDUDE_OPTS="-p atmega328p -c arduino"
@@ -318,7 +322,7 @@ upgrade_start() {
 	echo "insmod gzio" >> /boot/grub/grub.cfg
 	echo "insmod part_msdos" >> /boot/grub/grub.cfg
 	echo "insmod ext2" >> /boot/grub/grub.cfg
-	echo "set root=(hd0,msdos1)" >> /boot/grub/grub.cfg
+	echo "set root=(hd0,1)" >> /boot/grub/grub.cfg
 	echo "echo 'Loading EM software v${RELEASE} ...'" >> /boot/grub/grub.cfg
 	echo "linux /em-${RELEASE} ro quiet" >> /boot/grub/grub.cfg
 	echo "}" >> /boot/grub/grub.cfg
