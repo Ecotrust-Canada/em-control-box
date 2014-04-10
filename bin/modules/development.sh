@@ -19,7 +19,7 @@ buildard_start() {
 		echo "CXXFLAGS = " >> /tmp/arduino/Makefile &&
 		echo "include /opt/arduino/Arduino.mk" >> /tmp/arduino/Makefile &&
 		cd /tmp/arduino &&
-		make > /dev/null &&
+		make > /dev/null 2>&1 &&
 		cp /tmp/arduino/build-${BOARD}/arduino.hex /opt/em/arduino/${BOARD}.hex
 	done
 
@@ -292,13 +292,13 @@ stripnodeapp_start() {
     fi
  
 	STARTDIR=`pwd`
-	SRC=${1}
-	DEST=${2}
+	APP=${1}
+	NEWAPP=${2}
 
-	echo -e "	${STAR} Creating clean copy of ${SRC} in ${DEST} ... " &&
-	mkdir -p ${DEST} &&
-	cp -a ${SRC} ${SRC}.copy &&
-	cd ${SRC}.copy
+	echo -e "	${STAR} Creating clean copy of ${APP} in ${NEWAPP} ... " &&
+	mkdir -p ${NEWAPP} &&
+	cp -a ${APP} ${APP}.copy &&
+	cd ${APP}.copy
 	find . -name test -type d | xargs rm -rf
 	find . -name tests -type d | xargs rm -rf
 	find . -name testing -type d | xargs rm -rf
@@ -310,20 +310,20 @@ stripnodeapp_start() {
 	find . -name "*.coffee" | xargs coffee -c
 	find . -name "*.styl" | xargs stylus -c
 
-	rsync -a --include "*/" --include "*.js" --exclude "*" ${SRC}.copy/ ${DEST}/
-	rsync -a --include "*/" --include "*.json" --exclude "*" ${SRC}.copy/ ${DEST}/
-	rsync -a --include "*/" --include "*.jsm" --exclude "*" ${SRC}.copy/ ${DEST}/
-	rsync -a --include "*/" --include "*.map" --exclude "*" ${SRC}.copy/ ${DEST}/
-	rsync -a --include "*/" --include "*.jade" --exclude "*" ${SRC}.copy/ ${DEST}/
-	rsync -a --include "*/" --include "*.css" --exclude "*" ${SRC}.copy/ ${DEST}/
+	rsync -a --include "*/" --include "*.js" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.json" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.jsm" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.map" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.jade" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.css" --exclude "*" ${APP}.copy/ ${NEWAPP}/
 
 	KEEP="`find . -name "*bin" -type d`"
 	for F in ${KEEP}
 	do
-	    cp -an --parents ${F} ${DEST}/
+	    cp -an --parents ${F} ${NEWAPP}/
 	done
 
 	cd ${STARTDIR}
-	rm -rf ${SRC}.copy
+	rm -rf ${APP}.copy
 	echo -e ${OK}
 }

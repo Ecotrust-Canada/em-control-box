@@ -499,7 +499,6 @@
 ./opt/em/bin/em-rec
 ./opt/em/bin/encode-video.sh
 ./opt/em/bin/modules/onsite.sh
-./opt/em/bin/read-config.func
 ./opt/em/bin/serial-setup.sh
 ./opt/em/lib/config.js
 ./opt/em/lib/routes.js
@@ -1374,7 +1373,6 @@
 ./usr/lib/libpipeline.so.1.2.2
 ./usr/lib/libpixman-1.so.0.28.2
 ./usr/lib/libpng15.so.15.13.0
-./usr/lib/libpostproc.so.52.2.100
 ./usr/lib/libsensors.so.4.3.2
 ./usr/lib/libsqlite3.so.0.8.6
 ./usr/lib/libssl.so.1.0.0

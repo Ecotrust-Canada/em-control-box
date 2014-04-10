@@ -267,8 +267,6 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
     }
     $('#recording_status').show();
 
-    opts.state = opts.state & (~VMS.stateDefinitions.SYS_VIDEO_RECORDING.flag);
-
     if (isSet("SYS_OS_DISK_FULL")) {
         /*if (osDiskPercentUsed >= 90) {*/
         $('#os_disk_full h2').text(getMsg("SYS_OS_DISK_FULL", true).toUpperCase());
@@ -296,7 +294,7 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
             this.$data_total.text(Math.floor(opts.dataDiskTotalBlocks * blocksToMB));
         }
 
-        opts.state = opts.state || 0; /// ?
+        //opts.state = opts.state || 0; /// ?
 
         // <= 3 days for Area A, <= 1 day for Maine
         if (isSet("SYS_DATA_DISK_FULL") ||
@@ -320,7 +318,7 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
             this.$data_total.text("N/A");
         }
 
-        opts.state = opts.state | 1;
+        opts.state = opts.state || 1;
     }
 
     if(delayCounter > 3 /*&& VMS.lastIteration >= 8*/) {
@@ -363,6 +361,12 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         this.$temp_core1.text(opts.tempCore1);
         this.$os_free.text(Math.floor(opts.osDiskFreeBlocks * blocksToMB));
         this.$os_total.text(Math.floor(opts.osDiskTotalBlocks * blocksToMB));
+
+        opts.state = opts.state
+            & (~VMS.stateDefinitions.SYS_DATA_DISK_PRESENT.flag)
+            & (~VMS.stateDefinitions.SYS_TARGET_DISK_WRITABLE.flag)
+            & (~VMS.stateDefinitions.SYS_VIDEO_RECORDING.flag)
+            & (~VMS.stateDefinitions.SYS_REDUCED_VIDEO_BITRATE.flag);
 
         VMS.Component.prototype.update.apply(this, [opts]);
 
