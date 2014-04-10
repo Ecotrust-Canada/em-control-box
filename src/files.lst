@@ -959,6 +959,7 @@
 ./usr/bin/awk
 ./usr/bin/base64
 ./usr/bin/basename
+./usr/bin/bc
 ./usr/bin/bower
 ./usr/bin/cairo-sphinx
 ./usr/bin/cake
