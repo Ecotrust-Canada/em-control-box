@@ -330,6 +330,7 @@ stripnodeapp_start() {
 	rsync -a --include "*/" --include "*.map" --exclude "*" ${APP}.copy/ ${NEWAPP}/
 	rsync -a --include "*/" --include "*.jade" --exclude "*" ${APP}.copy/ ${NEWAPP}/
 	rsync -a --include "*/" --include "*.css" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.types" --exclude "*" ${APP}.copy/ ${NEWAPP}/
 
 	KEEP="`find . -name "*bin" -type d`"
 	for F in ${KEEP}
