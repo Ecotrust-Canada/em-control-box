@@ -317,16 +317,18 @@ upgrade_start() {
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Updating GRUB ... " &&
-	echo "menuentry 'EM ${RELEASE}' --class electronic --class gnu-linux --class gnu --class os --unrestricted \$menuentry_id_option 'em-${RELEASE}' {" >> /boot/grub/grub.cfg
-	echo "savedefault" >> /boot/grub/grub.cfg
-	echo "insmod gzio" >> /boot/grub/grub.cfg
-	echo "insmod part_msdos" >> /boot/grub/grub.cfg
-	echo "insmod ext2" >> /boot/grub/grub.cfg
-	echo "set root=(hd0,1)" >> /boot/grub/grub.cfg
-	echo "echo 'Loading EM software v${RELEASE} ...'" >> /boot/grub/grub.cfg
-	echo "linux /em-${RELEASE} ro quiet" >> /boot/grub/grub.cfg
-	echo "}" >> /boot/grub/grub.cfg
-	echo >> /boot/grub/grub.cfg
+	if ! grep -q ${RELEASE} /boot/grub/grub.cfg; then
+		echo "menuentry 'EM ${RELEASE}' --class electronic --class gnu-linux --class gnu --class os --unrestricted \$menuentry_id_option 'em-${RELEASE}' {" >> /boot/grub/grub.cfg
+		echo "savedefault" >> /boot/grub/grub.cfg
+		echo "insmod gzio" >> /boot/grub/grub.cfg
+		echo "insmod part_msdos" >> /boot/grub/grub.cfg
+		echo "insmod ext2" >> /boot/grub/grub.cfg
+		echo "set root=(hd0,1)" >> /boot/grub/grub.cfg
+		echo "echo 'Loading EM software v${RELEASE} ...'" >> /boot/grub/grub.cfg
+		echo "linux /em-${RELEASE} ro quiet" >> /boot/grub/grub.cfg
+		echo "}" >> /boot/grub/grub.cfg
+		echo >> /boot/grub/grub.cfg
+	fi
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Unmounting /boot ... " &&

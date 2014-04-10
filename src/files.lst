@@ -66,7 +66,6 @@
 ./bin/umount
 ./bin/uname
 ./bin/zcat
-./em-release
 ./etc/X11/monitor-eonon.conf
 ./etc/X11/xorg.conf.d/xorg-monitor.conf
 ./etc/X11/xorg.conf.d/xorg-driver.conf
@@ -1616,6 +1615,7 @@
 ./usr/share/tabset/stdcrt
 ./usr/share/tabset/vt100
 ./usr/share/tabset/vt300
+./usr/share/terminfo/d/dumb
 ./usr/share/terminfo/l/linux
 ./usr/share/terminfo/l/linux-16color
 ./usr/share/terminfo/l/linux-basic

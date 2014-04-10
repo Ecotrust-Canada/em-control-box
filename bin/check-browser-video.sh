@@ -16,5 +16,4 @@ if [ "$(echo "${MOZ_PIDS}" | wc -l)" -eq "${EXPECTED_MOZ}" -a "$(echo "${MPL_PID
 fi
 
 echo check-browser-video.sh restarting Firefox
-exit
 killall firefox
