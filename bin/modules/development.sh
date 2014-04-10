@@ -70,7 +70,7 @@ installem_start() {
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Creating new partitions ... " &&
-	echo -e "2048,8388608,L,*\n8390656,,L" | sfdisk -uS -qL ${DEVICE} > /dev/null 2>&1 &&
+	echo -e "2048,4194304,L,*\n4196352,33554432,L\n37750784,,L" | sfdisk -uS -qL ${DEVICE} > /dev/null 2>&1 &&
 	echo -e ${OK}
 	
 	echo -ne "	${STAR} Formatting /boot ... " &&
@@ -81,9 +81,15 @@ installem_start() {
 	mkfs.ext4 -q -L VAR -O none,dir_index,extent,filetype,flex_bg,has_journal,sparse_super,uninit_bg,large_file -E discard -b 4096 -I 256 -i 16384 -m 1 ${DEVICE}2 &&
 	echo -e ${OK}
 
-	echo -ne "	${STAR} Mounting new /boot and /var at /mnt/install ... " &&
+	echo -ne "	${STAR} Formatting DEV partition ... " &&
+	mkfs.ext4 -q -L DEV -O none,dir_index,extent,filetype,flex_bg,has_journal,sparse_super,uninit_bg,large_file -E discard -b 4096 -I 256 -m 1 ${DEVICE}3 &&
+	echo -e ${OK}
+
+	echo -ne "	${STAR} Mounting new partitions at /mnt/install ... " &&
 	umount -f /mnt/install > /dev/null 2>&1
 	rm -rf /mnt/install
+	mkdir /mnt/install
+	mount ${DEVICE}3 /mnt/install
 	mkdir -p /mnt/install/boot /mnt/install/var
 	mount ${DEVICE}1 /mnt/install/boot
 	mount ${DEVICE}2 /mnt/install/var
@@ -106,6 +112,13 @@ installem_start() {
 	cp --preserve=all /var/lib/systemd/catalog/database /mnt/install/var/lib/systemd/catalog/
 	#chown -R ecotrust:ecotrust var/em
 	echo -e ${OK}
+
+	echo -ne "	${STAR} Copying dev partition files (takes a while) ... " &&
+	echo -n ${RELEASE} > /mnt/install/em-release
+	cp -av /boot/vmlinuz* /mnt/install/boot/
+	cd /mnt/install && mkdir -p dev mnt/data proc root run sys tmp
+	cd / && cp -avP bin etc home lib lib64 opt sbin usr /mnt/install/
+	echo ${OK}
 
 	echo -ne "	${STAR} Installing ${IMAGE} ... " &&
 	cp ${IMAGE} /mnt/install/boot/
@@ -134,6 +147,7 @@ installem_start() {
 	sync
 	umount /mnt/install/var
 	umount /mnt/install/boot
+	umount /mnt/install
 	echo -e ${OK}
 
 	echo

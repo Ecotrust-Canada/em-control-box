@@ -1,6 +1,6 @@
 #define PSI_PIN A0
 #define BAT_PIN A1
-#define MAGIC_PIN A2
+#define AUX_PIN A2
 
 #define HORN_PIN1 11 // original
 #define HORN_PIN2 10 // maine first year prototypes
@@ -15,24 +15,24 @@ char drbuf[20];
 char fqbuf[20];
 int analogbuf_psi[ANALOG_SAMPLES];
 int analogbuf_bat[ANALOG_SAMPLES];
-int analogbuf_mgc[ANALOG_SAMPLES];
-int analogcount_psi = 0, analogcount_bat = 0, analogcount_mgc;
-int analogsum_psi, analogsum_bat, analogsum_mgc;
-int analogsumfinal_psi, analogsumfinal_bat, analogsumfinal_mgc;
+int analogbuf_aux[ANALOG_SAMPLES];
+int analogcount_psi = 0, analogcount_bat = 0, analogcount_aux;
+int analogsum_psi, analogsum_bat, analogsum_aux;
+int analogsumfinal_psi, analogsumfinal_bat, analogsumfinal_aux;
 int sample_delay_cnt = 0;
 
 void setup() {
   Serial.begin(9600);
   pinMode(PSI_PIN, INPUT);
   pinMode(BAT_PIN, INPUT);
-  pinMode(MAGIC_PIN, INPUT);
+  pinMode(AUX_PIN, INPUT);
 
   pinMode(HORN_PIN1, OUTPUT);
   pinMode(HORN_PIN2, OUTPUT);
 
   digitalWrite(PSI_PIN, LOW);
   digitalWrite(BAT_PIN, LOW);
-  digitalWrite(MAGIC_PIN, LOW);
+  digitalWrite(AUX_PIN, LOW);
   digitalWrite(HORN_PIN1, LOW);
   digitalWrite(HORN_PIN2, LOW);
   delay(1000);
@@ -45,26 +45,26 @@ void loop() {
     sample_delay_cnt = 0;
     analogbuf_psi[analogcount_psi] = analogRead(PSI_PIN);
     analogbuf_bat[analogcount_psi] = analogRead(BAT_PIN);
-    analogbuf_mgc[analogcount_psi] = analogRead(MAGIC_PIN);
+    analogbuf_aux[analogcount_psi] = analogRead(AUX_PIN);
     analogcount_psi++;
   }
   
   if(analogcount_psi >= (int)ANALOG_SAMPLES) {
-    analogcount_psi = analogcount_bat = analogcount_mgc = 0;
-    analogsum_psi = analogsum_bat = analogsum_mgc = 0;
-    analogsumfinal_psi = analogsumfinal_bat = analogsumfinal_mgc = 0;
+    analogcount_psi = analogcount_bat = analogcount_aux = 0;
+    analogsum_psi = analogsum_bat = analogsum_aux = 0;
+    analogsumfinal_psi = analogsumfinal_bat = analogsumfinal_aux = 0;
 
     // add samples
     for(i = 0; i < (int)ANALOG_SAMPLES; i++) {
       analogsum_psi += analogbuf_psi[i]; 
       analogsum_bat += analogbuf_bat[i];
-      analogsum_mgc += analogbuf_mgc[i];
+      analogsum_aux += analogbuf_aux[i];
     }
   
     // get average of samples
     analogsum_psi = (int)((float)analogsum_psi / (float)ANALOG_SAMPLES);
     analogsum_bat = (int)((float)analogsum_bat / (float)ANALOG_SAMPLES); 
-    analogsum_mgc = (int)((float)analogsum_mgc / (float)ANALOG_SAMPLES);
+    analogsum_aux = (int)((float)analogsum_aux / (float)ANALOG_SAMPLES);
     
     // filter samples 
     for(i = 0; i < (int)ANALOG_SAMPLES; i++) {
@@ -78,22 +78,22 @@ void loop() {
         analogcount_bat++;
       }
 
-    if( (analogbuf_mgc[i] < (analogsum_mgc*1.3)) && (analogbuf_mgc[i] > (analogsum_mgc*0.7)) ) {
-        analogsumfinal_mgc += analogbuf_mgc[i];
-        analogcount_mgc++;
+    if( (analogbuf_aux[i] < (analogsum_aux*1.3)) && (analogbuf_aux[i] > (analogsum_aux*0.7)) ) {
+        analogsumfinal_aux += analogbuf_aux[i];
+        analogcount_aux++;
       }
     }
 
     // get average of samples
     analogsumfinal_psi = (int)((float)analogsumfinal_psi / (float)analogcount_psi);
     analogsumfinal_bat = (int)((float)analogsumfinal_bat / (float)analogcount_bat);
-    analogsumfinal_mgc = (int)((float)analogsumfinal_mgc / (float)analogcount_mgc);
+    analogsumfinal_aux = (int)((float)analogsumfinal_aux / (float)analogcount_aux);
 
     Serial.print(":P"); Serial.print(analogsumfinal_psi);
     Serial.print(":B"); Serial.print(analogsumfinal_bat);
-    Serial.print(":M"); Serial.print(analogsumfinal_mgc);
+    Serial.print(":M"); Serial.print(analogsumfinal_aux);
 
-    analogcount_psi = analogcount_bat = analogcount_mgc = 0;
+    analogcount_psi = analogcount_bat = analogcount_aux = 0;
   }
 
   if(Serial.available() > 0) {
