@@ -1230,6 +1230,7 @@
 ./usr/bin/wall
 ./usr/bin/watch
 ./usr/bin/wc
+./usr/bin/wget
 ./usr/bin/who
 ./usr/bin/whoami
 ./usr/bin/wrjpgcom
