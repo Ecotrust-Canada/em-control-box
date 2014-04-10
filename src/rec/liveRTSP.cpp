@@ -474,12 +474,12 @@ void continueAfterTEARDOWN(RTSPClient* rtspClient, int exitCode, char* resultStr
         MAX_CLIP_LENGTH,
         em_data);
 
+      D("Switcheroo, and close old rtspClient ...");
       rtspClients[ ((MultiRTSPClient*)rtspClient)->camIndex ] = newRTSPClient;
 
-      D("Closing old rtspClient ...");
       Medium::close(rtspClient);
 
-      D("Switcheroo, and send DESCRIBE ...");
+      D("Beginning again ...");      
       newRTSPClient->sendDescribeCommand(continueAfterDESCRIBE);
   }
 

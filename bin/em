@@ -20,7 +20,7 @@ function register_modules {
 }
 
 function show_versioninfo {
-	echo -e "${bldgrn}EM toolbox, Copyright 2012, Ecotrust Canada${txtrst}"
+	echo -e "${bldgrn}EM toolbox, Copyright 2014, Ecotrust Canada${txtrst}"
 }
 
 function show_help {
