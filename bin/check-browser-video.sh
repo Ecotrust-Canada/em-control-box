@@ -1,21 +1,20 @@
 #!/bin/sh
 PATH=/bin:/sbin:/usr/bin:/usr/sbin
-EXPECTED_MOZ=1
-EXPECTED_MPL=1
 
 eval "`/opt/em/bin/em-rec --dump-config`"
 
-if [ "${cam}" -gt "0" ]; then
-    EXPECTED_MOZ=$(($EXPECTED_MOZ * $cam))
-    EXPECTED_MPL=$(($EXPECTED_MPL * $cam * 3))
+EXPECTED_MOZ=$(($cam * 1))
+EXPECTED_MPL=$(($cam * 3))
+EXPECTED_CPU=$(($cam * 25)) # at least 25% per cam to play the stream
+MOZ_PIDS="`/usr/bin/pgrep -f /usr/bin/mozplugger-helper`"
+MPL_PIDS="`/usr/bin/pgrep -f /usr/bin/mplayer`"
+MPL_PIDS_CSV="`echo ${MPL_PIDS} | tr " " ","`"
+CPU_USAGE=`top -bn 1 -p ${MPL_PIDS_CSV} | tail -n+8 | awk '{ s+=$9 } END { print s };'`
+
+if [ "$(echo "${MOZ_PIDS}" | wc -l)" -eq "${EXPECTED_MOZ}" -a "$(echo "${MPL_PIDS}" | wc -l)" -eq "${EXPECTED_MPL}" -a "$(echo ${CPU_USAGE}'>'${EXPECTED_CPU} | bc -l)" -eq "1" ]; then
+    exit
 fi
 
-#while [ 1 ]; do
-	if [ "$(/usr/bin/pgrep -f /usr/bin/mozplugger-helper | wc -l)" -eq "${EXPECTED_MOZ}" -a "$(/usr/bin/pgrep -f /usr/bin/mplayer | wc -l)" -eq "${EXPECTED_MPL}" ]; then
-		#continue
-		exit
-	fi
-
-	killall firefox
-	echo check-browser restarted firefox
-#done
+echo check-browser-video.sh restarting Firefox
+exit
+killall firefox

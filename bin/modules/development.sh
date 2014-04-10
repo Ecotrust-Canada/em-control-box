@@ -171,9 +171,11 @@ buildem_start() {
             exit 1
     fi
 
+    mozplugger-update
+
 	echo -ne "	${STAR} Building em-rec ... " &&
-	cd /opt/em/src/rec && make clean > /dev/null
-	make > /dev/null
+	cd /opt/em/src/rec && make clean
+	./make_states_header.sh && make -j4 > /dev/null
 	echo -e ${OK}
  
 	buildard_start

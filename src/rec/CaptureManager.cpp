@@ -102,7 +102,7 @@ unsigned long CaptureManager::Start() {
     // but normal mode is requested, we do this right away
     if(GetState() & STATE_RUNNING) {
         if(wasInReducedBitrateMode && !(__SYS_GET_STATE & SYS_REDUCED_VIDEO_BITRATE)) {
-            D("Higher bitrate recording mode requested; cutting new file immediately ...")
+            I("Switching to HIGHER bitrate recording immediately");
 
             if(__ANALOG) {}
             else if(__IP) {
@@ -114,6 +114,7 @@ unsigned long CaptureManager::Start() {
 
             wasInReducedBitrateMode = false;
         } else if(!wasInReducedBitrateMode && __SYS_GET_STATE & SYS_REDUCED_VIDEO_BITRATE) {
+            I("Switching to LOWER bitrate recording for next video");
             wasInReducedBitrateMode = true;
         }
     }
@@ -262,7 +263,6 @@ unsigned long CaptureManager::Stop() {
 
         if(GetState() & STATE_STARTING || GetState() & STATE_RUNNING) {
             for(_ACTIVE_CAMS) {
-                D("Shutting down stream for cam " + to_string(i + 1));
                 shutdownStream(rtspClients[i], LIVERTSP_EXIT_CLEAN);
             }
         }
