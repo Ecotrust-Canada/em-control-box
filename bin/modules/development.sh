@@ -311,7 +311,7 @@ stripnodeapp_start() {
 
 	echo -e "	${STAR} Creating clean copy of ${APP} in ${NEWAPP} ... " &&
 	mkdir -p ${NEWAPP} &&
-	cp -a ${APP} ${APP}.copy &&
+	cp -a --no-dereference ${APP} ${APP}.copy &&
 	cd ${APP}.copy
 	find . -name test -type d | xargs rm -rf
 	find . -name tests -type d | xargs rm -rf
@@ -334,7 +334,7 @@ stripnodeapp_start() {
 	KEEP="`find . -name "*bin" -type d`"
 	for F in ${KEEP}
 	do
-	    cp -an --parents ${F} ${NEWAPP}/
+	    cp -an --parents --no-dereference ${F} ${NEWAPP}/
 	done
 
 	cd ${STARTDIR}
