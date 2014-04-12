@@ -30,8 +30,10 @@ VMS.Component = function (props) {
 
 VMS.Component.prototype.update = function (opts) {
     this.$.removeClass('inactive');
-    this.$.removeClass('ok').removeClass('fail').addClass(opts.state === 0 ? "ok" : "fail");
-
+    this.$.removeClass('ok');
+    this.$.removeClass('fail');
+    this.$.addClass(opts.state === 0 ? "ok" : "fail");
+    console.log(this, opts);
     // states that will invalidate data being shown; thus the else if
     if(opts.state) { // if there is an error state
         for(var e in VMS.stateDefinitions) {
@@ -264,9 +266,8 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         $('#recording_status h2').text(getMsg("SYS_VIDEO_RECORDING", false).toUpperCase());
     }
     $('#recording_status').show();
-
+    
     opts.state = opts.state & (~VMS.stateDefinitions.SYS_VIDEO_RECORDING.flag);
-
     if (isSet("SYS_OS_DISK_FULL")) {
         /*if (osDiskPercentUsed >= 90) {*/
         $('#os_disk_full h2').text(getMsg("SYS_OS_DISK_FULL", true).toUpperCase());
@@ -305,6 +306,9 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         } else {
             $('#data_disk_full').hide();
         }
+        // done with these. clear them so no ui error shows.
+        opts.state = opts.state - (VMS.stateDefinitions.SYS_DATA_DISK_PRESENT.flag);
+        opts.state = opts.state - (VMS.stateDefinitions.SYS_TARGET_DISK_WRITABLE.flag);
     } else {
         $('#using_os_disk h2').text(getMsg("SYS_DATA_DISK_PRESENT", false).toUpperCase());
         $('#using_os_disk').show();

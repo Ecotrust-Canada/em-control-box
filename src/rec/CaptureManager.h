@@ -45,16 +45,7 @@ class CaptureManager: public StateMachine {
         pid_t pid_encoder[ANALOG_MAX_CAMS];
         std::queue<pid_t> pidReaperQueue;
 
-    public:
-        CaptureManager(EM_DATA_TYPE*, string);
-        ~CaptureManager();
-        unsigned long Start();
-        unsigned long Stop();
-        unsigned short GetSecondsUntilNextClipTime();
-        void KillAndReapZombieChildren(bool); // sounds fantastic
-
-#ifdef WITH_IP
-    private:
+        // IP
         pthread_t pt_capture;
         char captureLoopWatchVar;
         MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
@@ -68,10 +59,12 @@ class CaptureManager: public StateMachine {
         //void SetIPOutputFrameRate(unsigned short);
 
     public:
-        //void ShutdownRTSPStreams(MultiRTSPClient**); // gets called by Stop() at some point, in addition to any outsiders who want to guarantee interruption of the capture
-        //void ShutdownRTSPStreams();
-
-#endif
+        CaptureManager(EM_DATA_TYPE*, string);
+        ~CaptureManager();
+        unsigned long Start();
+        unsigned long Stop();
+        unsigned short GetSecondsUntilNextClipTime();
+        void KillAndReapZombieChildren(bool); // sounds fantastic
 };
 
 #endif

@@ -11,25 +11,15 @@ DEBUGFLAGS = -O0 -march=atom -g -DDEBUG
 
 CCFLAGS = $(CCOPTS) $(OPTFLAGS)
 
-LIBS = -lpthread -lblkid -lgps
-LIVE_LIBS = -lliveMedia -lBasicUsageEnvironment -lUsageEnvironment -lgroupsock
+LIBS = -lpthread -lblkid -lgps -lliveMedia -lBasicUsageEnvironment -lUsageEnvironment -lgroupsock
 
-INCLUDES = 
-LIVE_INCLUDES = -I/usr/include/liveMedia/ -I/usr/include/UsageEnvironment -I/usr/include/groupsock
+INCLUDES = -I/usr/include/liveMedia/ -I/usr/include/UsageEnvironment -I/usr/include/groupsock
 
-.PHONY: all debug with-ip with-ip-debug pre-build clean
+.PHONY: all debug pre-build clean
 all:: pre-build $(TARGET)
 
 debug: CCFLAGS = $(CCOPTS) $(DEBUGFLAGS)
 debug: all
-
-with-ip-debug: CCFLAGS = $(CCOPTS) $(DEBUGFLAGS)
-with-ip-debug: with-ip
-with-ip: SRCS += $(LIVE_SRCS)
-with-ip: CCFLAGS += -DWITH_IP
-with-ip: LIBS += $(LIVE_LIBS)
-with-ip: INCLUDES += $(LIVE_INCLUDES)
-with-ip: pre-build $(TARGET)
 
 ifneq ($(XDEPS),) 
 include $(XDEPS) 
