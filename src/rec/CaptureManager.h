@@ -40,7 +40,6 @@ class CaptureManager: public StateMachine {
         string videoDirectory;
         char encoderArgs[512];
         char encoderArgsSlow[512];
-        //unsigned short lastRecordMode, nextRecordMode;
         bool wasInReducedBitrateMode;
         pid_t pid_encoder[ANALOG_MAX_CAMS];
         std::queue<pid_t> pidReaperQueue;
@@ -48,7 +47,7 @@ class CaptureManager: public StateMachine {
         // IP
         pthread_t pt_capture;
         char captureLoopWatchVar;
-        MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
+        //MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
         //unsigned long startedAtIteration[IP_MAX_CAMS]; // ? needed?
         //off_t lastFileSize[IP_MAX_CAMS]; /// ? needed?
         

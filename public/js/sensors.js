@@ -33,7 +33,6 @@ VMS.Component.prototype.update = function (opts) {
     this.$.removeClass('ok');
     this.$.removeClass('fail');
     this.$.addClass(opts.state === 0 ? "ok" : "fail");
-    console.log(this, opts);
     // states that will invalidate data being shown; thus the else if
     if(opts.state) { // if there is an error state
         for(var e in VMS.stateDefinitions) {
@@ -295,7 +294,7 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
             this.$data_total.text(Math.floor(opts.dataDiskTotalBlocks * blocksToMB));
         }
 
-        opts.state = opts.state || 0; /// ?
+        //opts.state = opts.state || 0; /// ?
 
         // <= 3 days for Area A, <= 1 day for Maine
         if (isSet("SYS_DATA_DISK_FULL") ||
@@ -321,7 +320,6 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
             this.$data_free.text("N/A");
             this.$data_total.text("N/A");
         }
-
         opts.state = opts.state | 1;
     }
 
@@ -365,6 +363,12 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         this.$temp_core1.text(opts.tempCore1);
         this.$os_free.text(Math.floor(opts.osDiskFreeBlocks * blocksToMB));
         this.$os_total.text(Math.floor(opts.osDiskTotalBlocks * blocksToMB));
+
+        opts.state = opts.state
+            & (~VMS.stateDefinitions.SYS_DATA_DISK_PRESENT.flag)
+            & (~VMS.stateDefinitions.SYS_TARGET_DISK_WRITABLE.flag)
+            & (~VMS.stateDefinitions.SYS_VIDEO_RECORDING.flag)
+            & (~VMS.stateDefinitions.SYS_REDUCED_VIDEO_BITRATE.flag);
 
         VMS.Component.prototype.update.apply(this, [opts]);
 

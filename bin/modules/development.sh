@@ -1,4 +1,4 @@
-NAME="buildard buildem installem resetgps2"
+NAME="buildard buildem installem resetgps2 stripnodeapp"
 
 buildard_description="Builds Arduino analog data collector images"
 buildard_start() {
@@ -19,7 +19,7 @@ buildard_start() {
 		echo "CXXFLAGS = " >> /tmp/arduino/Makefile &&
 		echo "include /opt/arduino/Arduino.mk" >> /tmp/arduino/Makefile &&
 		cd /tmp/arduino &&
-		make > /dev/null &&
+		make > /dev/null 2>&1 &&
 		cp /tmp/arduino/build-${BOARD}/arduino.hex /opt/em/arduino/${BOARD}.hex
 	done
 
@@ -81,14 +81,14 @@ installem_start() {
 	mkfs.ext4 -q -L VAR -O none,dir_index,extent,filetype,flex_bg,has_journal,sparse_super,uninit_bg,large_file -E discard -b 4096 -I 256 -i 16384 -m 1 ${DEVICE}2 &&
 	echo -e ${OK}
 
-	echo -ne "	${STAR} Formatting dev partition ... " &&
+	echo -ne "	${STAR} Formatting DEV partition ... " &&
 	mkfs.ext4 -q -L DEV -O none,dir_index,extent,filetype,flex_bg,has_journal,sparse_super,uninit_bg,large_file -E discard -b 4096 -I 256 -m 1 ${DEVICE}3 &&
 	echo -e ${OK}
 
-	echo -ne "	${STAR} Mounting new /boot and /var at /mnt/install ... " &&
+	echo -ne "	${STAR} Mounting new partitions at /mnt/install ... " &&
 	umount -f /mnt/install > /dev/null 2>&1
 	rm -rf /mnt/install
-	mkdir -p /mnt/install
+	mkdir /mnt/install
 	mount ${DEVICE}3 /mnt/install
 	mkdir -p /mnt/install/boot /mnt/install/var
 	mount ${DEVICE}1 /mnt/install/boot
@@ -113,6 +113,13 @@ installem_start() {
 	cp --preserve=all /var/lib/systemd/catalog/database /mnt/install/var/lib/systemd/catalog/
 	#chown -R ecotrust:ecotrust var/em
 	echo -e ${OK}
+
+	echo -ne "	${STAR} Copying dev partition files (takes a while) ... " &&
+	echo -n ${RELEASE} > /mnt/install/em-release
+	cp -av /boot/vmlinuz* /mnt/install/boot/
+	cd /mnt/install && mkdir -p dev mnt/data proc root run sys tmp
+	cd / && cp -avP bin etc home lib lib64 opt sbin usr /mnt/install/
+	echo ${OK}
 
 	echo -ne "	${STAR} Installing ${IMAGE} ... " &&
 	cp ${IMAGE} /mnt/install/boot/
@@ -157,29 +164,33 @@ installem_start() {
 
 buildem_description="Builds EM image file"
 buildem_usage="
-Usage:\t${bldwht}em buildem <release version>\t\t${txtrst}(where <release version> is a number)\n
-\tex: em buildem 2.0.1"
+Usage:\t${bldwht}em buildem <release version> <kernel version>${txtrst}\n
+\tex: em buildem 2.2.0 3.11.4\n\n
+\t/usr/src/linux-3.11.4 has to exist"
 buildem_start() {
-        if [ ${#} -ne 1 ]; then
-                echo
-                echo -e ${buildem_usage}
-                exit 1
-        fi
+    if [ ${#} -ne 2 ]; then
+            echo
+            echo -e ${buildem_usage}
+            exit 1
+    fi
 
-        if [ ${UID} -ne 0 ]; then
-                echo -e "${bldred}You must be root to use this command${txtrst}"
-                exit 1
-        fi
+    if [ ${UID} -ne 0 ]; then
+            echo -e "${bldred}You must be root to use this command${txtrst}"
+            exit 1
+    fi
+
+    mozplugger-update
 
 	echo -ne "	${STAR} Building em-rec ... " &&
-	cd /opt/em/src/rec && make > /dev/null
-	make > /dev/null
+	cd /opt/em/src/rec && make clean
+	./make_states_header.sh && make -j4 > /dev/null
 	echo -e ${OK}
  
-	#/opt/em/bin/em buildard
+	buildard_start
 
 	VER=${1}
 	DEST=/usr/src/em-${1}
+	KERNEL_VERSION=${2}
 
 	echo -ne "	${STAR} Preparing image root at ${DEST} ... " &&
 	rm -rf ${DEST} && mkdir -p ${DEST}
@@ -193,6 +204,9 @@ buildem_start() {
 	cp /opt/em/src/fstab /opt/em/src/resolv.conf ${DEST}/etc/
 	ln -s /sbin/init ${DEST}/init
 	echo -e ${OK}
+
+	stripnodeapp_start /opt/elog ${DEST}/opt/elog
+	stripnodeapp_start /opt/em ${DEST}/opt/em
 
 	echo -ne "	${STAR} Stripping executables ... " &&
 	find ${DEST} | xargs file | grep "executable" | grep ELF | cut -f 1 -d : | xargs -r strip --strip-unneeded
@@ -211,8 +225,9 @@ buildem_start() {
 	echo -e ${OK}
 
 	echo -e "	${STAR} Building Linux kernel, modules, and updating ${DEST} ... " && 
-	cp /opt/em/src/config-${VER}-stage1 /usr/src/linux/.config
-	cd /usr/src/linux
+	cp /opt/em/src/config-${VER}-stage1 /usr/src/linux-${KERNEL_VERSION}/.config
+	rm -f /usr/src/linux && ln -s /usr/src/linux-${KERNEL_VERSION} /usr/src/linux
+	cd /usr/src/linux-${KERNEL_VERSION}
 	rm -f usr/initramfs_data.cpio*
 	make -j4 bzImage > /dev/null
 	make -j4 modules > /dev/null && make modules_install > /dev/null
@@ -224,8 +239,7 @@ buildem_start() {
 	make clean > /dev/null 2>&1
 	make > /dev/null 2>&1
 	make install > /dev/null 2>&1
-	# determine kernel version automatically instead of hardcoding
-	cp -r --parents --no-dereference --preserve=all /lib/modules/3.11.4-em ${DEST}/
+	cp -r --parents --no-dereference --preserve=all /lib/modules/${KERNEL_VERSION}-em ${DEST}/
 	echo -e ${OK}
 
 	echo -e "	${STAR} Creating initramfs CPIO archive ... " &&
@@ -235,10 +249,10 @@ buildem_start() {
 	echo -e ${OK}
 
 	echo -e "	${STAR} Rebuilding Linux kernel w/ initramfs from ${DEST} ... " &&
-	cp /opt/em/src/config-${VER}-stage2 /usr/src/linux/.config
-	cd /usr/src/linux
+	cp /opt/em/src/config-${VER}-stage2 /usr/src/linux-${KERNEL_VERSION}/.config
+	cd /usr/src/linux-${KERNEL_VERSION}
 	rm -f usr/initramfs_data.cpio*
-	make -j3 bzImage > /dev/null
+	make -j2 bzImage > /dev/null
 	cp arch/x86/boot/bzImage /opt/em/images/em-${VER}
 	echo -e ${OK}
 
@@ -287,5 +301,54 @@ resetgps2_start() {
 
 	echo -ne "	${STAR} Resetting GPS ... "
 	echo -ne '$PGRMI,,,,,,,R\r\n' > ${GPS_DEV}
+	echo -e ${OK}
+}
+
+stripnodeapp_description="Copies node.js app to new destination without useless files"
+stripnodeapp_usage="
+Usage:\t${bldwht}em stripnodeapp <path/to/app> <destination>${txtrst}\n
+\tex: em stripnodeapp /opt/elog /mnt/install/opt/elog"
+stripnodeapp_start() {
+    if [ ${#} -ne 2 ]; then
+            echo
+            echo -e ${stripnodeapp_usage}
+            exit 1
+    fi
+ 
+	STARTDIR=`pwd`
+	APP=${1}
+	NEWAPP=${2}
+
+	echo -e "	${STAR} Creating clean copy of ${APP} in ${NEWAPP} ... " &&
+	mkdir -p ${NEWAPP} &&
+	cp -a --no-dereference ${APP} ${APP}.copy &&
+	cd ${APP}.copy
+	find . -name test -type d | xargs rm -rf
+	find . -name tests -type d | xargs rm -rf
+	find . -name testing -type d | xargs rm -rf
+	find . -name example -type d | xargs rm -rf
+	find . -name examples -type d | xargs rm -rf
+	find . -name "doc*" -type d | xargs rm -rf
+	find . -name ".git" | xargs rm -rf
+
+	find . -name "*.coffee" | xargs coffee -c
+	find . -name "*.styl" | xargs stylus -c
+
+	rsync -a --include "*/" --include "*.js" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.json" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.jsm" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.map" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.jade" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.css" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+	rsync -a --include "*/" --include "*.types" --exclude "*" ${APP}.copy/ ${NEWAPP}/
+
+	KEEP="`find . -name "*bin" -type d`"
+	for F in ${KEEP}
+	do
+	    cp -an --parents --no-dereference ${F} ${NEWAPP}/
+	done
+
+	cd ${STARTDIR}
+	rm -rf ${APP}.copy
 	echo -e ${OK}
 }

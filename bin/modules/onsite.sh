@@ -3,16 +3,14 @@ NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet
 stop_description="Stops all EM services"
 stop_start() {
 	echo -ne "      ${STAR} Stopping all EM services ... " &&
-	/bin/systemctl stop smartctl.timer sensors.timer encode-video.service startx.service web-server.service elog-server.service em-rec.service capture-bttv.service
+	/bin/systemctl stop smartctl.timer sensors.timer startx.service web-server.service elog-server.service em-rec.service capture-bttv.service gpsd.service
 	echo -e ${OK}
 }
 
 start_description="Starts all EM services"
 start_start() {
 	echo -ne "      ${STAR} Starting all EM services " &&
-	/bin/systemctl start capture-bttv.service smartctl.timer sensors.timer
-	echo -n .
-	/bin/systemctl start encode-video.service
+	/bin/systemctl start capture-bttv.service gpsd.service smartctl.timer sensors.timer
 	echo -n .
 	/bin/systemctl start em-rec.service
 	echo -n .
@@ -35,6 +33,10 @@ check_var_safety() {
 
 flashard_description="Flashes Arduino with analog data collector image"
 flashard_start() {
+	if [ ${#} -eq 1 ]; then
+		arduino=${1}
+	fi
+
 	if [ "${arduino}" == "3.3V" -o "${arduino}" == "3.3VD" ]; then
 		BOARD="pro328"
 		AVRDUDE_OPTS="-p atmega328p -c arduino"
@@ -218,7 +220,7 @@ format_start() {
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Creating a new partition ... " &&
-	sudo echo "0,,L" | sfdisk -qL ${format_DEVICE} > /dev/null 2>&1 &&
+	sudo echo "2048,,L" | sfdisk -uSqL ${format_DEVICE} > /dev/null 2>&1 &&
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Formatting and labelling the partition ... " &&
@@ -315,16 +317,18 @@ upgrade_start() {
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Updating GRUB ... " &&
-	echo "menuentry 'EM ${RELEASE}' --class electronic --class gnu-linux --class gnu --class os --unrestricted \$menuentry_id_option 'em-${RELEASE}' {" >> /boot/grub/grub.cfg
-	echo "savedefault" >> /boot/grub/grub.cfg
-	echo "insmod gzio" >> /boot/grub/grub.cfg
-	echo "insmod part_msdos" >> /boot/grub/grub.cfg
-	echo "insmod ext2" >> /boot/grub/grub.cfg
-	echo "set root=(hd0,msdos1)" >> /boot/grub/grub.cfg
-	echo "echo 'Loading EM software v${RELEASE} ...'" >> /boot/grub/grub.cfg
-	echo "linux /em-${RELEASE} ro quiet" >> /boot/grub/grub.cfg
-	echo "}" >> /boot/grub/grub.cfg
-	echo >> /boot/grub/grub.cfg
+	if ! grep -q ${RELEASE} /boot/grub/grub.cfg; then
+		echo "menuentry 'EM ${RELEASE}' --class electronic --class gnu-linux --class gnu --class os --unrestricted \$menuentry_id_option 'em-${RELEASE}' {" >> /boot/grub/grub.cfg
+		echo "savedefault" >> /boot/grub/grub.cfg
+		echo "insmod gzio" >> /boot/grub/grub.cfg
+		echo "insmod part_msdos" >> /boot/grub/grub.cfg
+		echo "insmod ext2" >> /boot/grub/grub.cfg
+		echo "set root=(hd0,1)" >> /boot/grub/grub.cfg
+		echo "echo 'Loading EM software v${RELEASE} ...'" >> /boot/grub/grub.cfg
+		echo "linux /em-${RELEASE} ro quiet" >> /boot/grub/grub.cfg
+		echo "}" >> /boot/grub/grub.cfg
+		echo >> /boot/grub/grub.cfg
+	fi
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Unmounting /boot ... " &&

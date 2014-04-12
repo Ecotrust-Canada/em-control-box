@@ -40,6 +40,7 @@ using namespace std;
 UsageEnvironment *env;
 TaskScheduler *scheduler;
 char* captureLoopWatchPtr;
+MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
 unsigned rtspClientCount; // shared between me and liveRTSP.cpp
 //unsigned short nextFrameRate;
 
@@ -101,7 +102,7 @@ unsigned long CaptureManager::Start() {
     // but normal mode is requested, we do this right away
     if(GetState() & STATE_RUNNING) {
         if(wasInReducedBitrateMode && !(__SYS_GET_STATE & SYS_REDUCED_VIDEO_BITRATE)) {
-            D("Higher bitrate recording mode requested; cutting new file immediately ...")
+            I("Switching to HIGHER bitrate recording immediately");
 
             if(__ANALOG) {}
             else if(__IP) {
@@ -113,6 +114,7 @@ unsigned long CaptureManager::Start() {
 
             wasInReducedBitrateMode = false;
         } else if(!wasInReducedBitrateMode && __SYS_GET_STATE & SYS_REDUCED_VIDEO_BITRATE) {
+            I("Switching to LOWER bitrate recording for next video");
             wasInReducedBitrateMode = true;
         }
     }
@@ -196,8 +198,6 @@ unsigned long CaptureManager::Start() {
                     secsUntilNextClip = MAX_CLIP_LENGTH;
                 }
 
-// FIX ME
-
                 // determine filename based on current time and add it as an arg
                 time(&rawtime);
                 timeinfo = localtime(&rawtime);
@@ -237,7 +237,12 @@ unsigned long CaptureManager::Start() {
             } else {
                 D("Created IP camera capture thread");
             }
-        }
+        } /*else if(GetState() & STATE_RUNNING) {
+            // check that rtspClientCount == number of cams
+            if (rtspClientCount != em_data->SYS_numCams) {
+
+            }
+        }*/
     }
     
     return initialState;
@@ -258,7 +263,6 @@ unsigned long CaptureManager::Stop() {
 
         if(GetState() & STATE_STARTING || GetState() & STATE_RUNNING) {
             for(_ACTIVE_CAMS) {
-                D("Shutting down stream for cam " + to_string(i + 1));
                 shutdownStream(rtspClients[i], LIVERTSP_EXIT_CLEAN);
             }
         }
@@ -359,7 +363,7 @@ void CaptureManager::thr_IPCaptureLoop() {
                 E("Failed to create a RTSP client for URL '" + url + "': " + env->getResultMsg());
                 continue;
             } else {
-                E("Created a RTSP client for URL '" + url + "'");
+                D("Created a RTSP client for URL '" + url + "'");
             }
 
             rtspClientCount++;
