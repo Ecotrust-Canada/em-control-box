@@ -317,6 +317,7 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
             this.$data_free.text("N/A");
             this.$data_total.text("N/A");
         }
+        
         opts.state = opts.state | 1;
     }
 

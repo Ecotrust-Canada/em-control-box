@@ -9,6 +9,7 @@
 #define FN_SYSTEM_LOG			"SYSTEM"
 #define FN_SCAN_COUNT			"scan_count.dat"
 #define FN_VIDEO_DIR			"/video"
+#define FN_REC_COUNT            "rec_count.dat"
 
 #define NOTIFY_SCAN_INTERVAL		6	 	// wait this many POLL_PERIODs between honks
 #define RECORD_SCAN_INTERVAL		300		// 300 P_Ps = 5 minutes

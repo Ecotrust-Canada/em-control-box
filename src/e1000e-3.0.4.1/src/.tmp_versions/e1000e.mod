@@ -1,2 +1,0 @@
-/opt/em/src/e1000e-3.0.4.1/src/e1000e.ko
-/opt/em/src/e1000e-3.0.4.1/src/netdev.o /opt/em/src/e1000e-3.0.4.1/src/ethtool.o /opt/em/src/e1000e-3.0.4.1/src/param.o /opt/em/src/e1000e-3.0.4.1/src/82571.o /opt/em/src/e1000e-3.0.4.1/src/ich8lan.o /opt/em/src/e1000e-3.0.4.1/src/80003es2lan.o /opt/em/src/e1000e-3.0.4.1/src/mac.o /opt/em/src/e1000e-3.0.4.1/src/nvm.o /opt/em/src/e1000e-3.0.4.1/src/phy.o /opt/em/src/e1000e-3.0.4.1/src/manage.o /opt/em/src/e1000e-3.0.4.1/src/kcompat.o

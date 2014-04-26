@@ -64,6 +64,8 @@ class CaptureManager: public StateMachine {
         unsigned long Stop();
         unsigned short GetSecondsUntilNextClipTime();
         void KillAndReapZombieChildren(bool); // sounds fantastic
+        void GetRecCount();
+        void WriteRecCount();
 };
 
 #endif

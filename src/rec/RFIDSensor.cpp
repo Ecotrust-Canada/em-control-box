@@ -51,7 +51,7 @@ int RFIDSensor::Connect() {
     return Sensor::Connect();
 }
 
-void RFIDSensor::SetScanCountsFile(string file) {
+void RFIDSensor::GetScanCounts(string file) {
     scanCountsFile = file;
 
     ifstream fin(scanCountsFile.c_str());

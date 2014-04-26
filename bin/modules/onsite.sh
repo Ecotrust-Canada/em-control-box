@@ -3,7 +3,7 @@ NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet
 stop_description="Stops all EM services"
 stop_start() {
 	echo -ne "      ${STAR} Stopping all EM services ... " &&
-	/bin/systemctl stop copy-to-data-disk.timer check-browser-video.timer smartctl.timer sensors.timer startx.service web-server.service elog-server.service em-rec.service capture-bttv.service gpsd.service
+	/bin/systemctl stop copy-to-data-disk.timer smartctl.timer sensors.timer startx.service web-server.service elog-server.service em-rec.service capture-bttv.service gpsd.service
 	echo -e ${OK}
 }
 
@@ -14,7 +14,7 @@ start_start() {
 	echo -n .
 	/bin/systemctl start em-rec.service
 	echo -n .
-	/bin/systemctl start web-server.service elog-server.service startx.service check-browser-video.timer
+	/bin/systemctl start web-server.service elog-server.service startx.service
 	echo -n .
 	/bin/systemctl start copy-to-data-disk.timer
 	echo -n .

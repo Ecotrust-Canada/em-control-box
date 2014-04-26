@@ -23,9 +23,11 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 #include "CaptureManager.h"
 #include "output.h"
+#include "config.h"
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <cstdio>
 #include <cstring>
 #include <csignal>
@@ -37,20 +39,19 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-UsageEnvironment *env;
-TaskScheduler *scheduler;
-char* captureLoopWatchPtr;
-MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
-unsigned rtspClientCount; // shared between me and liveRTSP.cpp
-//unsigned short nextFrameRate;
+extern CONFIG_TYPE G_CONFIG;
+
+UsageEnvironment  *G_env;
+TaskScheduler     *G_scheduler;
+char              *G_captureLoopWatchPtr;
+MultiRTSPClient   *G_rtspClients[DIGITAL_MAX_CAMS];
+unsigned           G_rtspClientCount;
 
 CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string _videoDirectory):StateMachine(STATE_NOT_RUNNING, SM_EXCLUSIVE_STATES) {
     em_data = _em_data;
     videoDirectory = _videoDirectory;
     moduleName = "CAP";
     wasInReducedBitrateMode = false;
-    //lastRecordMode = RECORDING_INACTIVE;
-    //nextRecordMode = RECORDING_INACTIVE;
 
     if(__ANALOG) {
         I("Using *" + to_string(em_data->SYS_numCams+1) + "* ANALOG cameras");
@@ -77,20 +78,20 @@ CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string _videoDirectory):S
     } else if(__IP) {
         I("Using *" + std::to_string(em_data->SYS_numCams) + "* IP cameras");
 
-        scheduler = BasicTaskScheduler::createNew();
-        env = BasicUsageEnvironment::createNew(*scheduler);
+        G_scheduler = BasicTaskScheduler::createNew();
+        G_env = BasicUsageEnvironment::createNew(*G_scheduler);
         captureLoopWatchVar = LOOP_WATCH_VAR_NOT_RUNNING;
-        captureLoopWatchPtr = &captureLoopWatchVar;
-        rtspClientCount = 0;
+        G_captureLoopWatchPtr = &captureLoopWatchVar;
+        G_rtspClientCount = 0;
     }
 }
 
 CaptureManager::~CaptureManager() {
     if(__IP) {
-        env->reclaim();
-        env = NULL;
-        delete scheduler;
-        scheduler = NULL;
+        G_env->reclaim();
+        G_env = NULL;
+        delete G_scheduler;
+        G_scheduler = NULL;
     }
 }
 
@@ -107,8 +108,8 @@ unsigned long CaptureManager::Start() {
             if(__ANALOG) {}
             else if(__IP) {
                 for(_ACTIVE_CAMS) {
-                    StreamClientState& scs = ((MultiRTSPClient*)rtspClients[i])->scs; // alias
-                    env->taskScheduler().rescheduleDelayedTask(scs.periodicFileOutputTask, 0, (TaskFunc*)periodicFileOutputTimerHandler, rtspClients[i]);
+                    StreamClientState& scs = ((MultiRTSPClient*)G_rtspClients[i])->scs; // alias
+                    G_env->taskScheduler().rescheduleDelayedTask(scs.periodicFileOutputTask, 0, (TaskFunc*)periodicFileOutputTimerHandler, G_rtspClients[i]);
                 }
             }
 
@@ -117,6 +118,12 @@ unsigned long CaptureManager::Start() {
             I("Switching to LOWER bitrate recording for next video");
             wasInReducedBitrateMode = true;
         }
+
+        pthread_mutex_lock(&(em_data->mtx));
+            em_data->SYS_videoSecondsRecorded = em_data->SYS_videoSecondsRecorded + (POLL_PERIOD * AUX_INTERVAL / 1000000);
+        pthread_mutex_unlock(&(em_data->mtx));
+
+        WriteRecCount();
     }
 
     // Now actually start things up
@@ -202,7 +209,7 @@ unsigned long CaptureManager::Start() {
                 time(&rawtime);
                 timeinfo = localtime(&rawtime);
                 strftime(date, sizeof(date), "%Y%m%d-%H%M%S", timeinfo);
-                snprintf(fileName, sizeof(fileName), "%s/%s-cam%d.mp4", (em_data->SYS_targetDisk /*+ ((MultiRTSPClient*)rtspClient)->videoDirectory*/).c_str(), date, HARDCODED_CAM_INDEX);
+                snprintf(fileName, sizeof(fileName), "%s/%s-cam%d.mp4", (em_data->SYS_targetDisk + videoDirectory).c_str(), date, HARDCODED_CAM_INDEX);
                 argv[argIndex++] = const_cast<char*>(to_string(secsUntilNextClip).c_str());
                 argv[argIndex++] = fileName;
                 argv[argIndex++] = (char*)NULL;
@@ -238,8 +245,8 @@ unsigned long CaptureManager::Start() {
                 D("Created IP camera capture thread");
             }
         } /*else if(GetState() & STATE_RUNNING) {
-            // check that rtspClientCount == number of cams
-            if (rtspClientCount != em_data->SYS_numCams) {
+            // check that G_rtspClientCount == number of cams
+            if (G_rtspClientCount != em_data->SYS_numCams) {
 
             }
         }*/
@@ -250,6 +257,8 @@ unsigned long CaptureManager::Start() {
 
 unsigned long CaptureManager::Stop() {
     unsigned long initialState = GetState();
+
+    WriteRecCount();
 
     if(__ANALOG) {
         D("CaptureManager::Stop() ANALOG");
@@ -263,7 +272,7 @@ unsigned long CaptureManager::Stop() {
 
         if(GetState() & STATE_STARTING || GetState() & STATE_RUNNING) {
             for(_ACTIVE_CAMS) {
-                shutdownStream(rtspClients[i], LIVERTSP_EXIT_CLEAN);
+                shutdownStream(G_rtspClients[i], LIVERTSP_EXIT_CLEAN);
             }
         }
         
@@ -319,8 +328,8 @@ void CaptureManager::JoinIPCaptureThreadNonblocking() {
 }
 
 void *CaptureManager::thr_IPCaptureLoopLauncher(void *self) {
-    extern __thread unsigned short threadId;
-    threadId = THREAD_CAPTURE;
+    extern __thread unsigned short __threadId;
+    __threadId = THREAD_CAPTURE;
 
     ((CaptureManager*)self)->thr_IPCaptureLoop();
     return NULL;
@@ -350,29 +359,28 @@ void CaptureManager::thr_IPCaptureLoop() {
             //snprintf(url, sizeof(url), DIGITAL_RTSP_URL, 1); // HACK to force multi-cam testing with just one cam
 
             // open and start streaming each URL
-            /*MultiRTSPClient**/ rtspClients[i] = new MultiRTSPClient(*env,
+            /*MultiRTSPClient**/ G_rtspClients[i] = new MultiRTSPClient(*G_env,
                                                     url,
                                                     LIVERTSP_CLIENT_VERBOSITY_LEVEL,
                                                     "em-rec",
                                                     videoDirectory,
-                                                    i, /* cam index */
+                                                    i,
                                                     MAX_CLIP_LENGTH,
-                                                    em_data/*,
-                                                    frameRate*/);
-            if (rtspClients[i] == NULL) {
-                E("Failed to create a RTSP client for URL '" + url + "': " + env->getResultMsg());
+                                                    em_data);
+            if (G_rtspClients[i] == NULL) {
+                E("Failed to create a RTSP client for URL '" + url + "': " + G_env->getResultMsg());
                 continue;
             } else {
                 D("Created a RTSP client for URL '" + url + "'");
             }
 
-            rtspClientCount++;
+            G_rtspClientCount++;
             madeProgress = true;
 
             // Next, send a RTSP "DESCRIBE" command, to get a SDP description for the stream.
             // Note that this command - like all RTSP commands - is sent asynchronously; we do not block, waiting for a response.
             // Instead, the following function call returns immediately, and we handle the RTSP response later, from within the event loop:
-            rtspClients[i]->sendDescribeCommand(continueAfterDESCRIBE);
+            G_rtspClients[i]->sendDescribeCommand(continueAfterDESCRIBE);
         }
         D("Finished Live555 init");
     }
@@ -385,7 +393,7 @@ void CaptureManager::thr_IPCaptureLoop() {
         //__SYS_SET_STATE(SYS_VIDEO_RECORDING);
         
         // does not return unless captureLoopWatchVar set to non-zero
-        env->taskScheduler().doEventLoop(&captureLoopWatchVar);
+        G_env->taskScheduler().doEventLoop(&captureLoopWatchVar);
         D("Broke out of Live555 doEventLoop()");
 
         __SYS_UNSET_STATE(SYS_VIDEO_RECORDING);
@@ -400,8 +408,54 @@ void CaptureManager::thr_IPCaptureLoop() {
     pthread_exit(NULL);
 }
 
-// void CaptureManager::ShutdownRTSPStreams() {
-//     for(_ACTIVE_CAMS) {
-//         shutdownStream(rtspClient[i], LIVERTSP_EXIT_CLEAN);
-//     }
-// }
+void CaptureManager::GetRecCount() {
+    string dataDiskLabel, lastDataDisk;
+    unsigned long lastSecondsCount = 0, videoSecondsRecorded = 0;
+
+    pthread_mutex_lock(&(em_data->mtx));
+        dataDiskLabel = em_data->SYS_dataDiskLabel;
+    pthread_mutex_unlock(&(em_data->mtx));
+
+    ifstream fin((G_CONFIG.EM_DIR + "/" + FN_REC_COUNT).c_str());
+    if(!fin.fail()) {
+        fin >> lastDataDisk >> lastSecondsCount;
+        fin.close();
+        I("Last data disk was " + lastDataDisk + " with " + to_string(lastSecondsCount) + " secs");
+    }
+
+    if(lastDataDisk == "0" || (__SYS_GET_STATE & SYS_DATA_DISK_PRESENT && dataDiskLabel == lastDataDisk)) {
+        videoSecondsRecorded = lastSecondsCount;
+        D("videoSecondsRecorded = " + to_string(lastSecondsCount));
+    } else {
+        videoSecondsRecorded = 0;
+        D("videoSecondsRecorded = 0");
+    }
+
+    pthread_mutex_lock(&(em_data->mtx));
+        em_data->SYS_videoSecondsRecorded = videoSecondsRecorded;
+    pthread_mutex_unlock(&(em_data->mtx));
+}
+
+void CaptureManager::WriteRecCount() {
+    string dataDiskLabel;
+    unsigned long videoSecondsRecorded;
+
+    //if(__SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
+        pthread_mutex_lock(&(em_data->mtx));
+            dataDiskLabel = em_data->SYS_dataDiskLabel;
+            videoSecondsRecorded = em_data->SYS_videoSecondsRecorded;
+        pthread_mutex_unlock(&(em_data->mtx));
+
+        if(dataDiskLabel.empty()) {
+            dataDiskLabel = "0";
+        }
+
+        ofstream fout((G_CONFIG.EM_DIR + "/" + FN_REC_COUNT).c_str());
+
+        if(!fout.fail()) {
+            fout << dataDiskLabel << ' ' << videoSecondsRecorded;
+            fout.close();
+            D("Wrote out videoSecondsRecorded = " + to_string(videoSecondsRecorded) + " for disk " + dataDiskLabel);
+        }
+    //}
+}

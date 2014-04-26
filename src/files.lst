@@ -143,8 +143,6 @@
 ./etc/systemd/system.conf
 ./etc/systemd/system/boot.mount
 ./etc/systemd/system/capture-bttv.service
-./etc/systemd/system/check-browser-video.service
-./etc/systemd/system/check-browser-video.timer
 ./etc/systemd/system/copy-to-data-disk-shutdown.service
 ./etc/systemd/system/copy-to-data-disk.service
 ./etc/systemd/system/copy-to-data-disk.timer
@@ -163,7 +161,6 @@
 ./etc/systemd/system/em-rec.service
 ./etc/systemd/system/getty.target.wants/getty@tty1.service
 ./etc/systemd/system/gpsd.service
-./etc/systemd/system/graphical.target.wants/check-browser-video.timer
 ./etc/systemd/system/graphical.target.wants/elog-server.service
 ./etc/systemd/system/graphical.target.wants/startx.service
 ./etc/systemd/system/graphical.target.wants/web-server.service
@@ -495,7 +492,6 @@
 ./opt/em/bin/create-fanout-devs.sh
 ./opt/em/bin/em
 ./opt/em/bin/em-rec
-./opt/em/bin/encode-video.sh
 ./opt/em/bin/modules/onsite.sh
 ./opt/em/bin/serial-setup.sh
 ./opt/em/lib/config.js

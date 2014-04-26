@@ -32,17 +32,37 @@ var path = require('path'),
 
 function fakenull(error, stdout, stderr) { }
 
+function check_video_playing() {    
+    exec("/opt/em/bin/check-browser-video.sh", function(error, stdout, stderr){
+        var data = JSON.parse(stdout);
+        
+        // if number of mplayer processes does not match number of cameras
+        if(routes._numCams > 0 && data.numProcs != routes._numCams) {
+            routes._videoPlaying = false;
+            return;
+        }
+
+        // if CPU usage is less than 2
+        if(data.cpuUsage < 2) {
+            routes._videoPlaying = false;
+            return;
+        }
+
+        routes._videoPlaying = true;
+    });    
+}
+
 console.log("INFO: Ecotrust EM Web Server v%s is starting", config.SERVER_VERSION);
 
 process.chdir(__dirname); // ensure working directory is correct
 config.setup();
 
 server.configure(function() {
-	server.set('views', path.join(__dirname, 'views'));
-	server.enable('view cache');
-	server.use(express.static(path.join(__dirname, 'public')));
-	server.use(express.bodyParser());
-	server.use(server.router);
+    server.set('views', path.join(__dirname, 'views'));
+    server.enable('view cache');
+    server.use(express.static(path.join(__dirname, 'public')));
+    server.use(express.bodyParser());
+    server.use(server.router);
 });
 
 server.get('/em',                   routes.index);
@@ -57,6 +77,10 @@ server.post('/reset_string',        routes.resetString);
 server.post('/search_rfid',         routes.searchRFID);
 
 server.listen(port);
+
 // warm up the cache
 exec("/usr/bin/wget -O - -q -t 1 http://127.0.0.1:8081/em/ > /dev/null", fakenull);
 console.log("INFO: Listening on port " + port);
+
+// every 10 seconds check video
+setInterval(check_video_playing, 4500);

@@ -141,8 +141,8 @@ int GPSSensor::Receive() {
 }
 
 void *GPSSensor::thr_ReceiveLoopLauncher(void *self) {
-    extern __thread unsigned short threadId;
-    threadId = THREAD_GPS;
+    extern __thread unsigned short __threadId;
+    __threadId = THREAD_GPS;
     ((GPSSensor*)self)->thr_ReceiveLoop();
     return NULL;
 }

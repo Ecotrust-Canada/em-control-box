@@ -1,1 +1,0 @@
-cmd_/opt/em/src/e1000e-3.0.4.1/src/e1000e.ko := ld -r -m elf_x86_64 -T /usr/src/linux-3.12.17/scripts/module-common.lds --build-id  -o /opt/em/src/e1000e-3.0.4.1/src/e1000e.ko /opt/em/src/e1000e-3.0.4.1/src/e1000e.o /opt/em/src/e1000e-3.0.4.1/src/e1000e.mod.o

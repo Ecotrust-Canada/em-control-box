@@ -27,6 +27,7 @@ VMS.optionDefinitions = {};
 VMS.lastIteration = 0;
 VMS.recorderResponding = false;
 VMS.serverResponding = false;
+VMS.videoPlaying = true;
 VMS.OPTIONS = {};
 VMS.SYS = {};
 VMS.GPS = {};
@@ -253,6 +254,7 @@ $(function (undef) {
 
                     em_state.GPS.datetime = em_state.currentDateTime;
                     VMS.lastIteration = em_state.runIterations;
+                    VMS.videoPlaying = em_state.SYS.videoPlaying;
                     noResponseCount = 0;
                     noRecorderCount = 0;
                 }
@@ -298,12 +300,18 @@ $(function (undef) {
                     VMS.UISensors.AD.update(VMS.AD);
                 }
 
-                if (!videoPreviewLoaded && (VMS.SYS.uptime.match(/(\d+)m/)[1] >= 2 || VMS.lastIteration >= 40)) {
+                if (!videoPreviewLoaded && (VMS.SYS.uptime.match(/(\d+)m/)[1] >= 2 || VMS.lastIteration >= 40 || isSet("OPTIONS_USING_ANALOG_CAMERAS"))) {
                     videoPreviewLoaded = true;
                     $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
                 }
             }
         });
+    }
+
+    function checkVideoPlaying() {
+        if(!VMS.videoPlaying) {
+            $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+        }
     }
 
     $('nav li').click(function (e) {
@@ -347,10 +355,6 @@ $(function (undef) {
             });
         }
     });
-
-    //$('#reload-video').click(function () {
-    //    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-    //});
 
     $('.tab-cam').click(function () {
         if (VMS.SYS.numCams > 1) {
@@ -449,4 +453,6 @@ $(function (undef) {
     $('nav li:nth(0)').click();
     
     setInterval(updateUI, 1010);
+    setInterval(checkVideoPlaying, 5000);
+
 });
