@@ -72,6 +72,7 @@ $(function (undef) {
         noResponseCount = 0,
         noRecorderCount = 0,
         videoPreviewLoaded = false,
+        firstVideoCheckDone = false,
         eLogURL = "http://" + window.location.hostname + ":1337/";
 
     // dials setup
@@ -310,7 +311,8 @@ $(function (undef) {
 
     function checkVideoPlaying() {
         if(!VMS.videoPlaying) {
-            $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+            if(firstVideoCheckDone) $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+            firstVideoCheckDone = true;
         }
     }
 
@@ -363,6 +365,8 @@ $(function (undef) {
 
             $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
         }
+        
+        firstVideoCheckDone = false;
     });
 
     $('.GPS .value').click(function () {

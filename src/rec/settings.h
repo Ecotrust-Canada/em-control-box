@@ -18,7 +18,7 @@
 #define SCREENSHOT_STATE_DELAY      120     // screenshot state has to be around continuously for this many seconds before it is exposed
 #define DISK_USAGE_SAMPLES          12
 #define MAX_CLIP_LENGTH             1800    // force new movie file every x seconds
-//#define MAX_CLIP_LENGTH           30    // force new movie file every x seconds
+//#define MAX_CLIP_LENGTH             20    // force new movie file every x seconds
 
 #define FFMPEG_BINARY               "/usr/bin/ffmpeg"
 #define FFMPEG_MAX_ARGS             48

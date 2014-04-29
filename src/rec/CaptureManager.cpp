@@ -54,7 +54,7 @@ CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string _videoDirectory):S
     wasInReducedBitrateMode = false;
 
     if(__ANALOG) {
-        I("Using *" + to_string(em_data->SYS_numCams+1) + "* ANALOG cameras");
+        I("Using *" + to_string(em_data->SYS_numCams) + "* ANALOG cameras");
 
         snprintf(encoderArgs, sizeof(encoderArgs),
             FFMPEG_ARGS_LINE,
@@ -105,7 +105,9 @@ unsigned long CaptureManager::Start() {
         if(wasInReducedBitrateMode && !(__SYS_GET_STATE & SYS_REDUCED_VIDEO_BITRATE)) {
             I("Switching to HIGHER bitrate recording immediately");
 
-            if(__ANALOG) {}
+            if(__ANALOG) {
+                Stop();
+            }
             else if(__IP) {
                 for(_ACTIVE_CAMS) {
                     StreamClientState& scs = ((MultiRTSPClient*)G_rtspClients[i])->scs; // alias
@@ -145,8 +147,8 @@ unsigned long CaptureManager::Start() {
             if(wait_result == 0) {
                 D("Current ffmpeg still running");
 
-                if(GetSecondsUntilNextClipTime() >= AUX_INTERVAL) {
-                    KillAndReapZombieChildren(true);
+                if(GetSecondsUntilNextClipTime() > AUX_INTERVAL) {
+                    ReapZombieChildrenNonBlocking();
                     // there's nothing to do
                     return initialState;
                 }
@@ -161,7 +163,7 @@ unsigned long CaptureManager::Start() {
                 __SYS_UNSET_STATE(SYS_VIDEO_RECORDING);
                 SetState(STATE_NOT_RUNNING);
             } else {
-                D("waitpid() error occurred; THIS SHOULDN'T HAPPEN");
+                D("waitpid() error occurred; maybe ffmpeg was already reaped?");
             }
         }
 
@@ -209,7 +211,7 @@ unsigned long CaptureManager::Start() {
                 time(&rawtime);
                 timeinfo = localtime(&rawtime);
                 strftime(date, sizeof(date), "%Y%m%d-%H%M%S", timeinfo);
-                snprintf(fileName, sizeof(fileName), "%s/%s-cam%d.mp4", (em_data->SYS_targetDisk + videoDirectory).c_str(), date, HARDCODED_CAM_INDEX);
+                snprintf(fileName, sizeof(fileName), "%s/%s-cam%d.mp4", (em_data->SYS_targetDisk + videoDirectory).c_str(), date, HARDCODED_CAM_INDEX + 1);
                 argv[argIndex++] = const_cast<char*>(to_string(secsUntilNextClip).c_str());
                 argv[argIndex++] = fileName;
                 argv[argIndex++] = (char*)NULL;
@@ -230,13 +232,13 @@ unsigned long CaptureManager::Start() {
             }
         }
 
-        KillAndReapZombieChildren(true);
+        ReapZombieChildrenNonBlocking();
     }
 
     else if(__IP) {
         D("In IP mode");
 
-        JoinIPCaptureThreadNonblocking(); // this will turn threads in STATE_CLOSING_OR_UNDEFINED into STATE_NOT_RUNNING
+        JoinIPCaptureThreadNonBlocking(); // this will turn threads in STATE_CLOSING_OR_UNDEFINED into STATE_NOT_RUNNING
 
         if(GetState() & STATE_NOT_RUNNING) {
             if(pthread_create(&pt_capture, NULL, &thr_IPCaptureLoopLauncher, (void *)this) != 0) {
@@ -262,12 +264,13 @@ unsigned long CaptureManager::Stop() {
 
     if(__ANALOG) {
         D("CaptureManager::Stop() ANALOG");
-        pidReaperQueue.push(pid_encoder[HARDCODED_CAM_INDEX]);
-        KillAndReapZombieChildren(false);
+        if(pid_encoder[HARDCODED_CAM_INDEX] != 0) {
+            kill(pid_encoder[HARDCODED_CAM_INDEX], SIGTERM);
+            pidReaperQueue.push(pid_encoder[HARDCODED_CAM_INDEX]);
+            ReapZombieChildrenBlocking();
+        }
         SetState(STATE_NOT_RUNNING);
-    }
-
-    else if(__IP) {
+    } else if(__IP) {
         D("CaptureManager::Stop() IP");
 
         if(GetState() & STATE_STARTING || GetState() & STATE_RUNNING) {
@@ -286,21 +289,39 @@ unsigned short CaptureManager::GetSecondsUntilNextClipTime() {
     return (MAX_CLIP_LENGTH - (time(0) % MAX_CLIP_LENGTH));
 }
 
-void CaptureManager::KillAndReapZombieChildren(bool dontBlock) {
+void CaptureManager::ReapZombieChildrenBlocking() {
+    ReapZombieChildren(false);
+}
+
+void CaptureManager::ReapZombieChildrenNonBlocking() {
+    ReapZombieChildren(true);
+}
+
+void CaptureManager::ReapZombieChildren(bool dontBlock) {
     int options = 0;
     if(dontBlock) options = WNOHANG;
 
+    unsigned int waitCount = 0;
+
     while(!pidReaperQueue.empty()) {
         pid_t pid = pidReaperQueue.front();
-        
-        D("Sending SIGTERM and waiting on PID " + to_string(pid));
-        kill(pid, SIGTERM);
+
+        D("Waiting on PID " + to_string(pid));
         if(waitpid(pid, NULL, options) > 0) {
             D("PID " + to_string(pid) + " reaped");
             pidReaperQueue.pop();
+        } else {
+            waitCount++;
+
+            if(waitCount >= 20) { // 2 seconds
+                //D("Waited long enough; sending SIGTERM to PID " + to_string(pid));
+                //kill(pid, SIGTERM);
+                waitCount = 0;
+                break; // we'll wait until next round to reap this guy to give him a chance to TERM properly
+            }
         }
 
-        usleep(50000);
+        usleep(100000);
     }
 }
 
@@ -312,10 +333,10 @@ void CaptureManager::JoinIPCaptureThreadBlocking() {
         usleep(POLL_PERIOD / 10);
     } while(GetState() & STATE_RUNNING || GetState() & STATE_STARTING);
 
-    JoinIPCaptureThreadNonblocking();
+    JoinIPCaptureThreadNonBlocking();
 }
 
-void CaptureManager::JoinIPCaptureThreadNonblocking() {
+void CaptureManager::JoinIPCaptureThreadNonBlocking() {
     usleep(POLL_PERIOD / 10);
 
     if(GetState() & STATE_CLOSING) {

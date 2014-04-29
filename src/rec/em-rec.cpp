@@ -65,7 +65,11 @@ unsigned long   G_IGNORED_STATES = GPS_NO_FERRY_DATA |
                                    GPS_IN_HOME_PORT |
                                    AD_BATTERY_LOW |
                                    AD_BATTERY_HIGH |
-                                   RFID_CHECKSUM_FAILED;
+                                   RFID_CHECKSUM_FAILED |
+                                   SYS_DATA_DISK_PRESENT |
+                                   SYS_TARGET_DISK_WRITABLE |
+                                   SYS_VIDEO_RECORDING |
+                                   SYS_REDUCED_VIDEO_BITRATE;
 
 GPSSensor  iGPSSensor(&G_EM_DATA);
 RFIDSensor iRFIDSensor(&G_EM_DATA);
@@ -366,11 +370,6 @@ void *thr_auxiliaryLoop(void *arg) {
         
         // process position, set special area states, and if we're in the home port ...
         if(iGPSSensor.InSpecialArea() && iGPSSensor.GetState() & GPS_IN_HOME_PORT) { // pause
-            // once either of the video capture routines is able to get video data, they set
-            // SYS_VIDEO_AVAILABLE, and at that point we can actually play conductor; when we don't
-            // know if video is available we keep trying to start it regardless of where we are
-
-            //if(smSystem.GetState() & SYS_VIDEO_AVAILABLE) {
             if(videoCapture.GetState() & STATE_RUNNING) {
                 pthread_mutex_lock(&G_EM_DATA.mtx);
                     latitude = G_EM_DATA.GPS_latitude;
@@ -380,7 +379,6 @@ void *thr_auxiliaryLoop(void *arg) {
             }
 
             videoCapture.Stop();
-            //}
         } else {
             if(videoCapture.GetState() & STATE_NOT_RUNNING) { // resume
                 pthread_mutex_lock(&G_EM_DATA.mtx);
@@ -417,7 +415,7 @@ void *thr_auxiliaryLoop(void *arg) {
         }
 
         // checks for errors that are screenshot-worthy
-        if((iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState()) & ~(G_IGNORED_STATES)) {
+        if((iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState() | smSystem.GetState()) & ~(G_IGNORED_STATES)) {
             // state needs to be around SCREENSHOT_STATE_DELAY seconds before really showing up
             smTakeScreenshot.SetState(true, (unsigned short)(SCREENSHOT_STATE_DELAY * 1000000 / AUX_INTERVAL / POLL_PERIOD));
         } else {
@@ -433,7 +431,7 @@ void *thr_auxiliaryLoop(void *arg) {
                     execle("/usr/bin/scrot", "scrot", "-q5", (targetDisk + "/screenshots/%Y%m%d-%H%M%S.jpg").c_str(), NULL, scrot_envp);
                 } else if(pid_scrot > 0) {
                     waitpid(pid_scrot, NULL, 0);
-                    smTakeScreenshot.UnsetAllStates();
+                    //smTakeScreenshot.UnsetAllStates();
                     D("Took screenshot");
                 } else {
                     E("/usr/bin/scrot fork() failed");

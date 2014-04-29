@@ -63,12 +63,11 @@ int GPSSensor::Connect() {
     }
     
     (void) gps_stream(&GPS_DATA, WATCH_ENABLE | WATCH_JSON, NULL);
-
     UnsetState(GPS_NO_CONNECTION);
-    UnsetState(GPS_NO_DATA);
-    UnsetState(GPS_NO_FIX);
-
     O("Connected (GPSd)");
+
+    //UnsetState(GPS_NO_DATA);
+    //UnsetState(GPS_NO_FIX);
 
     // bug: condition of having a KML file with NO polys = reread every time
     if(!(GetState() & GPS_NO_HOME_PORT_DATA) && num_home_ports == 0) {
@@ -237,7 +236,7 @@ void GPSSensor::thr_ReceiveLoop() {
                 GPS_DATA.satellites_used = 0;
 
                 threadCloseDelayCounter++;
-                D("TCC = " + to_string(threadCloseDelayCounter));
+                //D("TCC = " + to_string(threadCloseDelayCounter));
             } else {
                 threadCloseDelayCounter = 0;
             }
