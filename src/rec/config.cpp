@@ -48,12 +48,12 @@ const string moduleName = "CONF";
 string getConfig(const char* key, const char* default_value) {
     for(int i = 0; i < config_length; i++) {
         if (strcmp(key, config[i][0]) == 0) {
-            if(G_ARG_DUMP_CONFIG) cout << key << "=" << config[i][1] << endl;
+            if(G_ARG_DUMP_CONFIG) cout << key << "=\"" << config[i][1] << "\"" << endl;
             return string(config[i][1]);
         }
     }
 
-    if(G_ARG_DUMP_CONFIG) cout << key << "=" << default_value << endl;
+    if(G_ARG_DUMP_CONFIG) cout << key << "=\"" << default_value << "\"" << endl;
     else E("Missing key '" + key + "' in config file, using default '" + default_value + "'");
     return string(default_value);
 }

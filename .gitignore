@@ -18,4 +18,6 @@ bin/em-rec
 ._*
 .Spotlight-V100
 .Trashes
-
+src/e1000e-3.0.4.1/src/
+*.hex
+*.ko

@@ -1,4 +1,4 @@
-NAME="buildard buildem installem resetgps2 stripnodeapp syncroot"
+NAME="buildard buildem installem resetgps2 stripnodeapp syncroot buildmodules"
 
 buildard_description="Builds Arduino analog data collector images"
 buildard_start() {
@@ -71,6 +71,7 @@ installem_start() {
 
 	echo -ne "	${STAR} Creating new partitions ... " &&
 	echo -e "2048,4194304,L,*\n4196352,33554432,L\n37750784,,L" | sfdisk -uS -qL ${DEVICE} > /dev/null 2>&1 &&
+	#echo -e "2048,4194304,L,*\n4196352,16777216,L\n20973568,,L" | sfdisk -uS -qL ${DEVICE} > /dev/null 2>&1 &&
 	echo -e ${OK}
 	
 	echo -ne "	${STAR} Formatting /boot ... " &&
@@ -93,6 +94,7 @@ installem_start() {
 	mkdir -p /mnt/install/boot /mnt/install/var
 	mount ${DEVICE}1 /mnt/install/boot
 	mount ${DEVICE}2 /mnt/install/var
+	systemctl start boot.mount
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Creating skeleton structure and swap file ... " &&
@@ -105,7 +107,8 @@ installem_start() {
 	dd if=/dev/zero of=/mnt/install/var/swapfile bs=256K count=2048 > /dev/null 2>&1
 	chmod 0600 /mnt/install/var/swapfile
 	mkswap /mnt/install/var/swapfile > /dev/null
-	cp /opt/em/src/em.conf /opt/em/src/encoding.conf /mnt/install/var/em/
+	cp /opt/em/src/em.conf /mnt/install/var/em/
+	ln -s /usr/share/zoneinfo/Canada/Pacific /mnt/install/var/em/timezone
 
 	dbus-uuidgen --ensure=/mnt/install/var/lib/dbus/machine-id
 	journalctl --update-catalog

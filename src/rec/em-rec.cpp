@@ -146,6 +146,8 @@ int main(int argc, char *argv[]) {
     } else if(G_EM_DATA.SYS_fishingArea == "GM") {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
         G_IGNORED_STATES = G_IGNORED_STATES | RFID_NO_CONNECTION;
+    } else if(G_EM_DATA.SYS_fishingArea == "QIN") {
+        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS);
     } else {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
     }
