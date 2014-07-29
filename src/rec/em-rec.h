@@ -130,6 +130,7 @@ typedef struct {
 int main(int, char**);
 void *thr_auxiliaryLoop(void*);
 void writeLog(string, string);
+void writeLog(string, string, bool);
 string writeLog(string, string, string);
 void writeJSONState();
 string updateSystemStats();

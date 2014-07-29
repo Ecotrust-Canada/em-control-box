@@ -1,4 +1,4 @@
-NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet"
+NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet dumpelog"
 
 stop_description="Stops all EM services"
 stop_start() {
@@ -345,4 +345,17 @@ fixethernet_start() {
 	echo -e "${OK}"
 	echo
 	echo "Changes will take effect on next power cycle"
+}
+
+dumpelog_description="Plays a movie file on the UI display"
+dumpelog_usage="
+Usage:\t${bldwht}em dumpelog <id>\t\t${txtrst}(where <id> is the CSV'ed dumpfile name)\n
+\tex: em dumpelog FOOBAR"
+dumpelog_start() {
+	if [ ${#} -ne 1 ]; then
+		echo -e ${dumpelog_usage}
+		exit 1
+	fi
+
+	
 }

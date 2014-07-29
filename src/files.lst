@@ -498,6 +498,7 @@
 ./opt/em/lib/routes.js
 ./opt/em/public/a_ferry_lanes.kml
 ./opt/em/public/a_home_ports.kml
+./opt/em/public/westport.kml
 ./opt/em/public/css/fontello-embedded.css
 ./opt/em/public/css/style.css
 ./opt/em/public/js/dial.js
