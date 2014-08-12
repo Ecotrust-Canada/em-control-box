@@ -1443,6 +1443,8 @@
 ./usr/sbin/logoutd
 ./usr/sbin/lspci
 ./usr/sbin/mklost+found
+./usr/sbin/mkfs.fat
+./usr/sbin/mkfs.vfat
 ./usr/sbin/ntp-wait
 ./usr/sbin/ntpd
 ./usr/sbin/ntpq

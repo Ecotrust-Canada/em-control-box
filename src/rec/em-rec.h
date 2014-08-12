@@ -28,7 +28,7 @@ using namespace std;
 
 #include "settings.h"
 
-#define VERSION "2.2.4"
+#define VERSION "2.2.5"
 
 // YOU PROBABLY SHOULDN'T CHANGE THESE WITHOUT A GOOD REASON
 ////////////////////////////////////////////////////////////
