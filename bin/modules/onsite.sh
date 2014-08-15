@@ -358,6 +358,7 @@ resetelog_start() {
         rm /var/elog/elog.db/user.json*
         rm /var/elog/elog.db/trip.json*
         rm /var/elog/elog.db/gearpreset.json*
+        systemctl restart elog-server.service
 }
 
 savetousb_description="Dumps specified file to USB flash drive in a forceful way"
