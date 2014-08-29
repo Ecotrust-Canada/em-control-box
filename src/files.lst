@@ -480,6 +480,7 @@
 ./lib/udev/scsi_id
 ./lib/udev/v4l_id
 ./lib64
+./opt/elog/data/elog.db/*
 ./opt/elog/public/images/logbook-inverse.png
 ./opt/elog/public/stylesheets/bg.png
 ./opt/elog/public/evtr.jpg
