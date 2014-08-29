@@ -515,6 +515,7 @@
 ./opt/em/public/wood-small.jpg
 ./opt/em/public/wood.jpg
 ./opt/em/server.js
+./opt/em/src/grub.cfg
 ./opt/em/views/index.jade
 ./opt/em/views/layout.jade
 ./opt/firefox/Throbber-small.gif

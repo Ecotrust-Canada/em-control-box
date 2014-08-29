@@ -1,4 +1,4 @@
-NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet resetelog savetousb"
+NAME="clear flashard format monitor play resetgps start stop upgrade updategrub fixethernet resetelog mountusb savetousb screenres"
 
 stop_description="Stops all EM services"
 stop_start() {
@@ -288,8 +288,8 @@ play_start() {
 
 upgrade_description="Upgrade system to new EM image"
 upgrade_usage="
-Usage:\t${bldwht}em upgrade <image>\t\t${txtrst}(where <image> is the new image file)\n
-\tex: em upgrade /mnt/data/em-2.0.1"
+Usage:\t${bldwht}em upgrade <version>\t\t${txtrst}(where <version> is the new image version which you have on USB)\n
+\tex: em upgrade 2.2.5"
 upgrade_start() {
 	if [ ${#} -ne 1 ]; then
 		echo -e ${upgrade_usage}
@@ -301,40 +301,58 @@ upgrade_start() {
 		exit 1
 	fi
 
-	IMAGE=${1}
-	if [ ! -f ${IMAGE} ]; then
-		echo -e "${bldred}Image ${bldwht}${IMAGE}${bldred} can't be found${txtrst}"
+	mountusb_start
+
+	if [ "${FOUND_FAT_PARTITION}" = "false" ]; then
+		echo "Nothing to mount or upgrade"
 		exit 1
 	fi
 
-	RELEASE="${IMAGE##*-}"
-	echo -ne "	${STAR} Mounting /boot ... " &&
+	RELEASE=${1}
+
 	if ! mountpoint -q /boot; then
-		mount /dev/disk/by-label/BOOT /boot
+		echo -ne "	${STAR} Mounting /boot ... " && systemctl start boot.mount && echo -e ${OK}
 	fi
+
+	echo -ne "	${STAR} Installing ${RELEASE} ... " &&
+		if [ ! -f /mnt/usb/em-${RELEASE} ]; then
+			echo -e "${bldred}Image ${bldwht}/mnt/usb/em-${RELEASE}${bldred} can't be found${txtrst}"
+			exit 1
+		fi
+		cp /mnt/usb/em-${RELEASE} /boot/
 	echo -e ${OK}
 
-	echo -ne "	${STAR} Installing ${IMAGE} ... " &&
-	cp ${IMAGE} /boot/
-	echo -e ${OK}
-
-	echo -ne "	${STAR} Updating GRUB ... " &&
-	if ! grep -q ${RELEASE} /boot/grub/grub.cfg; then
-		echo "menuentry 'EM ${RELEASE}' --class electronic --class gnu-linux --class gnu --class os --unrestricted \$menuentry_id_option 'em-${RELEASE}' {" >> /boot/grub/grub.cfg
-		echo "savedefault" >> /boot/grub/grub.cfg
-		echo "insmod gzio" >> /boot/grub/grub.cfg
-		echo "insmod part_msdos" >> /boot/grub/grub.cfg
-		echo "insmod ext2" >> /boot/grub/grub.cfg
-		echo "set root=(hd0,1)" >> /boot/grub/grub.cfg
-		echo "echo 'Loading EM software v${RELEASE} ...'" >> /boot/grub/grub.cfg
-		echo "linux /em-${RELEASE} ro quiet" >> /boot/grub/grub.cfg
-		echo "}" >> /boot/grub/grub.cfg
-		echo >> /boot/grub/grub.cfg
-	fi
-	echo -e ${OK}
+	updategrub_start
 
 	echo -ne "	${STAR} Unmounting /boot ... " &&
-	umount /boot
+		systemctl stop boot.mount
+	echo -e ${OK}
+}
+
+updategrub_description="Regenerates GRUB boot menu with available EM images"
+updategrub_usage="
+Usage:\t${bldwht}em updategrub${txtrst}"
+updategrub_start() {
+	if ! mountpoint -q /boot; then
+		echo -ne "	${STAR} Mounting /boot ... " && systemctl start boot.mount && echo -e ${OK}
+	fi
+
+	echo -ne "	${STAR} Regenerating GRUB menus ... " &&
+		cp /opt/em/src/grub.cfg /boot/grub/grub.cfg
+		for IMAGE in `ls /boot/em-*`; do
+			RELEASE="${IMAGE##*-}"
+
+			echo "menuentry 'EM ${RELEASE}' --class electronic --class gnu-linux --class gnu --class os --unrestricted \$menuentry_id_option 'em-${RELEASE}' {" >> /boot/grub/grub.cfg
+			echo "savedefault" >> /boot/grub/grub.cfg
+			echo "insmod gzio" >> /boot/grub/grub.cfg
+			echo "insmod part_msdos" >> /boot/grub/grub.cfg
+			echo "insmod ext2" >> /boot/grub/grub.cfg
+			echo "set root=(hd0,1)" >> /boot/grub/grub.cfg
+			echo "echo 'Loading EM software v${RELEASE} ...'" >> /boot/grub/grub.cfg
+			echo "linux /em-${RELEASE} ro quiet" >> /boot/grub/grub.cfg
+			echo "}" >> /boot/grub/grub.cfg
+			echo >> /boot/grub/grub.cfg
+		done
 	echo -e ${OK}
 }
 
@@ -361,6 +379,42 @@ resetelog_start() {
         systemctl restart elog-server.service
 }
 
+mountusb_description="Finds and mounts a USB flash drive"
+mountusb_usage="
+Usage:\t${bldwht}em mountusb${txtrst}"
+mountusb_start() {
+	FOUND_USB=false
+	FOUND_FAT_PARTITION=false
+
+	for DEV in /sys/block/sd*; do
+		if readlink -f ${DEV}/device | grep -q usb; then
+			DEV=`basename ${DEV}`
+			echo "${DEV} is a USB device"
+            FOUND_USB=true
+			if [ -d /sys/block/${DEV}/${DEV}1 ]; then
+				echo "${DEV} has partitions"
+				if file -s /dev/${DEV}1 | grep -q FAT; then
+					echo "${DEV}1 is a FAT partition, trying to mount"
+					umount /dev/${DEV}1 > /dev/null 2>&1
+					mkdir -p /mnt/usb
+					if mount /dev/${DEV}1 /mnt/usb; then
+						echo "${DEV}1 mounted"
+						FOUND_FAT_PARTITION=true
+					fi
+				fi
+			else
+				echo "Has no partitions"
+			fi
+		fi
+	done	
+        
+    if [ "${FOUND_USB}" = "false" ]; then
+            echo "No USB devices found"
+            exit 1
+    fi
+}
+
+
 savetousb_description="Dumps specified file to USB flash drive in a forceful way"
 savetousb_usage="
 Usage:\t${bldwht}em savetousb <path/to/file>${txtrst}\n
@@ -371,38 +425,9 @@ savetousb_start() {
 		exit 1
 	fi
 
-	USE_EXISTING_PARTITION=false
-	FOUND=false
-        
-        mkdir -p /mnt/usb
+	mountusb_start
 
-	for DEV in /sys/block/sd*; do
-		if readlink -f ${DEV}/device | grep -q usb; then
-			DEV=`basename ${DEV}`
-			echo "${DEV} is a USB device"
-                        FOUND=true
-			if [ -d /sys/block/${DEV}/${DEV}1 ]; then
-				echo "${DEV} has partitions"
-				if file -s /dev/${DEV}1 | grep -q FAT; then
-					echo "${DEV}1 is a FAT partition, trying to mount"
-					umount /dev/${DEV}1 > /dev/null 2>&1
-					if mount /dev/${DEV}1 /mnt/usb; then
-						echo "${DEV}1 mounted"
-						USE_EXISTING_PARTITION=true
-					fi
-				fi
-			else
-				echo "Has no partitions"
-			fi
-		fi
-	done	
-        
-        if [ "${FOUND}" = "false" ]; then
-                echo "No USB device."
-                exit 1
-        fi
-
-	if [ "${USE_EXISTING_PARTITION}" = "false" ]; then
+	if [ "${FOUND_FAT_PARTITION}" = "false" ]; then
 		echo -ne "	${STAR} Clearing partition table ... " &&
 		dd if=/dev/zero of=/dev/${DEV} bs=4096 count=1 > /dev/null 2>&1 &&
 		echo -e ${OK} && sleep 1 &&
@@ -424,7 +449,7 @@ savetousb_start() {
 		fi
 	fi
 
-	echo -ne "  ${STAR} Copying and unmounting ... " &&
+	echo -e "  ${STAR} Copying and unmounting ... " &&
 	cp -av ${1} /mnt/usb/ &&
 	sync &&
 	umount /dev/${DEV}1
@@ -437,4 +462,29 @@ savetousb_start() {
 	umount -f /mnt/usb > /dev/null 2>&1
 
 	exit 0
+}
+
+screenres_description="Configures screen resolution used by the user interface"
+screenres_usage="
+Usage:\t${bldwht}em screenres <profile>${txtrst} (where <profile> is either 'auto' or 'eonon')\n
+\tex: em screenres eonon"
+screenres_start() {
+	if [ ${#} -ne 1 ]; then
+		echo -e ${screenres_usage}
+		exit 1
+	fi
+
+	echo -ne "	${STAR} Setting screen resolution ... "
+	rm -f /var/em/xorg-monitor.conf
+	if [ "${1}" = "auto" ]; then
+		echo -e ${OK}
+	elif [ "${1}" = "eonon" ]; then
+		ln -s /etc/X11/monitor-eonon.conf /var/em/xorg-monitor.conf
+		echo -e ${OK}
+	else
+		echo -e ${screenres_usage}
+		exit 1
+	fi
+
+	echo -e "\nSwitch back to the UI (usually CTRL+ALT+F2), then hit CTRL+ALT+BACKSPACE to restart the graphics system"
 }
