@@ -1,3 +1,4 @@
+src/config*
 src/.fanout.ko.cmd
 src/.fanout.o.cmd
 src/.tmp_versions/
