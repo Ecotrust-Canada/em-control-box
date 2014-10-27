@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
     time(&rawtime);
     G_timeinfo = localtime(&rawtime);
     snprintf(buf, sizeof(buf), "*** EM-REC VERSION %s, OPTIONS %lu ***", VERSION, smOptions.GetState());
-    writeLog(G_EM_DATA.SYS_targetDisk + "/" + FN_SYSTEM_LOG, buf);
+    writeLog(G_EM_DATA.SYS_targetDisk + "/" + FN_SYSTEM_LOG, buf, true /*forceWrite*/);
     
     // spawn auxiliary thread
     if((retVal = pthread_create(&pt_aux, NULL, &thr_auxiliaryLoop, NULL)) != 0) {
@@ -474,7 +474,12 @@ void *thr_auxiliaryLoop(void *arg) {
 }
 
 void writeLog(string prefix, string buf) {
-    if(smSystem.GetState() & SYS_TARGET_DISK_WRITABLE) {
+    writeLog(prefix, buf, false);
+}
+
+void writeLog(string prefix, string buf, bool forceWrite) {
+    // would be nice to buffer things until it becomes writable
+    if(smSystem.GetState() & SYS_TARGET_DISK_WRITABLE || forceWrite) {
         FILE *fp;
         char date_suffix[9];
         strftime(date_suffix, sizeof(date_suffix), "%Y%m%d", G_timeinfo);

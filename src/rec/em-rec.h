@@ -28,7 +28,7 @@ using namespace std;
 
 #include "settings.h"
 
-#define VERSION "2.2.4"
+#define VERSION "2.2.5"
 
 // YOU PROBABLY SHOULDN'T CHANGE THESE WITHOUT A GOOD REASON
 ////////////////////////////////////////////////////////////
@@ -130,6 +130,7 @@ typedef struct {
 int main(int, char**);
 void *thr_auxiliaryLoop(void*);
 void writeLog(string, string);
+void writeLog(string, string, bool);
 string writeLog(string, string, string);
 void writeJSONState();
 string updateSystemStats();

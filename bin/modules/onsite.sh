@@ -1,4 +1,4 @@
-NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet"
+NAME="clear flashard format monitor play resetgps start stop upgrade fixethernet resetelog savetousb"
 
 stop_description="Stops all EM services"
 stop_start() {
@@ -345,4 +345,95 @@ fixethernet_start() {
 	echo -e "${OK}"
 	echo
 	echo "Changes will take effect on next power cycle"
+}
+
+resetelog_description="Resets all elog data. Also restarts the elog and draws user credentials from /etc/em.conf anew."
+resetelog_start() {
+        rm /var/elog/elog.db/apportion.json*
+        rm /var/elog/elog.db/catch.json*
+        rm /var/elog/elog.db/effort.json*
+        rm /var/elog/elog.db/landing.json*
+        rm /var/elog/elog.db/effort.json*
+        rm /var/elog/elog.db/usergear.json*
+        rm /var/elog/elog.db/user.json*
+        rm /var/elog/elog.db/trip.json*
+        rm /var/elog/elog.db/gearpreset.json*
+}
+
+savetousb_description="Dumps specified file to USB flash drive in a forceful way"
+savetousb_usage="
+Usage:\t${bldwht}em savetousb <path/to/file>${txtrst}\n
+\tex: em savetousb /tmp/12345678.csv"
+savetousb_start() {
+	if [ ${#} -ne 1 ]; then
+		echo -e ${savetousb_usage}
+		exit 1
+	fi
+
+	USE_EXISTING_PARTITION=false
+	FOUND=false
+        
+        mkdir -p /mnt/usb
+
+	for DEV in /sys/block/sd*; do
+		if readlink -f ${DEV}/device | grep -q usb; then
+			DEV=`basename ${DEV}`
+			echo "${DEV} is a USB device"
+                        FOUND=true
+			if [ -d /sys/block/${DEV}/${DEV}1 ]; then
+				echo "${DEV} has partitions"
+				if file -s /dev/${DEV}1 | grep -q FAT; then
+					echo "${DEV}1 is a FAT partition, trying to mount"
+					umount /dev/${DEV}1 > /dev/null 2>&1
+					if mount /dev/${DEV}1 /mnt/usb; then
+						echo "${DEV}1 mounted"
+						USE_EXISTING_PARTITION=true
+					fi
+				fi
+			else
+				echo "Has no partitions"
+			fi
+		fi
+	done	
+        
+        if [ "${FOUND}" = "false" ]; then
+                echo "No USB device."
+                exit 1
+        fi
+
+	if [ "${USE_EXISTING_PARTITION}" = "false" ]; then
+		echo -ne "	${STAR} Clearing partition table ... " &&
+		dd if=/dev/zero of=/dev/${DEV} bs=4096 count=1 > /dev/null 2>&1 &&
+		echo -e ${OK} && sleep 1 &&
+		sfdisk -R /dev/${DEV} &&
+
+		echo -ne "	${STAR} Creating new partition ... " &&
+		echo -e "2048,,C" | sfdisk -uS -qL /dev/${DEV} > /dev/null 2>&1 &&
+		echo -e ${OK} &&
+
+		echo -ne "	${STAR} Formatting partition ... " &&
+		mkfs.vfat /dev/${DEV}1 > /dev/null 2>&1 &&
+		echo -e ${OK} &&
+
+		mount /dev/${DEV}1 /mnt/usb &&
+		echo "${DEV}1 mounted"
+
+		if [ ${?} -ne 0 ]; then
+			exit 1
+		fi
+	fi
+
+	echo -ne "  ${STAR} Copying and unmounting ... " &&
+	cp -av ${1} /mnt/usb/ &&
+	sync &&
+	umount /dev/${DEV}1
+
+	if [ ${?} -ne 0 ]; then
+		echo Failed!
+		exit 1
+	fi
+
+	umount -f /mnt/usb > /dev/null 2>&1
+
+	exit 0
 }

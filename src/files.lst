@@ -498,6 +498,7 @@
 ./opt/em/lib/routes.js
 ./opt/em/public/a_ferry_lanes.kml
 ./opt/em/public/a_home_ports.kml
+./opt/em/public/westport.kml
 ./opt/em/public/css/fontello-embedded.css
 ./opt/em/public/css/style.css
 ./opt/em/public/js/dial.js
@@ -1442,6 +1443,8 @@
 ./usr/sbin/logoutd
 ./usr/sbin/lspci
 ./usr/sbin/mklost+found
+./usr/sbin/mkfs.fat
+./usr/sbin/mkfs.vfat
 ./usr/sbin/ntp-wait
 ./usr/sbin/ntpd
 ./usr/sbin/ntpq
