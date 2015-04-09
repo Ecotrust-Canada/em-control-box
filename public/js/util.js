@@ -64,7 +64,7 @@ gpsKit.decimalToDMS = function( location, hemisphere ){
 	var secondsFromRemainder = ( minutesFromRemainder - minutes ) * 60;   // multiply the remainer by 60
 	var seconds = gpsKit.roundToDecimal( secondsFromRemainder, 2 ); // get minutes by rounding to integer
 
-	return degrees + '°' + minutes + "'" + seconds + '"' + hemisphere;
+	return degrees + '° ' + minutes + "' " + seconds + '" ' + hemisphere;
 };
 
 gpsKit.decimalLatToDMS = function( location ){

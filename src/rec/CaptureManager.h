@@ -54,7 +54,7 @@ class CaptureManager: public StateMachine {
         static void *thr_IPCaptureLoopLauncher(void*);
         void thr_IPCaptureLoop();
         void JoinIPCaptureThreadBlocking();
-        void JoinIPCaptureThreadNonblocking();
+        void JoinIPCaptureThreadNonBlocking();
         //void SetIPOutputFrameRate(unsigned short);
 
     public:
@@ -63,7 +63,11 @@ class CaptureManager: public StateMachine {
         unsigned long Start();
         unsigned long Stop();
         unsigned short GetSecondsUntilNextClipTime();
-        void KillAndReapZombieChildren(bool); // sounds fantastic
+        void ReapZombieChildren(bool); // sounds fantastic
+        void ReapZombieChildrenBlocking();
+        void ReapZombieChildrenNonBlocking();
+        void GetRecCount();
+        void WriteRecCount();
 };
 
 #endif

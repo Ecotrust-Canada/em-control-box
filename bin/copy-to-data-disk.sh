@@ -104,6 +104,7 @@ function copy_videos {
 	fi
 }
 
+copy_videos 0
 copy_videos 1
 copy_videos 2
 copy_videos 3

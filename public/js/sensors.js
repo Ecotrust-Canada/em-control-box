@@ -259,14 +259,17 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         lastPercentUsed,
         dataDiskPercentUsed;
 
-    if (isSet("SYS_VIDEO_RECORDING")) {
-        $('#recording_status h2').text(getMsg("SYS_VIDEO_RECORDING", true).toUpperCase());
-    } else {
-        $('#recording_status h2').text(getMsg("SYS_VIDEO_RECORDING", false).toUpperCase());
+    if(VMS.haveCameras) {
+        if (isSet("SYS_VIDEO_RECORDING")) {
+            if (isSet("SYS_REDUCED_VIDEO_BITRATE")) var bitrateMode = " (LO)";
+            else var bitrateMode = " (HI)";
+            $('#recording_status h2').text(getMsg("SYS_VIDEO_RECORDING", true).toUpperCase() + bitrateMode);
+        } else {
+            $('#recording_status h2').text(getMsg("SYS_VIDEO_RECORDING", false).toUpperCase());
+        }
+        $('#recording_status').show();
     }
-    $('#recording_status').show();
-    
-    opts.state = opts.state & (~VMS.stateDefinitions.SYS_VIDEO_RECORDING.flag);
+
     if (isSet("SYS_OS_DISK_FULL")) {
         /*if (osDiskPercentUsed >= 90) {*/
         $('#os_disk_full h2').text(getMsg("SYS_OS_DISK_FULL", true).toUpperCase());
@@ -320,6 +323,7 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
             this.$data_free.text("N/A");
             this.$data_total.text("N/A");
         }
+        
         opts.state = opts.state | 1;
     }
 

@@ -54,12 +54,26 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-CONFIG_TYPE CONFIG = {};
-EM_DATA_TYPE EM_DATA = {};
+CONFIG_TYPE     G_CONFIG = {};
+EM_DATA_TYPE    G_EM_DATA = {};
+bool            G_ARG_DUMP_CONFIG = false;
+struct stat     G_parent_st;
+struct tm      *G_timeinfo;
+pthread_mutex_t G_mtxOut;
+unsigned long   G_IGNORED_STATES = GPS_NO_FERRY_DATA |
+                                   GPS_NO_HOME_PORT_DATA |
+                                   GPS_IN_HOME_PORT |
+                                   AD_BATTERY_LOW |
+                                   AD_BATTERY_HIGH |
+                                   RFID_CHECKSUM_FAILED |
+                                   SYS_DATA_DISK_PRESENT |
+                                   SYS_TARGET_DISK_WRITABLE |
+                                   SYS_VIDEO_RECORDING |
+                                   SYS_REDUCED_VIDEO_BITRATE;
 
-GPSSensor iGPSSensor(&EM_DATA);
-RFIDSensor iRFIDSensor(&EM_DATA);
-ADSensor iADSensor(&EM_DATA);
+GPSSensor  iGPSSensor(&G_EM_DATA);
+RFIDSensor iRFIDSensor(&G_EM_DATA);
+ADSensor   iADSensor(&G_EM_DATA);
 
 StateMachine smRecorder(STATE_NOT_RUNNING, SM_EXCLUSIVE_STATES);
 StateMachine smOptions(0, SM_MULTIPLE_STATES);
@@ -67,26 +81,14 @@ StateMachine smSystem(0, SM_MULTIPLE_STATES);
 StateMachine smAuxThread(STATE_NOT_RUNNING, SM_EXCLUSIVE_STATES);
 StateMachine smTakeScreenshot(false, SM_EXCLUSIVE_STATES);
 
-unsigned long IGNORED_STATES = GPS_NO_FERRY_DATA |
-                               GPS_NO_HOME_PORT_DATA |
-                               GPS_IN_HOME_PORT |
-                               AD_BATTERY_LOW |
-                               AD_BATTERY_HIGH |
-                               RFID_CHECKSUM_FAILED;
-
-struct stat G_parent_st;
-struct tm *G_timeinfo;
-pthread_mutex_t mtxOut;
-__thread unsigned short threadId;
+__thread unsigned short __threadId;
 string moduleName = "";
-
-bool ARG_DUMP_CONFIG = false;
 
 int main(int argc, char *argv[]) {
     if(argc > 0) {
         // rudimentary argument processing
         for(int i = 0; i < argc; i++) {
-                 if(strcmp(argv[i], "--dump-config") == 0) { ARG_DUMP_CONFIG = true; }
+            if(strcmp(argv[i], "--dump-config") == 0) { G_ARG_DUMP_CONFIG = true; }
             //else if(strcmp(argv[i], "") == 0) { exit(0); }
             //else if(strcmp(argv[i], "") == 0) { }
             //else if(strcmp(argv[i], "") == 0) { }
@@ -95,28 +97,28 @@ int main(int argc, char *argv[]) {
     
     if (readConfigFile(FN_CONFIG)) exit(-1);
 
-    EM_DATA.SYS_fishingArea = getConfig("fishing_area", DEFAULT_fishing_area);
-    CONFIG.vessel = getConfig("vessel", DEFAULT_vessel);
-    CONFIG.vrn = getConfig("vrn", DEFAULT_vrn);
-    CONFIG.arduino_type = getConfig("arduino", DEFAULT_arduino);
-    CONFIG.psi_vmin = getConfig("psi_vmin", DEFAULT_psi_vmin);
-    CONFIG.psi_low_threshold = atoi(getConfig("psi_low_threshold", DEFAULT_psi_low_threshold).c_str());
-    CONFIG.psi_high_threshold = atoi(getConfig("psi_high_threshold", DEFAULT_psi_high_threshold).c_str());
-    CONFIG.fps_low_delay = atoi(getConfig("fps_low_delay", DEFAULT_fps_low_delay).c_str());
-    EM_DATA.SYS_numCams = atoi(getConfig("cam", DEFAULT_cam).c_str());
-    CONFIG.EM_DIR = getConfig("EM_DIR", DEFAULT_EM_DIR);
-    CONFIG.OS_DISK = getConfig("OS_DISK", DEFAULT_OS_DISK);
-    CONFIG.DATA_DISK = getConfig("DATA_DISK", DEFAULT_DATA_DISK);
-    CONFIG.JSON_STATE_FILE = getConfig("JSON_STATE_FILE", DEFAULT_JSON_STATE_FILE);
-    CONFIG.ARDUINO_DEV = getConfig("ARDUINO_DEV", DEFAULT_ARDUINO_DEV);
-    CONFIG.RFID_DEV = getConfig("RFID_DEV", DEFAULT_RFID_DEV);
-    CONFIG.GPS_DEV = getConfig("GPS_DEV", DEFAULT_GPS_DEV);
-    EM_DATA.GPS_homePortDataFile = getConfig("HOME_PORT_DATA", DEFAULT_HOME_PORT_DATA);
-    EM_DATA.GPS_ferryDataFile = getConfig("FERRY_DATA", DEFAULT_FERRY_DATA);
+    G_EM_DATA.SYS_fishingArea = getConfig("fishing_area", DEFAULT_fishing_area);
+    G_CONFIG.vessel = getConfig("vessel", DEFAULT_vessel);
+    G_CONFIG.vrn = getConfig("vrn", DEFAULT_vrn);
+    G_CONFIG.arduino_type = getConfig("arduino", DEFAULT_arduino);
+    G_CONFIG.psi_vmin = getConfig("psi_vmin", DEFAULT_psi_vmin);
+    G_CONFIG.psi_low_threshold = atoi(getConfig("psi_low_threshold", DEFAULT_psi_low_threshold).c_str());
+    G_CONFIG.psi_high_threshold = atoi(getConfig("psi_high_threshold", DEFAULT_psi_high_threshold).c_str());
+    G_CONFIG.fps_low_delay = atoi(getConfig("fps_low_delay", DEFAULT_fps_low_delay).c_str());
+    G_EM_DATA.SYS_numCams = atoi(getConfig("cam", DEFAULT_cam).c_str());
+    G_CONFIG.EM_DIR = getConfig("EM_DIR", DEFAULT_EM_DIR);
+    G_CONFIG.OS_DISK = getConfig("OS_DISK", DEFAULT_OS_DISK);
+    G_CONFIG.DATA_DISK = getConfig("DATA_DISK", DEFAULT_DATA_DISK);
+    G_CONFIG.JSON_STATE_FILE = getConfig("JSON_STATE_FILE", DEFAULT_JSON_STATE_FILE);
+    G_CONFIG.ARDUINO_DEV = getConfig("ARDUINO_DEV", DEFAULT_ARDUINO_DEV);
+    G_CONFIG.RFID_DEV = getConfig("RFID_DEV", DEFAULT_RFID_DEV);
+    G_CONFIG.GPS_DEV = getConfig("GPS_DEV", DEFAULT_GPS_DEV);
+    G_EM_DATA.GPS_homePortDataFile = getConfig("HOME_PORT_DATA", DEFAULT_HOME_PORT_DATA);
+    G_EM_DATA.GPS_ferryDataFile = getConfig("FERRY_DATA", DEFAULT_FERRY_DATA);
     
-    if(ARG_DUMP_CONFIG) exit(0);
+    if(G_ARG_DUMP_CONFIG) exit(0);
 
-    threadId = THREAD_MAIN;
+    __threadId = THREAD_MAIN;
     I("Ecotrust EM Recorder v" + VERSION + " is starting");
 
     struct timeval tv;
@@ -131,47 +133,50 @@ int main(int argc, char *argv[]) {
     string SCAN_lastHash;
     string targetDisk;
 
-    pthread_mutex_init(&EM_DATA.mtx, NULL);
-    pthread_mutex_init(&mtxOut, NULL);
+    pthread_mutex_init(&G_EM_DATA.mtx, NULL);
+    pthread_mutex_init(&G_mtxOut, NULL);
 
     cout << setprecision(numeric_limits<double>::digits10 + 1);
     cerr << setprecision(numeric_limits<double>::digits10 + 1);
 
     // should be user-configurable in the future
-    if(EM_DATA.SYS_fishingArea == "A") {
+    if(G_EM_DATA.SYS_fishingArea == "A") {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_GPRMC_ONLY_HACK | OPTIONS_USING_ANALOG_CAMERAS);
-    } else if(EM_DATA.SYS_fishingArea == "GM") {
+        G_EM_DATA.SYS_numCams = 1; // forced, until we support more than two cams
+    } else if(G_EM_DATA.SYS_fishingArea == "GM") {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
-        IGNORED_STATES = IGNORED_STATES | RFID_NO_CONNECTION;
+        G_IGNORED_STATES = G_IGNORED_STATES | RFID_NO_CONNECTION;
+    } else if(G_EM_DATA.SYS_fishingArea == "QIN") {
+        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS);
     } else {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
     }
 
     // get FS stats of PARENT of root of data disk, meaning the OS disk
-    stat((CONFIG.DATA_DISK + "/../").c_str(), &G_parent_st);
-    EM_DATA.SYS_targetDisk = CONFIG.OS_DISK;
+    stat((G_CONFIG.DATA_DISK + "/../").c_str(), &G_parent_st);
+    G_EM_DATA.SYS_targetDisk = G_CONFIG.OS_DISK;
 
-    EM_DATA.sm_recorder = &smRecorder;
-    EM_DATA.sm_options = &smOptions;
-    EM_DATA.sm_system = &smSystem;
-    EM_DATA.sm_aux = &smAuxThread;
+    G_EM_DATA.sm_recorder = &smRecorder;
+    G_EM_DATA.sm_options = &smOptions;
+    G_EM_DATA.sm_system = &smSystem;
+    G_EM_DATA.sm_aux = &smAuxThread;
 
     smSystem.UnsetState(SYS_VIDEO_RECORDING); // for completeness
     smRecorder.SetState(STATE_RUNNING);
 
     if(_AD) {
-        iADSensor.SetPort(CONFIG.ARDUINO_DEV.c_str());
+        iADSensor.SetPort(G_CONFIG.ARDUINO_DEV.c_str());
         iADSensor.SetBaudRate(B9600);
-        iADSensor.SetADCType(CONFIG.arduino_type.c_str(), CONFIG.psi_vmin.c_str());
+        iADSensor.SetADCType(G_CONFIG.arduino_type.c_str(), G_CONFIG.psi_vmin.c_str());
         iADSensor.Connect();
     } else {
         iADSensor.SetState(0);
     }
 
     if(_RFID) {
-        iRFIDSensor.SetPort(CONFIG.RFID_DEV.c_str());
+        iRFIDSensor.SetPort(G_CONFIG.RFID_DEV.c_str());
         iRFIDSensor.SetBaudRate(B9600);
-        iRFIDSensor.SetScanCountsFile(CONFIG.EM_DIR + "/" + FN_SCAN_COUNT);
+        iRFIDSensor.GetScanCounts(G_CONFIG.EM_DIR + "/" + FN_SCAN_COUNT);
         iRFIDSensor.Connect();
     } else {
         iRFIDSensor.SetState(0);
@@ -188,7 +193,7 @@ int main(int argc, char *argv[]) {
     time(&rawtime);
     G_timeinfo = localtime(&rawtime);
     snprintf(buf, sizeof(buf), "*** EM-REC VERSION %s, OPTIONS %lu ***", VERSION, smOptions.GetState());
-    writeLog(EM_DATA.SYS_targetDisk + "/" + FN_SYSTEM_LOG, buf);
+    writeLog(G_EM_DATA.SYS_targetDisk + "/" + FN_SYSTEM_LOG, buf, true /*forceWrite*/);
     
     // spawn auxiliary thread
     if((retVal = pthread_create(&pt_aux, NULL, &thr_auxiliaryLoop, NULL)) != 0) {
@@ -196,7 +201,7 @@ int main(int argc, char *argv[]) {
     } O("Spawned auxiliary thread");
     
     // AFTER THIS POINT
-    // there are threads that may write to EM_DATA, so we should always use mutexes when accessing
+    // there are threads that may write to G_EM_DATA, so we should always use mutexes when accessing
     // this data struct from now on
 
     signal(SIGINT, exit_handler);
@@ -206,7 +211,7 @@ int main(int argc, char *argv[]) {
     signal(SIGUSR2, reset_trip_scans_handler);
 
     O("Beginning main recording loop");
-    while(_EM_RUNNING) { // only EM_DATA.runState == STATE_NOT_RUNNING can stop this
+    while(_EM_RUNNING) { // only G_EM_DATA.runState == STATE_NOT_RUNNING can stop this
         gettimeofday(&tv, NULL);
         tstart = tv.tv_sec * 1000000 + tv.tv_usec;
 
@@ -214,10 +219,10 @@ int main(int argc, char *argv[]) {
         time(&rawtime);
         G_timeinfo = localtime(&rawtime);
         strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", G_timeinfo); // writes null-terminated string so okay not to clear DATE_BUF every time
-        pthread_mutex_lock(&EM_DATA.mtx);
-            snprintf(EM_DATA.currentDateTime, sizeof(EM_DATA.currentDateTime), "%s.%06d", date, (unsigned int)tv.tv_usec);
-            targetDisk = EM_DATA.SYS_targetDisk;
-        pthread_mutex_unlock(&EM_DATA.mtx);
+        pthread_mutex_lock(&G_EM_DATA.mtx);
+            snprintf(G_EM_DATA.currentDateTime, sizeof(G_EM_DATA.currentDateTime), "%s.%06d", date, (unsigned int)tv.tv_usec);
+            targetDisk = G_EM_DATA.SYS_targetDisk;
+        pthread_mutex_unlock(&G_EM_DATA.mtx);
 
         allStates = smSystem.GetState();
 
@@ -237,69 +242,69 @@ int main(int argc, char *argv[]) {
         }
 
         if(_GPS) {
-            pthread_mutex_lock(&EM_DATA.mtx);
+            pthread_mutex_lock(&G_EM_DATA.mtx);
                 snprintf(buf, sizeof(buf),
                     "%s,%s,%s,%.1f,%lf,%lf,%lf,%lf,%d,%d,%.2lf,%.3lf,%lu",
-                    EM_DATA.SYS_fishingArea.c_str(),
-                    CONFIG.vrn.c_str(),
-                    EM_DATA.currentDateTime,
-                    isnan(EM_DATA.AD_psi) ? 0 : EM_DATA.AD_psi,
-                    EM_DATA.GPS_latitude,
-                    EM_DATA.GPS_longitude,
-                    EM_DATA.GPS_heading,
-                    EM_DATA.GPS_speed,
-                    EM_DATA.GPS_satsUsed,
-                    EM_DATA.GPS_satQuality,
-                    EM_DATA.GPS_hdop,
-                    EM_DATA.GPS_eph,
+                    G_EM_DATA.SYS_fishingArea.c_str(),
+                    G_CONFIG.vrn.c_str(),
+                    G_EM_DATA.currentDateTime,
+                    isnan(G_EM_DATA.AD_psi) ? 0 : G_EM_DATA.AD_psi,
+                    G_EM_DATA.GPS_latitude,
+                    G_EM_DATA.GPS_longitude,
+                    G_EM_DATA.GPS_heading,
+                    G_EM_DATA.GPS_speed,
+                    G_EM_DATA.GPS_satsUsed,
+                    G_EM_DATA.GPS_satQuality,
+                    G_EM_DATA.GPS_hdop,
+                    G_EM_DATA.GPS_eph,
                     allStates);
-            pthread_mutex_unlock(&EM_DATA.mtx);
+            pthread_mutex_unlock(&G_EM_DATA.mtx);
 
             TRACK_lastHash = writeLog(targetDisk + "/" + FN_TRACK_LOG, buf, TRACK_lastHash);
         }
 
-        if(_RFID && EM_DATA.RFID_saveFlag) { // RFID_saveFlag is only of concern to this thread (main)
-            pthread_mutex_lock(&EM_DATA.mtx);
+        if(_RFID && G_EM_DATA.RFID_saveFlag) { // RFID_saveFlag is only of concern to this thread (main)
+            pthread_mutex_lock(&G_EM_DATA.mtx);
                 snprintf(buf, sizeof(buf),
                     "%s,%s,%s,%llu,%.1f,%lu,%lu,%lf,%lf,%lf,%lf,%d,%d,%.2lf,%.3lf,%lu",
-                    EM_DATA.SYS_fishingArea.c_str(),
-                    CONFIG.vrn.c_str(),
-                    EM_DATA.currentDateTime,
-                    EM_DATA.RFID_lastScannedTag,
-                    isnan(EM_DATA.AD_psi) ? 0 : EM_DATA.AD_psi,
-                    EM_DATA.RFID_stringScans,
-                    EM_DATA.RFID_tripScans,
-                    EM_DATA.GPS_latitude,
-                    EM_DATA.GPS_longitude,
-                    EM_DATA.GPS_heading,
-                    EM_DATA.GPS_speed,
-                    EM_DATA.GPS_satsUsed,
-                    EM_DATA.GPS_satQuality,
-                    EM_DATA.GPS_hdop,
-                    EM_DATA.GPS_eph,
+                    G_EM_DATA.SYS_fishingArea.c_str(),
+                    G_CONFIG.vrn.c_str(),
+                    G_EM_DATA.currentDateTime,
+                    G_EM_DATA.RFID_lastScannedTag,
+                    isnan(G_EM_DATA.AD_psi) ? 0 : G_EM_DATA.AD_psi,
+                    G_EM_DATA.RFID_stringScans,
+                    G_EM_DATA.RFID_tripScans,
+                    G_EM_DATA.GPS_latitude,
+                    G_EM_DATA.GPS_longitude,
+                    G_EM_DATA.GPS_heading,
+                    G_EM_DATA.GPS_speed,
+                    G_EM_DATA.GPS_satsUsed,
+                    G_EM_DATA.GPS_satQuality,
+                    G_EM_DATA.GPS_hdop,
+                    G_EM_DATA.GPS_eph,
                     allStates);
-            pthread_mutex_unlock(&EM_DATA.mtx);
+            pthread_mutex_unlock(&G_EM_DATA.mtx);
 
             SCAN_lastHash = writeLog(targetDisk + "/" + FN_SCAN_LOG, buf, SCAN_lastHash);
 
             // no mutex around these either because only this thread ever twiddles them
             // maybe one day when all sensor reading is done in a separate thread will we need mtx
-            EM_DATA.RFID_lastSavedTag = EM_DATA.RFID_lastScannedTag;
-            pthread_mutex_lock(&EM_DATA.mtx);
-                EM_DATA.RFID_lastSaveIteration = EM_DATA.runIterations;
-            pthread_mutex_unlock(&EM_DATA.mtx);
-            EM_DATA.RFID_saveFlag = false;
+            G_EM_DATA.RFID_lastSavedTag = G_EM_DATA.RFID_lastScannedTag;
+            pthread_mutex_lock(&G_EM_DATA.mtx);
+                G_EM_DATA.RFID_lastSaveIteration = G_EM_DATA.runIterations;
+            pthread_mutex_unlock(&G_EM_DATA.mtx);
+            G_EM_DATA.RFID_saveFlag = false;
         }
 
-        if(_AD && EM_DATA.AD_honkSound != 0) { D("Honking horn");
+        if(_AD && G_EM_DATA.AD_honkSound != 0) { D("Honking horn");
             iADSensor.HonkMyHorn();
         }
 
-        writeJSONState(&EM_DATA);
+        writeJSONState();
 
-        pthread_mutex_lock(&EM_DATA.mtx);
-            EM_DATA.runIterations++;
-        pthread_mutex_unlock(&EM_DATA.mtx);
+        pthread_mutex_lock(&G_EM_DATA.mtx);
+            G_EM_DATA.runIterations++;
+        pthread_mutex_unlock(&G_EM_DATA.mtx);
         
         // try to make "exactly" 1 second elapse each loop
         gettimeofday(&tv, NULL);
@@ -327,8 +332,8 @@ int main(int argc, char *argv[]) {
 
     O("Main thread stopped");
 
-    pthread_mutex_destroy(&EM_DATA.mtx);
-    pthread_mutex_destroy(&mtxOut);
+    pthread_mutex_destroy(&G_EM_DATA.mtx);
+    pthread_mutex_destroy(&G_mtxOut);
     
     return 0;
 }
@@ -337,76 +342,70 @@ void *thr_auxiliaryLoop(void *arg) {
     const unsigned int AUX_PERIOD = AUX_INTERVAL * POLL_PERIOD;
     const char *scrot_envp[] = { "DISPLAY=:0", NULL };
 
-    threadId = THREAD_AUX;
+    __threadId = THREAD_AUX;
     struct timeval tv;
     unsigned long long tstart = 0, tdiff = 0;
     string buf, targetDisk;
     double latitude, longitude;
     pid_t pid_scrot;
     float last_psi;
-    CaptureManager videoCapture(&EM_DATA, FN_VIDEO_DIR);
+    bool gotRecCount = false;
+    CaptureManager videoCapture(&G_EM_DATA, FN_VIDEO_DIR);
 
-    mkdir(((string)CONFIG.OS_DISK + FN_VIDEO_DIR).c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-    mkdir(((string)CONFIG.DATA_DISK + FN_VIDEO_DIR).c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    mkdir(((string)G_CONFIG.OS_DISK + FN_VIDEO_DIR).c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 
     smAuxThread.SetState(STATE_RUNNING);
     D("Auxiliary loop beginning, waiting 4 seconds ...");
     usleep(4 * POLL_PERIOD); // let things settle down, let the GPS info get collected, etc.
 
-    while(_EM_RUNNING) { // only EM_DATA.runState == STATE_NOT_RUNNING can stop this
+    while(_EM_RUNNING) { // only G_EM_DATA.runState == STATE_NOT_RUNNING can stop this
         gettimeofday(&tv, NULL);
         tstart = tv.tv_sec * 1000000 + tv.tv_usec;
 
-        buf = updateSystemStats(&EM_DATA); // by now we know state of disks
+        buf = updateSystemStats(); // by now we know state of disks
 
-        pthread_mutex_lock(&EM_DATA.mtx);
-            targetDisk = EM_DATA.SYS_targetDisk;
-        pthread_mutex_unlock(&EM_DATA.mtx);
+        pthread_mutex_lock(&G_EM_DATA.mtx);
+            targetDisk = G_EM_DATA.SYS_targetDisk;
+        pthread_mutex_unlock(&G_EM_DATA.mtx);
         
         writeLog(targetDisk + "/" + FN_SYSTEM_LOG, buf);
-
+        
         // process position, set special area states, and if we're in the home port ...
         if(iGPSSensor.InSpecialArea() && iGPSSensor.GetState() & GPS_IN_HOME_PORT) { // pause
-            // once either of the video capture routines is able to get video data, they set
-            // SYS_VIDEO_AVAILABLE, and at that point we can actually play conductor; when we don't
-            // know if video is available we keep trying to start it regardless of where we are
-
-            //if(smSystem.GetState() & SYS_VIDEO_AVAILABLE) {
             if(videoCapture.GetState() & STATE_RUNNING) {
-                pthread_mutex_lock(&EM_DATA.mtx);
-                    latitude = EM_DATA.GPS_latitude;
-                    longitude = EM_DATA.GPS_longitude;
-                pthread_mutex_unlock(&EM_DATA.mtx);
+                pthread_mutex_lock(&G_EM_DATA.mtx);
+                    latitude = G_EM_DATA.GPS_latitude;
+                    longitude = G_EM_DATA.GPS_longitude;
+                pthread_mutex_unlock(&G_EM_DATA.mtx);
                 I("Entered home port (" + to_string(latitude) + "," + to_string(longitude) + "), pausing video capture");
             }
 
             videoCapture.Stop();
-            //}
         } else {
             if(videoCapture.GetState() & STATE_NOT_RUNNING) { // resume
-                pthread_mutex_lock(&EM_DATA.mtx);
-                    latitude = EM_DATA.GPS_latitude;
-                    longitude = EM_DATA.GPS_longitude;
-                pthread_mutex_unlock(&EM_DATA.mtx);
+                pthread_mutex_lock(&G_EM_DATA.mtx);
+                    latitude = G_EM_DATA.GPS_latitude;
+                    longitude = G_EM_DATA.GPS_longitude;
+                pthread_mutex_unlock(&G_EM_DATA.mtx);
                 I("Left home port or was never there (" + to_string(latitude) + "," + to_string(longitude) + "), starting video capture");
             }
 
             // fishing activity check
-            pthread_mutex_lock(&EM_DATA.mtx);
-                last_psi = EM_DATA.AD_psi;
-            pthread_mutex_unlock(&EM_DATA.mtx);
+            pthread_mutex_lock(&G_EM_DATA.mtx);
+                last_psi = G_EM_DATA.AD_psi;
+            pthread_mutex_unlock(&G_EM_DATA.mtx);
 
             // should check if we are even using the AD
-            if(last_psi >= CONFIG.psi_high_threshold ||
+            if(last_psi >= G_CONFIG.psi_high_threshold ||
                 iADSensor.GetState() & AD_NO_CONNECTION ||
                 iADSensor.GetState() & AD_NO_DATA ||
                 iADSensor.GetState() & AD_PSI_LOW_OR_ZERO) {
                 smSystem.UnsetState(SYS_REDUCED_VIDEO_BITRATE);
                 D("Unset SYS_REDUCED_VIDEO_BITRATE");
-            } else if(last_psi < CONFIG.psi_low_threshold) {
+            } else if(last_psi < G_CONFIG.psi_low_threshold) {
                 // want to see this state set repeatedly over a period of
                 // fps_low_delay minutes before we actually get a reduction
-                smSystem.SetState(SYS_REDUCED_VIDEO_BITRATE, (unsigned short)(CONFIG.fps_low_delay * 60 * 1000000 / AUX_INTERVAL / POLL_PERIOD));
+                smSystem.SetState(SYS_REDUCED_VIDEO_BITRATE, (unsigned short)(G_CONFIG.fps_low_delay * 60 * 1000000 / AUX_INTERVAL / POLL_PERIOD));
                 D("Set SYS_REDUCED_VIDEO_BITRATE");
             }
 
@@ -418,7 +417,7 @@ void *thr_auxiliaryLoop(void *arg) {
         }
 
         // checks for errors that are screenshot-worthy
-        if((iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState()) & ~(IGNORED_STATES)) {
+        if((iADSensor.GetState() | iRFIDSensor.GetState() | iGPSSensor.GetState() | smSystem.GetState()) & ~(G_IGNORED_STATES)) {
             // state needs to be around SCREENSHOT_STATE_DELAY seconds before really showing up
             smTakeScreenshot.SetState(true, (unsigned short)(SCREENSHOT_STATE_DELAY * 1000000 / AUX_INTERVAL / POLL_PERIOD));
         } else {
@@ -434,7 +433,7 @@ void *thr_auxiliaryLoop(void *arg) {
                     execle("/usr/bin/scrot", "scrot", "-q5", (targetDisk + "/screenshots/%Y%m%d-%H%M%S.jpg").c_str(), NULL, scrot_envp);
                 } else if(pid_scrot > 0) {
                     waitpid(pid_scrot, NULL, 0);
-                    smTakeScreenshot.UnsetAllStates();
+                    //smTakeScreenshot.UnsetAllStates();
                     D("Took screenshot");
                 } else {
                     E("/usr/bin/scrot fork() failed");
@@ -442,6 +441,11 @@ void *thr_auxiliaryLoop(void *arg) {
             } else {
                 E("No writable disks; not taking screenshot");
             }    
+        }
+
+        if(!gotRecCount) {
+            videoCapture.GetRecCount();
+            gotRecCount = true;
         }
         // No more disk space consumed after this point
         ///////////////////////////////////////////////
@@ -470,7 +474,12 @@ void *thr_auxiliaryLoop(void *arg) {
 }
 
 void writeLog(string prefix, string buf) {
-    if(smSystem.GetState() & SYS_TARGET_DISK_WRITABLE) {
+    writeLog(prefix, buf, false);
+}
+
+void writeLog(string prefix, string buf, bool forceWrite) {
+    // would be nice to buffer things until it becomes writable
+    if(smSystem.GetState() & SYS_TARGET_DISK_WRITABLE || forceWrite) {
         FILE *fp;
         char date_suffix[9];
         strftime(date_suffix, sizeof(date_suffix), "%Y%m%d", G_timeinfo);
@@ -483,7 +492,6 @@ void writeLog(string prefix, string buf) {
         } else {
             if(fwrite(buf.c_str(), buf.length(), 1, fp) < 1 && errno == ENOSPC) {
                 D("fwrite() error");
-                //smSystem.SetState(SYS_OS_DISK_FULL); // not anymore, let updateSystemStats() do this
             } 
             fclose(fp);
         }
@@ -523,10 +531,10 @@ string writeLog(string prefix, string buf, string lastHash) {
     return newHash;
 }
 
-void writeJSONState(EM_DATA_TYPE* em_data) {
+void writeJSONState() {
     char buf[1024] = { '\0' };
 
-    pthread_mutex_lock(&(em_data->mtx));
+    pthread_mutex_lock(&G_EM_DATA.mtx);
         snprintf(buf, sizeof(buf),
         "{ "
             "\"recorderVersion\": \"%s\", "
@@ -580,60 +588,60 @@ void writeJSONState(EM_DATA_TYPE* em_data) {
             "} "
         "}",
             VERSION,
-            em_data->currentDateTime,
-            em_data->runIterations,
+            G_EM_DATA.currentDateTime,
+            G_EM_DATA.runIterations,
 
             smSystem.GetState(),
-            em_data->SYS_fishingArea.c_str(),
-            em_data->SYS_numCams,
-            em_data->SYS_targetDisk.c_str(),
-            em_data->SYS_uptime.c_str(),
-            em_data->SYS_load.c_str(),
-            std::isnan(em_data->SYS_cpuPercent) ? 0 : em_data->SYS_cpuPercent,
-            em_data->SYS_ramFreeKB,
-            em_data->SYS_ramTotalKB,
-            em_data->SYS_tempCore0,
-            em_data->SYS_tempCore1,
-            em_data->SYS_osDiskFreeBlocks,
-            em_data->SYS_osDiskTotalBlocks,
-            em_data->SYS_osDiskMinutesLeft,
-            em_data->SYS_dataDiskLabel.c_str(),
-            em_data->SYS_dataDiskFreeBlocks,
-            em_data->SYS_dataDiskTotalBlocks,
-            em_data->SYS_dataDiskMinutesLeft,
-            em_data->SYS_dataDiskMinutesLeftFake,
+            G_EM_DATA.SYS_fishingArea.c_str(),
+            G_EM_DATA.SYS_numCams,
+            G_EM_DATA.SYS_targetDisk.c_str(),
+            G_EM_DATA.SYS_uptime.c_str(),
+            G_EM_DATA.SYS_load.c_str(),
+            std::isnan(G_EM_DATA.SYS_cpuPercent) ? 0 : G_EM_DATA.SYS_cpuPercent,
+            G_EM_DATA.SYS_ramFreeKB,
+            G_EM_DATA.SYS_ramTotalKB,
+            G_EM_DATA.SYS_tempCore0,
+            G_EM_DATA.SYS_tempCore1,
+            G_EM_DATA.SYS_osDiskFreeBlocks,
+            G_EM_DATA.SYS_osDiskTotalBlocks,
+            G_EM_DATA.SYS_osDiskMinutesLeft,
+            G_EM_DATA.SYS_dataDiskLabel.c_str(),
+            G_EM_DATA.SYS_dataDiskFreeBlocks,
+            G_EM_DATA.SYS_dataDiskTotalBlocks,
+            G_EM_DATA.SYS_dataDiskMinutesLeft,
+            G_EM_DATA.SYS_dataDiskMinutesLeftFake,
 
             iGPSSensor.GetState(),
-            em_data->GPS_latitude,
-            em_data->GPS_longitude,
-            em_data->GPS_heading,
-            em_data->GPS_speed,
-            em_data->GPS_satQuality,
-            em_data->GPS_satsUsed,
-            em_data->GPS_hdop,
-            em_data->GPS_eph,
+            G_EM_DATA.GPS_latitude,
+            G_EM_DATA.GPS_longitude,
+            G_EM_DATA.GPS_heading,
+            G_EM_DATA.GPS_speed,
+            G_EM_DATA.GPS_satQuality,
+            G_EM_DATA.GPS_satsUsed,
+            G_EM_DATA.GPS_hdop,
+            G_EM_DATA.GPS_eph,
 
             iRFIDSensor.GetState(),
-            em_data->RFID_lastScannedTag,
-            em_data->RFID_stringScans,
-            em_data->RFID_tripScans,
+            G_EM_DATA.RFID_lastScannedTag,
+            G_EM_DATA.RFID_stringScans,
+            G_EM_DATA.RFID_tripScans,
 
             iADSensor.GetState(),
-            std::isnan(em_data->AD_psi) ? 0 : em_data->AD_psi,
-            std::isnan(em_data->AD_battery) ? 0 : em_data->AD_battery,
+            std::isnan(G_EM_DATA.AD_psi) ? 0 : G_EM_DATA.AD_psi,
+            std::isnan(G_EM_DATA.AD_battery) ? 0 : G_EM_DATA.AD_battery,
 
             smOptions.GetState()
         );
-    pthread_mutex_unlock(&(em_data->mtx));
+    pthread_mutex_unlock(&G_EM_DATA.mtx);
 
-    ofstream fout(CONFIG.JSON_STATE_FILE.c_str());
+    ofstream fout(G_CONFIG.JSON_STATE_FILE.c_str());
     if (!fout.fail()) {
         fout << buf << endl;
         fout.close();
     }
 }
 
-string updateSystemStats(EM_DATA_TYPE *em_data) {
+string updateSystemStats() {
     static unsigned long long lastJiffies[PROC_STAT_VALS];
     static unsigned long osDiskLastFree, osDiskDiff, dataDiskLastFree, dataDiskDiff;
     static unsigned long osDiskMinutesLeft[DISK_USAGE_SAMPLES], dataDiskMinutesLeft[DISK_USAGE_SAMPLES];
@@ -652,18 +660,20 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
 
     while(true) { // responsible for data disk presence check + mount
         // check /mnt/data's device ID and compare it to its parent /mnt
-        if(stat(CONFIG.DATA_DISK.c_str(), &st) == 0 && st.st_dev != G_parent_st.st_dev) { // present
+        if(stat(G_CONFIG.DATA_DISK.c_str(), &st) == 0 && st.st_dev != G_parent_st.st_dev) { // present
             // this is a new state, there wasn't a disk before
-            // retrieve the label; give output; set diskPresent in global em_data
+            // retrieve the label; give output; set diskPresent in global G_EM_DATA
             if (!(smSystem.GetState() & SYS_DATA_DISK_PRESENT)) {
                 blkid_get_cache(&blkid_cache, NULL);
 
                 smSystem.SetState(SYS_DATA_DISK_PRESENT);
-                pthread_mutex_lock(&(em_data->mtx));
-                    em_data->SYS_dataDiskLabel = blkid_get_tag_value(blkid_cache, "LABEL", blkid_devno_to_devname(st.st_dev));
-                pthread_mutex_unlock(&(em_data->mtx));
+                pthread_mutex_lock(&G_EM_DATA.mtx);
+                    G_EM_DATA.SYS_dataDiskLabel = blkid_get_tag_value(blkid_cache, "LABEL", blkid_devno_to_devname(st.st_dev));
+                pthread_mutex_unlock(&G_EM_DATA.mtx);
                 
-                I("Data disk PRESENT, label = " + em_data->SYS_dataDiskLabel);    
+                mkdir(((string)G_CONFIG.DATA_DISK + FN_VIDEO_DIR).c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+
+                I("Data disk PRESENT, label = " + G_EM_DATA.SYS_dataDiskLabel);
             }
 
             break; // do nothing else
@@ -671,7 +681,7 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
 
         // disk not present
         O("Attempting to mount data disk ...");
-        if(mount("/dev/em_data", CONFIG.DATA_DISK.c_str(), "ext4",
+        if(mount("/dev/em_data", G_CONFIG.DATA_DISK.c_str(), "ext4",
             MS_NOATIME | MS_NODEV | MS_NODIRATIME | MS_NOEXEC | MS_NOSUID, NULL) == 0) {
             I("Mount success");
             continue; // we want to rerun the while() so we don't break
@@ -692,17 +702,17 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
         break; // all data disk processing complete
     } // end while
 
-    pthread_mutex_lock(&(em_data->mtx));
+    pthread_mutex_lock(&G_EM_DATA.mtx);
         // populate averaging array with reasonable start values, so UI isn't crazy
         if (osDiskMinutesLeft_index == -1) {
             for(int i = 0; i < DISK_USAGE_SAMPLES; i++) osDiskMinutesLeft[i] = DISK_USAGE_START_VAL;
-            em_data->SYS_osDiskMinutesLeft = osDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
+            G_EM_DATA.SYS_osDiskMinutesLeft = osDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
             osDiskMinutesLeft_index = 0;
         }
 
         if (dataDiskMinutesLeft_index == -1) {
             for(int i = 0; i < DISK_USAGE_SAMPLES; i++) dataDiskMinutesLeft[i] = DISK_USAGE_START_VAL;
-            em_data->SYS_dataDiskMinutesLeft = dataDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
+            G_EM_DATA.SYS_dataDiskMinutesLeft = dataDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
             dataDiskMinutesLeft_index = 0;
         }
 
@@ -712,15 +722,15 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
             hours = (si.uptime / 3600) - (days * 24);
             mins = (si.uptime / 60) - (days * 1440) - (hours * 60);
             snprintf(buf, sizeof(buf), "%dd%dh%dm", days, hours, mins);
-            em_data->SYS_uptime = buf;
+            G_EM_DATA.SYS_uptime = buf;
             
             // SYS_ramFree/Total
-            em_data->SYS_ramFreeKB = si.freeram * (unsigned long long)si.mem_unit / 1024;
-            em_data->SYS_ramTotalKB = si.totalram * (unsigned long long)si.mem_unit / 1024;
+            G_EM_DATA.SYS_ramFreeKB = si.freeram * (unsigned long long)si.mem_unit / 1024;
+            G_EM_DATA.SYS_ramTotalKB = si.totalram * (unsigned long long)si.mem_unit / 1024;
             
             // SYS_load
             snprintf(buf, sizeof(buf), "%0.02f %0.02f %0.02f", (float)si.loads[0] / (float)(1<<SI_LOAD_SHIFT), (float)si.loads[1] / (float)(1<<SI_LOAD_SHIFT), (float)si.loads[2] / (float)(1<<SI_LOAD_SHIFT));
-            em_data->SYS_load = buf;
+            G_EM_DATA.SYS_load = buf;
         }
 
         // SYS_cpuPercent
@@ -734,13 +744,13 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
             }
         }
 
-        em_data->SYS_cpuPercent = totalJiffies;
+        G_EM_DATA.SYS_cpuPercent = totalJiffies;
 
         if(jiffies[3] > lastJiffies[3]) {
             totalJiffies += (jiffies[3] - lastJiffies[3]);
-            em_data->SYS_cpuPercent = em_data->SYS_cpuPercent / totalJiffies * 100;
+            G_EM_DATA.SYS_cpuPercent = G_EM_DATA.SYS_cpuPercent / totalJiffies * 100;
         } else {
-            em_data->SYS_cpuPercent = -1.0;
+            G_EM_DATA.SYS_cpuPercent = -1.0;
         }
 
         for(int i = 0; i < PROC_STAT_VALS; i++) { lastJiffies[i] = jiffies[i]; }
@@ -749,55 +759,61 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
         ct = fopen("/sys/devices/platform/coretemp.0/temp2_input", "r");
         fscanf(ct, "%llu", &temp);
         fclose(ct);
-        em_data->SYS_tempCore0 = temp / 1000;
+        G_EM_DATA.SYS_tempCore0 = temp / 1000;
 
         // SYS_tempCore1
         ct = fopen("/sys/devices/platform/coretemp.0/temp3_input", "r");
         fscanf(ct, "%llu", &temp);
         fclose(ct);
-        em_data->SYS_tempCore1 = temp / 1000;
-    pthread_mutex_unlock(&(em_data->mtx));
+        G_EM_DATA.SYS_tempCore1 = temp / 1000;
+    pthread_mutex_unlock(&G_EM_DATA.mtx);
 
     //SYS_*DiskTotalBlocks/FreeBlocks
-    if(statvfs(CONFIG.OS_DISK.c_str(), &vfs) == 0) {
+    if(statvfs(G_CONFIG.OS_DISK.c_str(), &vfs) == 0) {
         if(osDiskLastFree >= vfs.f_bavail) {
             osDiskMinutesLeft_total -= osDiskMinutesLeft[osDiskMinutesLeft_index];
             osDiskDiff = osDiskLastFree - vfs.f_bavail;
-            if(osDiskDiff <= 0) osDiskMinutesLeft[osDiskMinutesLeft_index] = osDiskMinutesLeft[osDiskMinutesLeft_index - 1];
-            else osDiskMinutesLeft[osDiskMinutesLeft_index] = (int)((double)vfs.f_bavail / (double)(60000000 / POLL_PERIOD / AUX_INTERVAL * (osDiskLastFree - vfs.f_bavail)));
+
+            if(osDiskDiff <= 0) {
+                osDiskMinutesLeft[osDiskMinutesLeft_index] = osDiskMinutesLeft[osDiskMinutesLeft_index - 1];
+            } else {
+                osDiskMinutesLeft[osDiskMinutesLeft_index] = (int)((double)vfs.f_bavail / (double)(60000000 / POLL_PERIOD / AUX_INTERVAL * osDiskDiff));
+            }
+
             osDiskMinutesLeft_total += osDiskMinutesLeft[osDiskMinutesLeft_index];
             
             osDiskMinutesLeft_index++;
             if(osDiskMinutesLeft_index >= DISK_USAGE_SAMPLES) osDiskMinutesLeft_index = 0;
 
-            pthread_mutex_lock(&(em_data->mtx));
-                em_data->SYS_osDiskMinutesLeft = osDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
-            pthread_mutex_unlock(&(em_data->mtx));
+            pthread_mutex_lock(&G_EM_DATA.mtx);
+                G_EM_DATA.SYS_osDiskMinutesLeft = osDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
+            pthread_mutex_unlock(&G_EM_DATA.mtx);
         }
 
-        pthread_mutex_lock(&(em_data->mtx));
-            em_data->SYS_osDiskTotalBlocks = vfs.f_blocks;
-            em_data->SYS_osDiskFreeBlocks = osDiskLastFree = vfs.f_bavail;
-        pthread_mutex_unlock(&(em_data->mtx));
+        pthread_mutex_lock(&G_EM_DATA.mtx);
+            G_EM_DATA.SYS_osDiskTotalBlocks = vfs.f_blocks;
+            G_EM_DATA.SYS_osDiskFreeBlocks = osDiskLastFree = vfs.f_bavail;
+        pthread_mutex_unlock(&G_EM_DATA.mtx);
 
         // if less than 16 MB left (assuming 4K block size)
         if(vfs.f_bavail < 4096/* && osDiskMinutesLeft_index > 1*/) {
             smSystem.SetState(SYS_OS_DISK_FULL);
             D("Set OS_DISK_FULL");
 
-            pthread_mutex_lock(&(em_data->mtx));
-                em_data->SYS_osDiskMinutesLeft = 0;
-            pthread_mutex_unlock(&(em_data->mtx));
+            pthread_mutex_lock(&G_EM_DATA.mtx);
+                G_EM_DATA.SYS_osDiskMinutesLeft = 0;
+            pthread_mutex_unlock(&G_EM_DATA.mtx);
         } else {
             smSystem.UnsetState(SYS_OS_DISK_FULL);
         }
     }
 
     if(smSystem.GetState() & SYS_DATA_DISK_PRESENT) {
-        if(statvfs(CONFIG.DATA_DISK.c_str(), &vfs) == 0) {
+        if(statvfs(G_CONFIG.DATA_DISK.c_str(), &vfs) == 0) {
             if(dataDiskLastFree >= vfs.f_bavail) {
                 dataDiskMinutesLeft_total -= dataDiskMinutesLeft[dataDiskMinutesLeft_index];
                 dataDiskDiff = dataDiskLastFree - vfs.f_bavail;
+
                 // since we store things on the OS disk before moving them to the data disk (buffering), the total
                 // space "consumed" on the data disk is whatever it is now + whatever it will be in the near future,
                 // meaning that whatever was consumed on the OS disk is tacked on
@@ -814,70 +830,48 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
                 dataDiskMinutesLeft_total += dataDiskMinutesLeft[dataDiskMinutesLeft_index];
                 
                 dataDiskMinutesLeft_index++;
-                if(dataDiskMinutesLeft_index >= DISK_USAGE_SAMPLES) dataDiskMinutesLeft_index = 0;
-                pthread_mutex_lock(&(em_data->mtx));
+                if(dataDiskMinutesLeft_index >= DISK_USAGE_SAMPLES) {
+                    dataDiskMinutesLeft_index = 0;
+                }
+
+                pthread_mutex_lock(&G_EM_DATA.mtx);
                     // the real calculation
-                    em_data->SYS_dataDiskMinutesLeft = dataDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
-                pthread_mutex_unlock(&(em_data->mtx));
+                    G_EM_DATA.SYS_dataDiskMinutesLeft = dataDiskMinutesLeft_total / DISK_USAGE_SAMPLES;
+                pthread_mutex_unlock(&G_EM_DATA.mtx);
             }
 
-            // fake hours calculation for Area A; this is kind of a hack
-            ////////////////////////////////////////////////////////////
-            /*
-            unsigned long hours;
-            string hourCountsFile = string(CONFIG.DATA_DISK.c_str()) + "/hour_counter.dat";
-            ifstream fin(hourCountsFile.c_str());
-            if(!fin.fail()) {
-                fin >> hours;
-                pthread_mutex_lock(&(em_data->mtx));
-                    em_data->SYS_dataDiskMinutesLeftFake = hours;
-
-                    if(em_data->SYS_dataDiskMinutesLeftFake > DATA_DISK_FAKE_DAYS_START * 24) {
-                        em_data->SYS_dataDiskMinutesLeftFake = 0;
-                    } else {
-                        em_data->SYS_dataDiskMinutesLeftFake = (DATA_DISK_FAKE_DAYS_START * 24 - em_data->SYS_dataDiskMinutesLeftFake) * 60;
-                    }
-                pthread_mutex_unlock(&(em_data->mtx));
-                fin.close();
-            } else {
-                pthread_mutex_lock(&(em_data->mtx));
-                    em_data->SYS_dataDiskMinutesLeftFake = DATA_DISK_FAKE_DAYS_START * 24 * 60;
-                pthread_mutex_unlock(&(em_data->mtx));
-            }
-            /////////////////////////////////////////////////////////////
-            */
-
-            pthread_mutex_lock(&(em_data->mtx));
-                em_data->SYS_dataDiskTotalBlocks = vfs.f_blocks;
-                em_data->SYS_dataDiskFreeBlocks = dataDiskLastFree = vfs.f_bavail;
-            pthread_mutex_unlock(&(em_data->mtx));
+            pthread_mutex_lock(&G_EM_DATA.mtx);
+                G_EM_DATA.SYS_dataDiskTotalBlocks = vfs.f_blocks;
+                G_EM_DATA.SYS_dataDiskFreeBlocks = dataDiskLastFree = vfs.f_bavail;
+                G_EM_DATA.SYS_dataDiskMinutesLeftFake = (DATA_DISK_FAKE_DAYS_START * 24 * 60) - (G_EM_DATA.SYS_videoSecondsRecorded / 60);
+            pthread_mutex_unlock(&G_EM_DATA.mtx);
 
             if(vfs.f_bavail < 4096/* && dataDiskMinutesLeft_index > 1*/) {
                 smSystem.SetState(SYS_DATA_DISK_FULL);
                 D("Set DATA_DISK_FULL");
 
-                pthread_mutex_lock(&(em_data->mtx));
-                    em_data->SYS_dataDiskMinutesLeft = 0;
-                pthread_mutex_unlock(&(em_data->mtx));
+                pthread_mutex_lock(&G_EM_DATA.mtx);
+                    G_EM_DATA.SYS_dataDiskMinutesLeft = 0;
+                pthread_mutex_unlock(&G_EM_DATA.mtx);
             } else {
                 smSystem.UnsetState(SYS_DATA_DISK_FULL);
             }
         }
     } else { // no data disk present
-        pthread_mutex_lock(&(em_data->mtx));
-            em_data->SYS_dataDiskFreeBlocks = 0;
-            em_data->SYS_dataDiskTotalBlocks = 0;
-            em_data->SYS_dataDiskMinutesLeft = 0;
-            em_data->SYS_dataDiskMinutesLeftFake = 0;
-            em_data->SYS_dataDiskLabel.clear();
-        pthread_mutex_unlock(&(em_data->mtx));
+        pthread_mutex_lock(&G_EM_DATA.mtx);
+            G_EM_DATA.SYS_dataDiskFreeBlocks = 0;
+            G_EM_DATA.SYS_dataDiskTotalBlocks = 0;
+            G_EM_DATA.SYS_dataDiskMinutesLeft = 0;
+            G_EM_DATA.SYS_dataDiskMinutesLeftFake = 0;
+            G_EM_DATA.SYS_dataDiskLabel.clear();
+        pthread_mutex_unlock(&G_EM_DATA.mtx);
     }
 
     // if OS disk is full
     if(smSystem.GetState() & SYS_OS_DISK_FULL) {
         // if data disk is present and not full
         if(smSystem.GetState() & SYS_DATA_DISK_PRESENT && !(smSystem.GetState() & SYS_DATA_DISK_FULL)) {
-            targetDisk = CONFIG.DATA_DISK;
+            targetDisk = G_CONFIG.DATA_DISK;
             smSystem.SetState(SYS_TARGET_DISK_WRITABLE);
             D("targetDisk = DATA, writable");
         } else {
@@ -885,32 +879,32 @@ string updateSystemStats(EM_DATA_TYPE *em_data) {
             D("No writable disks!");
         }
     } else {
-        targetDisk = CONFIG.OS_DISK;
+        targetDisk = G_CONFIG.OS_DISK;
         smSystem.SetState(SYS_TARGET_DISK_WRITABLE);
         D("targetDisk = OS, writable");
     }
 
-    pthread_mutex_lock(&(em_data->mtx));
-        em_data->SYS_targetDisk = targetDisk;
-    pthread_mutex_unlock(&(em_data->mtx));
+    pthread_mutex_lock(&G_EM_DATA.mtx);
+        G_EM_DATA.SYS_targetDisk = targetDisk;
+    pthread_mutex_unlock(&G_EM_DATA.mtx);
 
     // SYSTEM_DATA.csv
     snprintf(buf, sizeof(buf),
         "%s,%s,%s,%lu,%0.02f,%0.02f,%0.02f,%.1f,%u,%u,%llu,%llu,%lu,%lu,%u",
-        em_data->SYS_fishingArea.c_str(),
-        CONFIG.vrn.c_str(),
-        em_data->currentDateTime,
+        G_EM_DATA.SYS_fishingArea.c_str(),
+        G_CONFIG.vrn.c_str(),
+        G_EM_DATA.currentDateTime,
         si.uptime,
         (float)si.loads[0] / (float)(1<<SI_LOAD_SHIFT),
         (float)si.loads[1] / (float)(1<<SI_LOAD_SHIFT),
         (float)si.loads[2] / (float)(1<<SI_LOAD_SHIFT),
-        std::isnan(em_data->SYS_cpuPercent) ? 0 : em_data->SYS_cpuPercent,
-        em_data->SYS_tempCore0,
-        em_data->SYS_tempCore1,
-        em_data->SYS_ramFreeKB,
+        std::isnan(G_EM_DATA.SYS_cpuPercent) ? 0 : G_EM_DATA.SYS_cpuPercent,
+        G_EM_DATA.SYS_tempCore0,
+        G_EM_DATA.SYS_tempCore1,
+        G_EM_DATA.SYS_ramFreeKB,
         si.freeswap * (unsigned long long)si.mem_unit / 1024,
-        em_data->SYS_osDiskFreeBlocks * 4096 / 1024 / 1024,
-        em_data->SYS_dataDiskFreeBlocks * 4096 / 1024 / 1024,
+        G_EM_DATA.SYS_osDiskFreeBlocks * 4096 / 1024 / 1024,
+        G_EM_DATA.SYS_dataDiskFreeBlocks * 4096 / 1024 / 1024,
         smSystem.GetState() & SYS_VIDEO_RECORDING ? 1 : 0);
 
     return string(buf);

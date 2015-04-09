@@ -27,6 +27,10 @@ VMS.optionDefinitions = {};
 VMS.lastIteration = 0;
 VMS.recorderResponding = false;
 VMS.serverResponding = false;
+VMS.UIInitialized = false;
+VMS.haveCameras = false;
+VMS.digiCamsHaveBooted = false,
+VMS.videoPlaying = true;
 VMS.OPTIONS = {};
 VMS.SYS = {};
 VMS.GPS = {};
@@ -70,7 +74,7 @@ $(function (undef) {
         aspectV,
         noResponseCount = 0,
         noRecorderCount = 0,
-        videoPreviewLoaded = false,
+        skippedFirstVideoCheck = false,
         eLogURL = "http://" + window.location.hostname + ":1337/";
 
     // dials setup
@@ -87,12 +91,14 @@ $(function (undef) {
 
     $TABS = $('.tab-body');
     
+    /* State flags / messages */
     $.getJSON('/states.json', function (definitions) {
         if (definitions) {
             VMS.stateDefinitions = definitions;
         }
     });
 
+    /* Options as in EM features */
     $.getJSON('/options.json', function (options) {
         if (options) {
             VMS.optionDefinitions = options;
@@ -168,19 +174,25 @@ $(function (undef) {
                     $('.RFID').hide();
                 }
 
-                if (isSet("OPTIONS_USING_DIGITAL_CAMERAS")) {
-                    aspectH = 16;
-                    aspectV = 9;
-                } else if (isSet("OPTIONS_USING_ANALOG_CAMERAS")) {
-                    aspectH = 4;
-                    aspectV = 3;
-                }
-
                 if (VMS.SYS.fishingArea == "A") {
                     $('#diskavail_mode').val('fake');
                 } else {
                     $('#diskavail_mode').val('real');
                 }
+
+                if (isSet("OPTIONS_USING_DIGITAL_CAMERAS")) {
+                    VMS.haveCameras = true;
+                    aspectH = 16;
+                    aspectV = 9;
+                    setInterval(checkVideoPlaying, 5000);
+                } else if (isSet("OPTIONS_USING_ANALOG_CAMERAS")) {
+                    VMS.haveCameras = true;
+                    aspectH = 4;
+                    aspectV = 3;
+                    setInterval(checkVideoPlaying, 5000);
+                }
+
+                VMS.UIInitialized = true;
             }
         });
     });
@@ -228,82 +240,100 @@ $(function (undef) {
 
     function updateUI() {
         // TODO: check for memory leaks
-        $.getJSON('/em_state.json', function (em_state) {
-            //var out, err;
+        if(VMS.UIInitialized) {
+            $.getJSON('/em_state.json', function (em_state) {
+                if(em_state) {
+                    $('#no_response').hide();
+                    serverResponding = true;
 
-            if (em_state) {
-                $('#no_response').hide();
-                serverResponding = true;
+                    if (parseInt('' + em_state.runIterations) == parseInt('' + VMS.lastIteration)) {
+                        if(noRecorderCount >= 2) {
+                            $("#no_recorder").show();
+                            recorderResponding = false;
 
-                if (parseInt('' + em_state.runIterations) == parseInt('' + VMS.lastIteration)) {
-                    if (noRecorderCount >= 2) {
-                        $("#no_recorder").show();
-                        recorderResponding = false;
+                            VMS.UISensors.GPS.disable(VMS.GPS);
+                            VMS.UISensors.SYS.disable(VMS.SYS);
+                            if(isSet("OPTIONS_USING_RFID")) VMS.UISensors.RFID.disable(VMS.RFID);
+                            if(isSet("OPTIONS_USING_AD")) VMS.UISensors.AD.disable(VMS.AD);
+                        }
+
+                        noRecorderCount++;
+                    } else {
+                        $("#no_recorder").hide();
+                        recorderResponding = true;
+
+                        em_state.GPS.datetime = em_state.currentDateTime;
+                        VMS.lastIteration = em_state.runIterations;
+                        VMS.videoPlaying = em_state.SYS.videoPlaying;
+                        noResponseCount = 0;
+                        noRecorderCount = 0;
+                    }
+
+                    if(VMS.lastIteration % 2 == 1) {
+                        // Send to subscribers (currently only the Elog)
+                        for (var sub_key in VMS.subscribers) {
+                            var win = $(sub_key).get(0).contentWindow;
+                            win.postMessage(
+                                em_state,
+                                $(sub_key).attr('src')
+                            );
+                        }
+                    }
+                } else {
+                    if(noResponseCount >= 2) {
+                        $('#no_response').show();
+                        serverResponding = false;
 
                         VMS.UISensors.GPS.disable(VMS.GPS);
                         VMS.UISensors.SYS.disable(VMS.SYS);
-                        if (isSet("OPTIONS_USING_RFID")) VMS.UISensors.RFID.disable(VMS.RFID);
-                        if (isSet("OPTIONS_USING_AD")) VMS.UISensors.AD.disable(VMS.AD);
+                        if(isSet("OPTIONS_USING_RFID")) VMS.UISensors.RFID.disable(VMS.RFID);
+                        if(isSet("OPTIONS_USING_AD")) VMS.UISensors.AD.disable(VMS.AD);
                     }
 
-                    noRecorderCount++;
-                } else {
-                    $("#no_recorder").hide();
-                    recorderResponding = true;
-
-                    em_state.GPS.datetime = em_state.currentDateTime;
-                    VMS.lastIteration = em_state.runIterations;
-                    noResponseCount = 0;
-                    noRecorderCount = 0;
+                    noResponseCount++;
                 }
 
-                if(VMS.lastIteration % 2 == 1) {
-                    // Send to subscribers (currently only the Elog)
-                    for (var sub_key in VMS.subscribers) {
-                        var win = $(sub_key).get(0).contentWindow;
-                        win.postMessage(
-                            em_state,
-                            $(sub_key).attr('src')
-                        );
+                if(serverResponding && recorderResponding) {
+                    VMS.SYS = em_state.SYS;
+                    VMS.UISensors.SYS.update(VMS.SYS);
+
+                    VMS.GPS = em_state.GPS;
+                    VMS.UISensors.GPS.update(VMS.GPS);
+
+                    if(isSet("OPTIONS_USING_RFID")) {
+                        VMS.RFID = em_state.RFID;
+                        VMS.UISensors.RFID.update(VMS.RFID);
+                    }
+
+                    if(isSet("OPTIONS_USING_AD")) {
+                        VMS.AD = em_state.AD;
+                        VMS.UISensors.AD.update(VMS.AD);
+                    }
+
+                    if(VMS.haveCameras) {
+                        /* Rudimentary check to see if digital cameras have probably booted by now */
+                        if(!VMS.digiCamsHaveBooted && (VMS.SYS.uptime.match(/(\d+)m/)[1] >= 2 || VMS.lastIteration >= 40 || isSet("OPTIONS_USING_ANALOG_CAMERAS"))) {
+                            $('.tab-cam .cameras').replaceWith(getCameraEmbeds()); // this activates mozplugger
+                            VMS.digiCamsHaveBooted = true;
+                        } else if(!VMS.digiCamsHaveBooted) {
+                            $('.tab-cam .cameras').replaceWith('<div class="cameras"><p>Waiting for cameras to start up ...</p></div>');
+                        }
                     }
                 }
-            } else {
-                if(noResponseCount >= 2) {
-                    $('#no_response').show();
-                    serverResponding = false;
+            });
+        }
+    }
 
-                    VMS.UISensors.GPS.disable(VMS.GPS);
-                    VMS.UISensors.SYS.disable(VMS.SYS);
-                    if (isSet("OPTIONS_USING_RFID")) VMS.UISensors.RFID.disable(VMS.RFID);
-                    if (isSet("OPTIONS_USING_AD")) VMS.UISensors.AD.disable(VMS.AD);
-                }
-
-                noResponseCount++;
+    /* setInterval should not be called on this if we don't have cameras */
+    function checkVideoPlaying() {
+        /* VMS.videoPlaying is determined by em-rec; this function doesn't do any checking of its own */
+        if(VMS.UIInitialized && VMS.digiCamsHaveBooted && !VMS.videoPlaying) {
+            if(skippedFirstVideoCheck) {
+                $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
             }
-
-            if(serverResponding && recorderResponding) {
-                VMS.SYS = em_state.SYS;
-                VMS.UISensors.SYS.update(VMS.SYS);
-
-                VMS.GPS = em_state.GPS;
-                VMS.UISensors.GPS.update(VMS.GPS);
-
-                if (isSet("OPTIONS_USING_RFID")) {
-                    VMS.RFID = em_state.RFID;
-                    VMS.UISensors.RFID.update(VMS.RFID);
-                }
-
-                if (isSet("OPTIONS_USING_AD")) {
-                    VMS.AD = em_state.AD;
-                    VMS.UISensors.AD.update(VMS.AD);
-                }
-
-                if (!videoPreviewLoaded && (VMS.SYS.uptime.match(/(\d+)m/)[1] >= 2 || VMS.lastIteration >= 40)) {
-                    videoPreviewLoaded = true;
-                    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-                }
-            }
-        });
+            
+            skippedFirstVideoCheck = true;
+        }
     }
 
     $('nav li').click(function (e) {
@@ -348,16 +378,16 @@ $(function (undef) {
         }
     });
 
-    //$('#reload-video').click(function () {
-    //    $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-    //});
-
     $('.tab-cam').click(function () {
-        if (VMS.SYS.numCams > 1) {
-            if (zoomedCam == VMS.SYS.numCams) zoomedCam = 1;
-            else if (zoomedCam < VMS.SYS.numCams) zoomedCam++;
+        if(VMS.haveCameras) {
+            if (VMS.SYS.numCams > 1) {
+                if (zoomedCam == VMS.SYS.numCams) zoomedCam = 1;
+                else if (zoomedCam < VMS.SYS.numCams) zoomedCam++;
 
-            $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+                $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
+            }
+            
+            skippedFirstVideoCheck = false;
         }
     });
 

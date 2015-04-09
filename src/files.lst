@@ -105,7 +105,6 @@
 ./etc/mencoder.conf
 ./etc/modprobe.d/bttv.conf
 ./etc/modprobe.d/fanout.conf
-./etc/modules-load.d/e1000e.conf
 ./etc/modules-load.d/fanout.conf
 ./etc/mozpluggerrc
 ./etc/mplayer.conf
@@ -144,8 +143,6 @@
 ./etc/systemd/system.conf
 ./etc/systemd/system/boot.mount
 ./etc/systemd/system/capture-bttv.service
-./etc/systemd/system/check-browser-video.service
-./etc/systemd/system/check-browser-video.timer
 ./etc/systemd/system/copy-to-data-disk-shutdown.service
 ./etc/systemd/system/copy-to-data-disk.service
 ./etc/systemd/system/copy-to-data-disk.timer
@@ -164,7 +161,6 @@
 ./etc/systemd/system/em-rec.service
 ./etc/systemd/system/getty.target.wants/getty@tty1.service
 ./etc/systemd/system/gpsd.service
-./etc/systemd/system/graphical.target.wants/check-browser-video.timer
 ./etc/systemd/system/graphical.target.wants/elog-server.service
 ./etc/systemd/system/graphical.target.wants/startx.service
 ./etc/systemd/system/graphical.target.wants/web-server.service
@@ -484,6 +480,7 @@
 ./lib/udev/scsi_id
 ./lib/udev/v4l_id
 ./lib64
+./opt/elog/data/elog.db/*
 ./opt/elog/public/images/logbook-inverse.png
 ./opt/elog/public/stylesheets/bg.png
 ./opt/elog/public/evtr.jpg
@@ -496,13 +493,13 @@
 ./opt/em/bin/create-fanout-devs.sh
 ./opt/em/bin/em
 ./opt/em/bin/em-rec
-./opt/em/bin/encode-video.sh
 ./opt/em/bin/modules/onsite.sh
 ./opt/em/bin/serial-setup.sh
 ./opt/em/lib/config.js
 ./opt/em/lib/routes.js
 ./opt/em/public/a_ferry_lanes.kml
 ./opt/em/public/a_home_ports.kml
+./opt/em/public/westport.kml
 ./opt/em/public/css/fontello-embedded.css
 ./opt/em/public/css/style.css
 ./opt/em/public/js/dial.js
@@ -519,6 +516,7 @@
 ./opt/em/public/wood-small.jpg
 ./opt/em/public/wood.jpg
 ./opt/em/server.js
+./opt/em/src/grub.cfg
 ./opt/em/views/index.jade
 ./opt/em/views/layout.jade
 ./opt/firefox/Throbber-small.gif
@@ -1381,9 +1379,13 @@
 ./usr/lib/libswresample.so.0.18.100
 ./usr/lib/libswscale.so.2.5.102
 ./usr/lib/libusb-1.0.so.0.1.0
-./usr/lib/libv4l1.so.0
-./usr/lib/libv4l2.so.0
-./usr/lib/libv4lconvert.so.0
+./usr/lib/libv4l1.so.0.0.0
+./usr/lib/libv4l2.so.0.0.0
+./usr/lib/libv4l2rds.so.0.0.0
+./usr/lib/libv4lconvert.so.0.0.0
+./usr/lib/libv4l/v4l1compat.so
+./usr/lib/libv4l/v4l2convert.so
+./usr/lib/libv4l/plugins/libv4l-mplane.so
 ./usr/lib/libx264.so.142
 ./usr/lib/libxml2.so.2.9.0
 ./usr/lib/locale/locale-archive
@@ -1443,6 +1445,8 @@
 ./usr/sbin/logoutd
 ./usr/sbin/lspci
 ./usr/sbin/mklost+found
+./usr/sbin/mkfs.fat
+./usr/sbin/mkfs.vfat
 ./usr/sbin/ntp-wait
 ./usr/sbin/ntpd
 ./usr/sbin/ntpq

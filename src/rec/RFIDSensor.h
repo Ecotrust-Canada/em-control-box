@@ -54,7 +54,7 @@ class RFIDSensor: public Sensor {
     public:
         RFIDSensor(EM_DATA_TYPE*);
         int Connect();
-        void SetScanCountsFile(string);
+        void GetScanCounts(string);
         int Receive();
         void resetStringScans();
         void resetTripScans();

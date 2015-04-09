@@ -33,7 +33,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 
 using namespace std;
 
-extern bool ARG_DUMP_CONFIG;
+extern bool G_ARG_DUMP_CONFIG;
 
 char NOTFOUND[] = "\0"; ///< The value returned by the getter function when the required configuration is found.
 char config[32][2][255]; ///< Hold all the configurations.
@@ -48,12 +48,12 @@ const string moduleName = "CONF";
 string getConfig(const char* key, const char* default_value) {
     for(int i = 0; i < config_length; i++) {
         if (strcmp(key, config[i][0]) == 0) {
-            if(ARG_DUMP_CONFIG) cout << key << "=" << config[i][1] << endl;
+            if(G_ARG_DUMP_CONFIG) cout << key << "=\"" << config[i][1] << "\"" << endl;
             return string(config[i][1]);
         }
     }
 
-    if(ARG_DUMP_CONFIG) cout << key << "=" << default_value << endl;
+    if(G_ARG_DUMP_CONFIG) cout << key << "=\"" << default_value << "\"" << endl;
     else E("Missing key '" + key + "' in config file, using default '" + default_value + "'");
     return string(default_value);
 }
@@ -68,7 +68,7 @@ int readConfigFile(const char *file) {
     if (!config_fd) {
         E("Failed to load config file " + file);
         return 1;
-    } else if(ARG_DUMP_CONFIG) {
+    } else if(G_ARG_DUMP_CONFIG) {
         cout << "# Settings from '" << file << "' with defaults where applicable" << endl;
     }
 

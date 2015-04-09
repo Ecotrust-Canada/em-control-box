@@ -28,7 +28,7 @@ using namespace std;
 
 #include "settings.h"
 
-#define VERSION "2.2.2"
+#define VERSION "2.2.5"
 
 // YOU PROBABLY SHOULDN'T CHANGE THESE WITHOUT A GOOD REASON
 ////////////////////////////////////////////////////////////
@@ -95,6 +95,7 @@ typedef struct {
 	unsigned long SYS_dataDiskTotalBlocks;
 	unsigned long SYS_dataDiskMinutesLeft;
 	unsigned long SYS_dataDiskMinutesLeftFake;
+	unsigned long SYS_videoSecondsRecorded;
 
 	// GPS
 	string GPS_homePortDataFile;
@@ -129,9 +130,10 @@ typedef struct {
 int main(int, char**);
 void *thr_auxiliaryLoop(void*);
 void writeLog(string, string);
+void writeLog(string, string, bool);
 string writeLog(string, string, string);
-void writeJSONState(EM_DATA_TYPE*);
-string updateSystemStats(EM_DATA_TYPE*);
+void writeJSONState();
+string updateSystemStats();
 void reset_string_scans_handler(int);
 void reset_trip_scans_handler(int);
 void exit_handler(int);

@@ -9,6 +9,7 @@
 #define FN_SYSTEM_LOG			"SYSTEM"
 #define FN_SCAN_COUNT			"scan_count.dat"
 #define FN_VIDEO_DIR			"/video"
+#define FN_REC_COUNT            "rec_count.dat"
 
 #define NOTIFY_SCAN_INTERVAL		6	 	// wait this many POLL_PERIODs between honks
 #define RECORD_SCAN_INTERVAL		300		// 300 P_Ps = 5 minutes
@@ -17,7 +18,7 @@
 #define SCREENSHOT_STATE_DELAY      120     // screenshot state has to be around continuously for this many seconds before it is exposed
 #define DISK_USAGE_SAMPLES          12
 #define MAX_CLIP_LENGTH             1800    // force new movie file every x seconds
-//#define MAX_CLIP_LENGTH           30    // force new movie file every x seconds
+//#define MAX_CLIP_LENGTH             20    // force new movie file every x seconds
 
 #define FFMPEG_BINARY               "/usr/bin/ffmpeg"
 #define FFMPEG_MAX_ARGS             48

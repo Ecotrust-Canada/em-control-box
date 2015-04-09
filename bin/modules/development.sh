@@ -1,4 +1,4 @@
-NAME="buildard buildem installem resetgps2 stripnodeapp"
+NAME="buildard buildem installem resetgps2 stripnodeapp syncroot buildmodules"
 
 buildard_description="Builds Arduino analog data collector images"
 buildard_start() {
@@ -71,6 +71,7 @@ installem_start() {
 
 	echo -ne "	${STAR} Creating new partitions ... " &&
 	echo -e "2048,4194304,L,*\n4196352,33554432,L\n37750784,,L" | sfdisk -uS -qL ${DEVICE} > /dev/null 2>&1 &&
+	#echo -e "2048,4194304,L,*\n4196352,16777216,L\n20973568,,L" | sfdisk -uS -qL ${DEVICE} > /dev/null 2>&1 &&
 	echo -e ${OK}
 	
 	echo -ne "	${STAR} Formatting /boot ... " &&
@@ -93,6 +94,7 @@ installem_start() {
 	mkdir -p /mnt/install/boot /mnt/install/var
 	mount ${DEVICE}1 /mnt/install/boot
 	mount ${DEVICE}2 /mnt/install/var
+	systemctl start boot.mount
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Creating skeleton structure and swap file ... " &&
@@ -106,7 +108,7 @@ installem_start() {
 	chmod 0600 /mnt/install/var/swapfile
 	mkswap /mnt/install/var/swapfile > /dev/null
 	cp /opt/em/src/em.conf /mnt/install/var/em/
-	ln -sf /usr/share/zoneinfo/EST5EDT /mnt/install/var/em/timezone
+	ln -s /usr/share/zoneinfo/Canada/Pacific /mnt/install/var/em/timezone
 
 	dbus-uuidgen --ensure=/mnt/install/var/lib/dbus/machine-id
 	journalctl --update-catalog
@@ -179,6 +181,15 @@ buildem_start() {
             exit 1
     fi
 
+	VER=${1}
+	DEST=/usr/src/em-${1}
+	KERNEL_VERSION=${2}
+
+	if [ "`uname -r`" != "${KERNEL_VERSION}-em" ]; then
+		echo -e "${bldred}You must be running the kernel against which you wish to build${txtrst}"
+		exit 1
+	fi
+
     mozplugger-update
 
 	echo -ne "	${STAR} Building em-rec ... " &&
@@ -187,10 +198,6 @@ buildem_start() {
 	echo -e ${OK}
  
 	buildard_start
-
-	VER=${1}
-	DEST=/usr/src/em-${1}
-	KERNEL_VERSION=${2}
 
 	echo -ne "	${STAR} Preparing image root at ${DEST} ... " &&
 	rm -rf ${DEST} && mkdir -p ${DEST}
@@ -231,14 +238,17 @@ buildem_start() {
 	rm -f usr/initramfs_data.cpio*
 	make -j4 bzImage > /dev/null
 	make -j4 modules > /dev/null && make modules_install > /dev/null
-	cd /usr/src/fanout
+	make -C /usr/src/linux-${KERNEL_VERSION} M=/opt/em/src clean
+	make -C /usr/src/linux-${KERNEL_VERSION} M=/opt/em/src modules
+	mkdir -p /lib/modules/${KERNEL_VERSION}-em/kernel/drivers/char
+	cp /opt/em/src/fanout.ko /lib/modules/${KERNEL_VERSION}-em/kernel/drivers/char/
+
+	cd /opt/em/src/e1000e-3.0.4.1/src
 	make clean > /dev/null 2>&1
-	make > /dev/null 2>&1
-	make install > /dev/null
-	cd /usr/src/e1000e/src
-	make clean > /dev/null 2>&1
-	make > /dev/null 2>&1
-	make install > /dev/null 2>&1
+	make BUILD_KERNEL=${KERNEL_VERSION} CFLAGS_EXTRA=-DDISABLE_PCI_MSI install > /dev/null 2>&1
+
+	depmod -a
+
 	cp -r --parents --no-dereference --preserve=all /lib/modules/${KERNEL_VERSION}-em ${DEST}/
 	echo -e ${OK}
 
@@ -352,3 +362,53 @@ stripnodeapp_start() {
 	rm -rf ${APP}.copy
 	echo -e ${OK}
 }
+
+syncroot_description="Syncs / dirs (including opt) between networked dev EM boxes w/ dry run; deletes files on target!"
+syncroot_usage="
+Usage:\t${bldwht}em syncroot <from/to> <IP>${txtrst}\n
+\tex: em syncroot to 10.10.40.87\n
+\tex: em syncroot from 1.1.1.20"
+syncroot_start() {
+	if [ ${#} -ne 2 ]; then
+		echo
+		echo -e ${syncroot_usage}
+		exit 1
+	fi
+
+	if [ "${1}" == "from" ]; then
+		SOURCE="root@${2}:/"
+		TARGET="/"
+	elif [ "${1}" == "to" ]; then
+		SOURCE="/"
+		TARGET="root@${2}:/"
+	else
+		echo
+		echo -e ${syncroot_usage}
+		exit 1
+	fi
+
+	RSYNC_COMMAND="/usr/bin/rsync -avxS --delete ${SOURCE} ${TARGET} --exclude=etc/conf.d/network"
+
+	DELETED=`echo -e ${bldred}`
+	NORMAL=`echo -e ${txtrst}`
+
+	echo -e "	${STAR} Doing a dry run first ... " &&
+	${RSYNC_COMMAND} -n | sed -e "s/^deleting.*$/${DELETED}&${NORMAL}/"
+	echo
+
+	read -p "Are you sure after reviewing dry run? (y/n) " yn
+	case $yn in
+		[Yy]* )
+			echo -e "	${STAR} Syncing / dirs for real now ... " &&
+			${RSYNC_COMMAND} &&
+			echo -e ${OK}
+			;;
+		[Nn]* )
+			exit
+			;;
+		* )
+			echo "(y/n)"
+			;;
+	esac
+}
+

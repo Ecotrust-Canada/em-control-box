@@ -5,10 +5,10 @@
 
 using namespace std;
 
-extern UsageEnvironment *env;
-extern char* captureLoopWatchPtr;
-extern MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
-extern unsigned rtspClientCount;
+extern UsageEnvironment *G_env;
+extern char             *G_captureLoopWatchPtr;
+extern MultiRTSPClient  *G_rtspClients[DIGITAL_MAX_CAMS];
+extern unsigned          G_rtspClientCount;
 extern string moduleName;
 
 QuickTimeFileSink* qtOut[DIGITAL_MAX_CAMS] = { NULL, NULL, NULL, NULL };
@@ -18,14 +18,9 @@ StreamClientState::StreamClientState(): iter(NULL), session(NULL), subsession(NU
 
 StreamClientState::~StreamClientState() {
   delete iter;
-  /*if (session != NULL) {
-    // We also need to delete "session", and unschedule "streamTimerTask" (if set)
-    UsageEnvironment& env = session->envir(); // alias
-    Medium::close(session);
-  }*/
 }
 
-MultiRTSPClient::MultiRTSPClient(UsageEnvironment& env,
+MultiRTSPClient::MultiRTSPClient(UsageEnvironment& G_env,
                                  char const* rtspURL,
                                  int verbosityLevel,
                                  char const* applicationName,
@@ -34,7 +29,7 @@ MultiRTSPClient::MultiRTSPClient(UsageEnvironment& env,
                                  unsigned short _camIndex,
                                  unsigned short _clipLength,
                                  EM_DATA_TYPE *_em_data):
-  RTSPClient(env, rtspURL, verbosityLevel, applicationName, 0, -1) {
+  RTSPClient(G_env, rtspURL, verbosityLevel, applicationName, 0, -1) {
     origRTSPUrl = rtspURL;
     videoDirectory = _videoDirectory;
     camIndex = _camIndex;
@@ -60,11 +55,11 @@ void continueAfterDESCRIBE(RTSPClient* rtspClient, int resultCode, char* resultS
     D("Got a SDP description");
 
     // Create a media session object from this SDP description:
-    scs.session = MediaSession::createNew(*env, sdpDescription);
+    scs.session = MediaSession::createNew(*G_env, sdpDescription);
     delete[] sdpDescription; // because we don't need it anymore
 
     if (scs.session == NULL) {
-      E("Failed to create a MediaSession object from the SDP description: " + env->getResultMsg());
+      E("Failed to create a MediaSession object from the SDP description: " + G_env->getResultMsg());
       break;
     } else if (!scs.session->hasSubsessions()) {
       E("This session has no media subsessions (i.e., no \"m=\" lines)");
@@ -93,7 +88,7 @@ void setupNextSubsession(RTSPClient* rtspClient) {
   scs.subsession = scs.iter->next();
   if (scs.subsession != NULL) {
     if (!scs.subsession->initiate()) {
-      E("Failed to initiate the \"" + scs.subsession->mediumName() + "/" + scs.subsession->codecName() + "\" subsession: " + env->getResultMsg());
+      E("Failed to initiate the \"" + scs.subsession->mediumName() + "/" + scs.subsession->codecName() + "\" subsession: " + G_env->getResultMsg());
       setupNextSubsession(rtspClient); // give up on this subsession; go to the next one
     } else {
       D("Initiated the \"" + scs.subsession->mediumName() + "/" + scs.subsession->codecName() + "\" subsession (client ports " + to_string(scs.subsession->clientPortNum()) + "-" + to_string(scs.subsession->clientPortNum() + 1) + ")");
@@ -110,14 +105,14 @@ void setupNextSubsession(RTSPClient* rtspClient) {
         // (The latter case is a heuristic, on the assumption that if the user asked for a large FileSink buffer size,
         // then the input data rate may be large enough to justify increasing the OS socket buffer size also.)
         int socketNum = scs.subsession->rtpSource()->RTPgs()->socketNum();
-        //unsigned curBufferSize = getReceiveBufferSize(*env, socketNum);
+        //unsigned curBufferSize = getReceiveBufferSize(*G_env, socketNum);
         
         /*
         unsigned newBufferSize;
-        newBufferSize = setReceiveBufferTo(*env, socketNum, SOCKET_FILE_BUFFER_SIZE);
+        newBufferSize = setReceiveBufferTo(*G_env, socketNum, SOCKET_FILE_BUFFER_SIZE);
         D("Changed socket receive buffer size to " + to_string(newBufferSize) + " bytes");
         */
-        setReceiveBufferTo(*env, socketNum, SOCKET_FILE_BUFFER_SIZE);
+        setReceiveBufferTo(*G_env, socketNum, SOCKET_FILE_BUFFER_SIZE);
       }
     
       // Continue setting up this subsession, by sending a RTSP "SETUP" command:
@@ -151,7 +146,7 @@ void createOutputFiles(RTSPClient *rtspClient, char const *datePrefix) {
     snprintf(fileName, sizeof(fileName), "%s/%s-cam%d.mp4", (em_data->SYS_targetDisk + ((MultiRTSPClient*)rtspClient)->videoDirectory).c_str(), datePrefix, camIndex + 1);
   pthread_mutex_unlock(&(em_data->mtx));
 
-  qtOut[camIndex] = QuickTimeFileSink::createNew(*env, *scs.session,
+  qtOut[camIndex] = QuickTimeFileSink::createNew(*G_env, *scs.session,
     //(string(fileName) + ".current").c_str(),
     fileName,
     SOCKET_FILE_BUFFER_SIZE,
@@ -164,7 +159,7 @@ void createOutputFiles(RTSPClient *rtspClient, char const *datePrefix) {
     true /*generateMP4Format*/);
 
     if (qtOut[camIndex] == NULL) {
-      E("Failed to create a \"QuickTimeFileSink\" for outputting to \"" + fileName + "\": " + env->getResultMsg());
+      E("Failed to create a \"QuickTimeFileSink\" for outputting to \"" + fileName + "\": " + G_env->getResultMsg());
       shutdownStream(rtspClient, LIVERTSP_EXIT_OUTPUT_FILE_PROBLEM);
     }
 
@@ -211,7 +206,7 @@ void createPeriodicOutputFiles(RTSPClient* rtspClient) {
   }
 
   // Schedule an event for writing the next output file:
-  scs.periodicFileOutputTask = env->taskScheduler().scheduleDelayedTask(nextClipDelay * 1000000, (TaskFunc*)periodicFileOutputTimerHandler, rtspClient);
+  scs.periodicFileOutputTask = G_env->taskScheduler().scheduleDelayedTask(nextClipDelay * 1000000, (TaskFunc*)periodicFileOutputTimerHandler, rtspClient);
 }
 
 void periodicFileOutputTimerHandler(void* clientData) {
@@ -296,11 +291,11 @@ void continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultStrin
     // (Alternatively, if you don't want to receive the entire stream, you could set this timer for some shorter value.)
     /*if (scs.duration > 0) {
       unsigned uSecsToDelay = (unsigned)(scs.duration*1000000);
-      scs.streamTimerTask = env.taskScheduler().scheduleDelayedTask(uSecsToDelay, (TaskFunc*)streamTimerHandler, (void*)rtspClient);
+      scs.streamTimerTask = G_env.taskScheduler().scheduleDelayedTask(uSecsToDelay, (TaskFunc*)streamTimerHandler, (void*)rtspClient);
     }*/
     
     /*if (scs.duration > 0) {
-      *env << " (for up to " << scs.duration << " seconds)";
+      *G_env << " (for up to " << scs.duration << " seconds)";
     }*/
 
     success = True;
@@ -382,11 +377,11 @@ void shutdownStream(RTSPClient* rtspClient, int exitCode) {
   else if(exitCode == LIVERTSP_EXIT_CLEAN) { I("shutdownStream() CLEAN"); }
   else if(exitCode == LIVERTSP_EXIT_DURATION_OVER) { I("shutdownStream() DURATION_OVER"); }
   
-  if (env != NULL) {
+  if (G_env != NULL) {
     D("Unscheduling delayed tasks ...");
-    if(scs.interPacketGapCheckTimerTask != NULL) env->taskScheduler().unscheduleDelayedTask(scs.interPacketGapCheckTimerTask);
-    if(scs.periodicFileOutputTask != NULL) env->taskScheduler().unscheduleDelayedTask(scs.periodicFileOutputTask);
-    if(scs.streamTimerTask != NULL) env->taskScheduler().unscheduleDelayedTask(scs.streamTimerTask);
+    if(scs.interPacketGapCheckTimerTask != NULL) G_env->taskScheduler().unscheduleDelayedTask(scs.interPacketGapCheckTimerTask);
+    if(scs.periodicFileOutputTask != NULL) G_env->taskScheduler().unscheduleDelayedTask(scs.periodicFileOutputTask);
+    if(scs.streamTimerTask != NULL) G_env->taskScheduler().unscheduleDelayedTask(scs.streamTimerTask);
   }
 
   Boolean shutdownImmediately = false;
@@ -447,15 +442,15 @@ void continueAfterTEARDOWN(RTSPClient* rtspClient, int exitCode, char* resultStr
       Medium::close(rtspClient);
         // Note that this will also cause this stream's "StreamClientState" structure to get reclaimed.
 
-      D("rtspClientCount is " + to_string(rtspClientCount));
-      if (--rtspClientCount == 0) {
+      D("G_rtspClientCount is " + to_string(G_rtspClientCount));
+      if (--G_rtspClientCount == 0) {
         // The final stream has ended, so exit the application now.
         // (Of course, if you're embedding this code into your own application, you might want to comment this out,
         // and replace it with "eventLoopWatchVariable = 1;", so that we leave the LIVE555 event loop, and continue running "main()".)
         //exit(exitCode);
-        *captureLoopWatchPtr = LOOP_WATCH_VAR_NOT_RUNNING;
+        *G_captureLoopWatchPtr = LOOP_WATCH_VAR_NOT_RUNNING;
       }
-      D("rtspClientCount is now " + to_string(rtspClientCount));
+      D("G_rtspClientCount is now " + to_string(G_rtspClientCount));
   } else {
       D("Unclean shutdown, assuming we want to keep capturing from this cam");
       usleep(100000); // wait 100 ms
@@ -463,7 +458,7 @@ void continueAfterTEARDOWN(RTSPClient* rtspClient, int exitCode, char* resultStr
       
       D("Creating new MultiRTSPClient");
       MultiRTSPClient* newRTSPClient = new MultiRTSPClient(
-        *env,
+        *G_env,
         ((MultiRTSPClient*)rtspClient)->origRTSPUrl.c_str(),
         LIVERTSP_CLIENT_VERBOSITY_LEVEL,
         "em-rec",
@@ -473,7 +468,7 @@ void continueAfterTEARDOWN(RTSPClient* rtspClient, int exitCode, char* resultStr
         em_data);
 
       D("Switcheroo, and close old rtspClient ...");
-      rtspClients[ ((MultiRTSPClient*)rtspClient)->camIndex ] = newRTSPClient;
+      G_rtspClients[ ((MultiRTSPClient*)rtspClient)->camIndex ] = newRTSPClient;
 
       Medium::close(rtspClient);
 
@@ -510,6 +505,6 @@ void checkInterPacketGaps(void* clientData) {
   } else {
     totNumPacketsReceived[camIndex] = newTotNumPacketsReceived;
     // Check again, after the specified delay:
-    scs.interPacketGapCheckTimerTask = env->taskScheduler().scheduleDelayedTask(LIVERTSP_INTERPACKET_GAP_TIME * 1000000, (TaskFunc*)checkInterPacketGaps, clientData);
+    scs.interPacketGapCheckTimerTask = G_env->taskScheduler().scheduleDelayedTask(LIVERTSP_INTERPACKET_GAP_TIME * 1000000, (TaskFunc*)checkInterPacketGaps, clientData);
   }
 }
