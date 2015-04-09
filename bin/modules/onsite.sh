@@ -410,7 +410,6 @@ mountusb_start() {
         
     if [ "${FOUND_USB}" = "false" ]; then
             echo "No USB devices found"
-            exit 1
     fi
 }
 

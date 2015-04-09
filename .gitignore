@@ -22,3 +22,4 @@ bin/em-rec
 src/e1000e-3.0.4.1/src/
 *.hex
 *.ko
+src/e1000e-3.0.4.1/src/e1000e.7.gz
