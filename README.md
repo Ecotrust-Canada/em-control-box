@@ -58,6 +58,6 @@ The process it takes is as follows:
  
 How to use images
 After building, or after putting an already-built image (such as the one off dropbox) into /opt/em/images, you can do
-em upgrade `/opt/em/images/em-2.2.1`
+`em upgrade /opt/em/images/em-2.2.1`
  
 And that will mount /boot, copy the image there, append to the grub.cfg file, and unmount /boot
