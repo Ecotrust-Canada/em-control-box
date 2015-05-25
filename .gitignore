@@ -3,11 +3,9 @@ src/.fanout.ko.cmd
 src/.fanout.o.cmd
 src/.tmp_versions/
 src/Module.symvers
-src/brief.pdf
 src/fanout.ko
 src/fanout.mod.c
 src/modules.order
-src/rec/brief.pdf
 *.mod.o.cmd
 node_modules
 images
