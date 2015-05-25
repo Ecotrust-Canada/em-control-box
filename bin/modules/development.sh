@@ -1,4 +1,4 @@
-NAME="buildard buildem installem resetgps2 stripnodeapp syncroot buildmodules"
+NAME="buildard buildem flashem resetgps2 stripnodeapp syncroot buildmodules"
 
 buildard_description="Builds Arduino analog data collector images"
 buildard_start() {
@@ -26,16 +26,16 @@ buildard_start() {
 	rm -rf /tmp/arduino
 }
 
-installem_description="Installs EM software on a blank OS disk"
-installem_usage="
-Usage:\t${bldwht}em installem <device> <version>\t\t${txtrst}(where <device> is the OS SSD, <version> is an EM release)\n
-\tex: em installem /dev/sdb 2.0.0"
-installem_start() {
+flashem_description="Installs EM software on a blank OS disk"
+flashem_usage="
+Usage:\t${bldwht}em flashem <device> <version>\t\t${txtrst}(where <device> is the OS SSD, <version> is an EM release)\n
+\tex: em flashem /dev/sdb 2.0.0"
+flashem_start() {
 	if [ ${#} -ne 2 ]; then
 		ls -l /dev/sd*
 		ls -l /opt/em/images/em-*
 		echo
-		echo -e ${installem_usage}
+		echo -e ${flashem_usage}
 		exit 1
 	fi
 
@@ -125,6 +125,13 @@ installem_start() {
 
 	echo -ne "	${STAR} Installing ${IMAGE} ... " &&
 	cp ${IMAGE} /mnt/install/boot/
+	echo -e ${OK}
+
+	echo -ne "	${STAR} Copying DEV system ... " &&
+	cd /mnt/install &&
+	mkdir -p dev mnt/data proc root run sys tmp &&
+	cd / &&
+	cp -a bin boot em-release etc home lib lib64 opt sbin usr /mnt/install/ &&
 	echo -e ${OK}
 
 	echo -ne "	${STAR} Installing GRUB ... " &&

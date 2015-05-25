@@ -33,7 +33,6 @@ VMS.Component.prototype.update = function (opts) {
     this.$.removeClass('ok');
     this.$.removeClass('fail');
     this.$.addClass(opts.state === 0 ? "ok" : "fail");
-
     // states that will invalidate data being shown; thus the else if
     if(opts.state) { // if there is an error state
         for(var e in VMS.stateDefinitions) {
@@ -309,6 +308,9 @@ VMS.SENSOR_CLASSES.SYS.prototype.update = function (opts, force_update) {
         } else {
             $('#data_disk_full').hide();
         }
+        // done with these. clear them so no ui error shows.
+        opts.state = opts.state - (VMS.stateDefinitions.SYS_DATA_DISK_PRESENT.flag);
+        opts.state = opts.state - (VMS.stateDefinitions.SYS_TARGET_DISK_WRITABLE.flag);
     } else {
         $('#using_os_disk h2').text(getMsg("SYS_DATA_DISK_PRESENT", false).toUpperCase());
         $('#using_os_disk').show();
