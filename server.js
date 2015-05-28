@@ -28,7 +28,8 @@ var path = require('path'),
     routes = require('./lib/routes.js'),
     server = express(),
     exec = require('child_process').exec,
-    port = 8081;
+    port = 8081,
+    videoPlayingFalseCount = 0;
 
 function fakenull(error, stdout, stderr) { }
 
@@ -37,18 +38,18 @@ function check_video_playing() {
         var data = JSON.parse(stdout);
         
         // if number of mplayer processes does not match number of cameras
-        if(routes._numCams > 0 && data.numProcs != routes._numCams) {
-            routes._videoPlaying = false;
-            return;
-        }
+        if(routes._numCams > 0 && (data.numProcs != routes._numCams || data.cpuUsage < 2)) {
+            videoPlayingFalseCount++;
 
-        // if CPU usage is less than 2
-        if(data.cpuUsage < 2) {
-            routes._videoPlaying = false;
+            if(videoPlayingFalseCount >= 4) {
+                routes._videoPlaying = false;
+            }
+
             return;
         }
 
         routes._videoPlaying = true;
+        videoPlayingFalseCount = 0;
     });    
 }
 
@@ -82,5 +83,5 @@ server.listen(port);
 exec("/usr/bin/wget -O - -q -t 1 http://127.0.0.1:8081/em/ > /dev/null", fakenull);
 console.log("INFO: Listening on port " + port);
 
-// every 10 seconds check video
-setInterval(check_video_playing, 4500);
+// every 900 msecs check video
+setInterval(check_video_playing, 800);

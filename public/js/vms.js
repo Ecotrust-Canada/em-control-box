@@ -326,7 +326,7 @@ $(function (undef) {
 
     /* setInterval should not be called on this if we don't have cameras */
     function checkVideoPlaying() {
-        /* VMS.videoPlaying is determined by em-rec; this function doesn't do any checking of its own */
+        /* VMS.videoPlaying is determined by server.js based on output of check-browser-video.sh script */
         if(VMS.UIInitialized && VMS.digiCamsHaveBooted && !VMS.videoPlaying) {
             if(skippedFirstVideoCheck) {
                 $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
