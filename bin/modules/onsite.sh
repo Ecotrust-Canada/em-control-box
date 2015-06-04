@@ -304,22 +304,25 @@ upgrade_start() {
 	mountusb_start
 
 	if [ "${FOUND_FAT_PARTITION}" = "false" ]; then
-		echo "Nothing to mount or upgrade"
-		exit 1
-	fi
+		echo "No USB drive"
+	        RELEASE=${1}
+	else
+                echo "USB drive found, mounted."
+                RELEASE=/mnt/usb/em-${1}
+        fi
 
-	RELEASE=${1}
-
+        
+        
 	if ! mountpoint -q /boot; then
 		echo -ne "	${STAR} Mounting /boot ... " && systemctl start boot.mount && echo -e ${OK}
 	fi
 
 	echo -ne "	${STAR} Installing ${RELEASE} ... " &&
-		if [ ! -f /mnt/usb/em-${RELEASE} ]; then
-			echo -e "${bldred}Image ${bldwht}/mnt/usb/em-${RELEASE}${bldred} can't be found${txtrst}"
+		if [ ! -f ${RELEASE} ]; then
+			echo -e "${bldred}Image ${RELEASE}${bldred} can't be found${txtrst}"
 			exit 1
 		fi
-		cp /mnt/usb/em-${RELEASE} /boot/
+		cp ${RELEASE} /boot/
 	echo -e ${OK}
 
 	updategrub_start
