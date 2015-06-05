@@ -308,7 +308,7 @@ upgrade_start() {
 	        RELEASE=${1}
 	else
                 echo "USB drive found, mounted."
-                RELEASE=/mnt/usb/em-${1}
+                RELEASE=/tmp/usb/em-${1}
         fi
 
         
@@ -399,8 +399,8 @@ mountusb_start() {
 				if file -s /dev/${DEV}1 | grep -q FAT; then
 					echo "${DEV}1 is a FAT partition, trying to mount"
 					umount /dev/${DEV}1 > /dev/null 2>&1
-					mkdir -p /mnt/usb
-					if mount /dev/${DEV}1 /mnt/usb; then
+					mkdir -p /tmp/usb
+					if mount /dev/${DEV}1 /tmp/usb; then
 						echo "${DEV}1 mounted"
 						FOUND_FAT_PARTITION=true
 					fi
@@ -443,7 +443,7 @@ savetousb_start() {
 		mkfs.vfat /dev/${DEV}1 > /dev/null 2>&1 &&
 		echo -e ${OK} &&
 
-		mount /dev/${DEV}1 /mnt/usb &&
+		mount /dev/${DEV}1 /tmp/usb &&
 		echo "${DEV}1 mounted"
 
 		if [ ${?} -ne 0 ]; then
@@ -452,7 +452,7 @@ savetousb_start() {
 	fi
 
 	echo -e "  ${STAR} Copying and unmounting ... " &&
-	cp -av ${1} /mnt/usb/ &&
+	cp -av ${1} /tmp/usb/ &&
 	sync &&
 	umount /dev/${DEV}1
 
@@ -461,7 +461,7 @@ savetousb_start() {
 		exit 1
 	fi
 
-	umount -f /mnt/usb > /dev/null 2>&1
+	umount -f /tmp/usb > /dev/null 2>&1
 
 	exit 0
 }
