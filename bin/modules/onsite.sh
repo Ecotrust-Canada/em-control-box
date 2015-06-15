@@ -304,22 +304,25 @@ upgrade_start() {
 	mountusb_start
 
 	if [ "${FOUND_FAT_PARTITION}" = "false" ]; then
-		echo "Nothing to mount or upgrade"
-		exit 1
-	fi
+		echo "No USB drive"
+	        RELEASE=${1}
+	else
+                echo "USB drive found, mounted."
+                RELEASE=/tmp/usb/em-${1}
+        fi
 
-	RELEASE=${1}
-
+        
+        
 	if ! mountpoint -q /boot; then
 		echo -ne "	${STAR} Mounting /boot ... " && systemctl start boot.mount && echo -e ${OK}
 	fi
 
 	echo -ne "	${STAR} Installing ${RELEASE} ... " &&
-		if [ ! -f /mnt/usb/em-${RELEASE} ]; then
-			echo -e "${bldred}Image ${bldwht}/mnt/usb/em-${RELEASE}${bldred} can't be found${txtrst}"
+		if [ ! -f ${RELEASE} ]; then
+			echo -e "${bldred}Image ${RELEASE}${bldred} can't be found${txtrst}"
 			exit 1
 		fi
-		cp /mnt/usb/em-${RELEASE} /boot/
+		cp ${RELEASE} /boot/
 	echo -e ${OK}
 
 	updategrub_start
@@ -396,8 +399,8 @@ mountusb_start() {
 				if file -s /dev/${DEV}1 | grep -q FAT; then
 					echo "${DEV}1 is a FAT partition, trying to mount"
 					umount /dev/${DEV}1 > /dev/null 2>&1
-					mkdir -p /mnt/usb
-					if mount /dev/${DEV}1 /mnt/usb; then
+					mkdir -p /tmp/usb
+					if mount /dev/${DEV}1 /tmp/usb; then
 						echo "${DEV}1 mounted"
 						FOUND_FAT_PARTITION=true
 					fi
@@ -440,7 +443,7 @@ savetousb_start() {
 		mkfs.vfat /dev/${DEV}1 > /dev/null 2>&1 &&
 		echo -e ${OK} &&
 
-		mount /dev/${DEV}1 /mnt/usb &&
+		mount /dev/${DEV}1 /tmp/usb &&
 		echo "${DEV}1 mounted"
 
 		if [ ${?} -ne 0 ]; then
@@ -449,7 +452,7 @@ savetousb_start() {
 	fi
 
 	echo -e "  ${STAR} Copying and unmounting ... " &&
-	cp -av ${1} /mnt/usb/ &&
+	cp -av ${1} /tmp/usb/ &&
 	sync &&
 	umount /dev/${DEV}1
 
@@ -458,7 +461,7 @@ savetousb_start() {
 		exit 1
 	fi
 
-	umount -f /mnt/usb > /dev/null 2>&1
+	umount -f /tmp/usb > /dev/null 2>&1
 
 	exit 0
 }
