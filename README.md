@@ -3,6 +3,36 @@ em-control-box
 
 Electronic monitoring control box for commercial fisheries.
 
+# How To Contribute
+
+On a development system, the project source code is saved in /opt/em. First get a fresh version of the code in your dev environment:
+
+```
+cd /opt/em
+git pull origin master
+```
+
+Then, make your changes. To revert a change to the original, just use `git checkout <file>`. When you're done, review them with:
+
+```
+git status
+git diff
+```
+
+When you're happy with them, add your changes and commit them.
+
+```
+git add <file1>
+git add <file2>
+...
+git commit -m "Add a description of what you did, here"
+```
+
+And then share them with the world!
+
+```
+git push origin master
+```
 
 # How Build a New Image
 
