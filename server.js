@@ -31,7 +31,10 @@ var path = require('path'),
     port = 8081,
     videoPlayingFalseCount = 0;
 
-function fakenull(error, stdout, stderr) { }
+function syscallReporter(error, stdout, stderr) {
+    if (error) console.error(error);
+    if (stderr) console.error(stderr);
+}
 
 function check_video_playing() {    
     exec("/opt/em/bin/check-browser-video.sh", function(error, stdout, stderr){
@@ -80,7 +83,62 @@ server.post('/search_rfid',         routes.searchRFID);
 server.listen(port);
 
 // warm up the cache
-exec("/usr/bin/wget -O - -q -t 1 http://127.0.0.1:8081/em/ > /dev/null", fakenull);
+exec("/usr/bin/wget -O - -q -t 1 http://127.0.0.1:8081/em/ > /dev/null", syscallReporter);
+
+var gpsd = require('node-gpsd');
+
+var listener = new gpsd.Listener({
+    port: 2947,
+    hostname: 'localhost',
+    logger:  {
+        info: function() {},
+        warn: console.warn,
+        error: console.error
+    },
+    parse: true
+});
+
+listener.connect(function() {
+    console.log('GPS Connected');
+    listener.watch();
+});
+
+
+if ( !Date.prototype.toTimeDateCtl ) {
+  ( function() {
+
+    function pad(number) {
+      var r = String(number);
+      if ( r.length === 1 ) {
+        r = '0' + r;
+      }
+      return r;
+    }
+
+    Date.prototype.toTimeDateCtl = function() {
+      return this.getFullYear()
+        + '-' + pad( this.getMonth() + 1 )
+        + '-' + pad( this.getDate() )
+        + ' ' + pad( this.getHours() )
+        + ':' + pad( this.getMinutes() )
+        + ':' + pad( this.getSeconds() )
+    };
+
+  }() );
+}
+
+var date;
+listener.on("TPV", function(data){
+    if (!date && data.time) {
+        date = new Date(data.time);
+        console.log('timedatectl set-time "' + date.toTimeDateCtl() + '"');
+        exec('timedatectl set-time "' + date.toTimeDateCtl() + '"', function(){
+            syscallReporter.apply(this,arguments);
+            exec('hwclock --systohc', syscallReporter);
+        });
+    }
+});
+ 
 console.log("INFO: Listening on port " + port);
 
 // every 900 msecs check video
