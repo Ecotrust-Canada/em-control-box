@@ -158,6 +158,7 @@
 ./etc/systemd/system/default.target.wants/serial-setup.service
 ./etc/systemd/system/default.target.wants/smartctl.timer
 ./etc/systemd/system/elog-server.service
+./etc/systemd/system/fake-hwclock.service
 ./etc/systemd/system/em-rec.service
 ./etc/systemd/system/getty.target.wants/getty@tty1.service
 ./etc/systemd/system/gpsd.service
@@ -1002,6 +1003,7 @@
 ./usr/bin/expiry
 ./usr/bin/expr
 ./usr/bin/factor
+./usr/bin/fake-hwclock
 ./usr/bin/faillog
 ./usr/bin/fallocate
 ./usr/bin/fc-cache
