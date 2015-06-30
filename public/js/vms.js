@@ -378,15 +378,11 @@ $(function (undef) {
         }
     });
 
-    $('.tab-cam').click(function () {
-        if(VMS.haveCameras) {
-            if (VMS.SYS.numCams > 1) {
-                if (zoomedCam == VMS.SYS.numCams) zoomedCam = 1;
-                else if (zoomedCam < VMS.SYS.numCams) zoomedCam++;
-
-                $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
-            }
-            
+    $('.tab-cam').click(function (e) {
+        if (VMS.haveCameras && e.target.id > 1
+) {
+            zoomedCam = e.target.id; 
+            $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
             skippedFirstVideoCheck = false;
         }
     });
