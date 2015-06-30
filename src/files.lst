@@ -498,6 +498,7 @@
 ./opt/em/bin/serial-setup.sh
 ./opt/em/lib/config.js
 ./opt/em/lib/routes.js
+./opt/em/public/areas
 ./opt/em/public/a_ferry_lanes.kml
 ./opt/em/public/a_home_ports.kml
 ./opt/em/public/westport.kml
@@ -2089,3 +2090,4 @@
 ./usr/share/zoneinfo/iso3166.tab
 ./usr/share/zoneinfo/posixrules
 ./usr/share/zoneinfo/zone.tab
+./root/.viminfo
