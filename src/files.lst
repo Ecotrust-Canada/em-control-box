@@ -498,7 +498,15 @@
 ./opt/em/bin/serial-setup.sh
 ./opt/em/lib/config.js
 ./opt/em/lib/routes.js
-./opt/em/public/areas
+./opt/em/public/areas/maine_portland.kml
+./opt/em/public/areas/GM.area
+./opt/em/public/areas/A.area
+./opt/em/public/areas/a_home_ports.kml
+./opt/em/public/areas/a_ferry_lanes.kml
+./opt/em/public/areas/QIN.area
+./opt/em/public/areas/westport.kml
+./opt/em/public/areas/vancouver.kml
+./opt/em/public/areas/seabrook-gloucester.kml
 ./opt/em/public/a_ferry_lanes.kml
 ./opt/em/public/a_home_ports.kml
 ./opt/em/public/westport.kml

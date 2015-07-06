@@ -190,7 +190,7 @@ buildem_start() {
 		exit 1
 	fi
 
-    mozplugger-update
+        mozplugger-update
 
 	echo -ne "	${STAR} Building em-rec ... " &&
 	cd /opt/em/src/rec && make clean
@@ -200,6 +200,8 @@ buildem_start() {
 	buildard_start
 
 	echo -ne "	${STAR} Preparing image root at ${DEST} ... " &&
+        rm -f /usr/src/linux-${KERNEL_VERSION}/arch/x86/boot/bzImage
+
 	rm -rf ${DEST} && mkdir -p ${DEST}
 	cd ${DEST}
 	echo -n ${VER} > ${DEST}/em-release
@@ -232,7 +234,7 @@ buildem_start() {
 	echo -e ${OK}
 
 	echo -e "	${STAR} Building Linux kernel, modules, and updating ${DEST} ... " && 
-	cp /opt/em/src/config-${VER}-stage1 /usr/src/linux-${KERNEL_VERSION}/.config
+	cp /opt/em/src/config-stage1 /usr/src/linux-${KERNEL_VERSION}/.config
 	rm -f /usr/src/linux && ln -s /usr/src/linux-${KERNEL_VERSION} /usr/src/linux
 	cd /usr/src/linux-${KERNEL_VERSION}
 	rm -f usr/initramfs_data.cpio*
@@ -259,7 +261,7 @@ buildem_start() {
 	echo -e ${OK}
 
 	echo -e "	${STAR} Rebuilding Linux kernel w/ initramfs from ${DEST} ... " &&
-	cp /opt/em/src/config-${VER}-stage2 /usr/src/linux-${KERNEL_VERSION}/.config
+	cp /opt/em/src/config-stage2 /usr/src/linux-${KERNEL_VERSION}/.config
 	cd /usr/src/linux-${KERNEL_VERSION}
 	rm -f usr/initramfs_data.cpio*
 	make -j2 bzImage > /dev/null
