@@ -379,7 +379,7 @@ $(function (undef) {
     });
 
     $('.tab-cam').click(function (e) {
-        if (VMS.haveCameras && e.target.id > 1
+        if (VMS.haveCameras
 ) {
             zoomedCam = e.target.id; 
             $('.tab-cam .cameras').replaceWith(getCameraEmbeds());

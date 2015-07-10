@@ -154,9 +154,9 @@ format_start() {
 			TOKENS=(${DEV})
 			#if [ "${TOKENS[0]}" == "sda" ]; then continue; fi
 
-			if [ "${TOKENS[1]}" -ge 80000000000 ]; then
+			if [ "${TOKENS[1]}" -ge 150000000000 ]; then
 				DEVICE=${TOKENS[0]}
-				echo -e "${txtgrn}Found a block device >=80 GB with model ${TOKENS[@]:2} at /dev/${DEVICE}${txtrst}"
+				echo -e "${txtgrn}Found a block device >=150 GB with model ${TOKENS[@]:2} at /dev/${DEVICE}${txtrst}"
 
 				break
 			fi

@@ -2098,4 +2098,5 @@
 ./usr/share/zoneinfo/iso3166.tab
 ./usr/share/zoneinfo/posixrules
 ./usr/share/zoneinfo/zone.tab
-./root/.viminfo
+./root/.vimrc
+./root/.bash_profile
