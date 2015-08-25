@@ -374,11 +374,11 @@ resetelog_start() {
         rm /var/elog/elog.db/catch.json*
         rm /var/elog/elog.db/effort.json*
         rm /var/elog/elog.db/landing.json*
-        rm /var/elog/elog.db/effort.json*
-        rm /var/elog/elog.db/usergear.json*
         rm /var/elog/elog.db/user.json*
         rm /var/elog/elog.db/trip.json*
         rm /var/elog/elog.db/gearpreset.json*
+        rm /var/elog/elog.db/session.json*
+        rm /var/elog/elog.db/package.json*
         systemctl restart elog-server.service
 }
 
