@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://earth.google.com/kml/2.1">
+ <Document>
+  <name>port clyde</name>
+  <description>home port</description>
+  <Style id="style1">
+   <LineStyle>
+    <color>990000ff</color>
+    <width>4</width>
+   </LineStyle>
+   <PolyStyle>
+    <color>330000ff</color>
+   </PolyStyle>
+  </Style>
+  <Placemark>
+   <name>port clyde</name>
+   <description>home port</description>
+   <styleUrl>#style1</styleUrl>
+   <Polygon>
+    <altitudeMode>relative</altitudeMode>
+    <LinearRing>
+     <coordinates>
+-69.2548,43.9334
+-69.2546,43.9179
+-69.2702,43.9184
+-69.2685,43.9343
+-69.2548,43.9334
+    </coordinates>
+    </LinearRing>
+   </Polygon>
+  </Placemark>
+ </Document>
+</kml>
