@@ -152,18 +152,20 @@ int main(int argc, char *argv[]) {
         G_IGNORED_STATES = G_IGNORED_STATES | RFID_NO_CONNECTION;
         cout << "deprecation warning: please use rfid=no and video=digital instead of specifying fishing_area=GM.\n";
     } else if(G_EM_DATA.SYS_fishingArea == "QIN") {
-        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS);
+        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
         cout << "deprecation warning: please use rfid=yes and video=digital instead of specifying fishing_area=QIN.\n";
     } else {
 
         //smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
-        sm_options &= OPTIONS_USING_AD | OPTIONS_USING_GPS;
+        sm_options = sm_options | OPTIONS_USING_AD | OPTIONS_USING_GPS;
 
         if (G_EM_DATA.SYS_RFID == "yes") {
             sm_options = sm_options | OPTIONS_USING_RFID;
         } else {
             G_IGNORED_STATES = G_IGNORED_STATES | RFID_NO_CONNECTION;
         }
+        O("video type:")
+        O(G_EM_DATA.SYS_videoType);
         if (G_EM_DATA.SYS_videoType == "analog") {
             sm_options = sm_options | OPTIONS_USING_ANALOG_CAMERAS;
         } else if (G_EM_DATA.SYS_videoType == "digital") {
