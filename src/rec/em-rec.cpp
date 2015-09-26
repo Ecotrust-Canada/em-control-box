@@ -98,6 +98,8 @@ int main(int argc, char *argv[]) {
     if (readConfigFile(FN_CONFIG)) exit(-1);
 
     G_EM_DATA.SYS_fishingArea = getConfig("fishing_area", DEFAULT_fishing_area);
+    G_EM_DATA.SYS_RFID = getConfig("rfid", DEFAULT_rfid);
+    G_EM_DATA.SYS_videoType = getConfig("video_type", DEFAULT_video_type);
     G_CONFIG.vessel = getConfig("vessel", DEFAULT_vessel);
     G_CONFIG.vrn = getConfig("vrn", DEFAULT_vrn);
     G_CONFIG.arduino_type = getConfig("arduino", DEFAULT_arduino);
@@ -129,6 +131,7 @@ int main(int argc, char *argv[]) {
     int retVal;
     char buf[256], date[24] = { '\0' };
     unsigned long allStates = 0;
+    unsigned long sm_options = 0x00000000;
     string TRACK_lastHash;
     string SCAN_lastHash;
     string targetDisk;
@@ -139,18 +142,37 @@ int main(int argc, char *argv[]) {
     cout << setprecision(numeric_limits<double>::digits10 + 1);
     cerr << setprecision(numeric_limits<double>::digits10 + 1);
 
-    // should be user-configurable in the future
+    // deprecated.
     if(G_EM_DATA.SYS_fishingArea == "A") {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_GPRMC_ONLY_HACK | OPTIONS_USING_ANALOG_CAMERAS);
         G_EM_DATA.SYS_numCams = 1; // forced, until we support more than two cams
+        cout << "deprecation warning: please use rfid=yes and video=analog instead of specifying fishing_area=A.\n";
     } else if(G_EM_DATA.SYS_fishingArea == "GM") {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
         G_IGNORED_STATES = G_IGNORED_STATES | RFID_NO_CONNECTION;
+        cout << "deprecation warning: please use rfid=no and video=digital instead of specifying fishing_area=GM.\n";
     } else if(G_EM_DATA.SYS_fishingArea == "QIN") {
         smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS);
+        cout << "deprecation warning: please use rfid=yes and video=digital instead of specifying fishing_area=QIN.\n";
     } else {
-        smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
+
+        //smOptions.SetState(OPTIONS_USING_AD | OPTIONS_USING_RFID | OPTIONS_USING_GPS | OPTIONS_USING_DIGITAL_CAMERAS);
+        sm_options &= OPTIONS_USING_AD | OPTIONS_USING_GPS;
+
+        if (G_EM_DATA.SYS_RFID == "yes") {
+            sm_options = sm_options | OPTIONS_USING_RFID;
+        } else {
+            G_IGNORED_STATES = G_IGNORED_STATES | RFID_NO_CONNECTION;
+        }
+        if (G_EM_DATA.SYS_videoType == "analog") {
+            sm_options = sm_options | OPTIONS_USING_ANALOG_CAMERAS;
+        } else if (G_EM_DATA.SYS_videoType == "digital") {
+            sm_options = sm_options | OPTIONS_USING_DIGITAL_CAMERAS;
+        }
+
+        smOptions.SetState(sm_options);
     }
+
 
     // get FS stats of PARENT of root of data disk, meaning the OS disk
     stat((G_CONFIG.DATA_DISK + "/../").c_str(), &G_parent_st);
