@@ -164,7 +164,6 @@ format_start() {
 			if [ "${TOKENS[1]}" -ge 150000000000 ]; then
 				DEVICE=${TOKENS[0]}
 				echo -e "${txtgrn}Found a block device >=150 GB with model ${TOKENS[@]:2} at /dev/${DEVICE}${txtrst}"
-
 				break
 			fi
 		done < <(lsblk -bdnro NAME,SIZE,MODEL)
@@ -381,11 +380,11 @@ resetelog_start() {
         rm /var/elog/elog.db/catch.json*
         rm /var/elog/elog.db/effort.json*
         rm /var/elog/elog.db/landing.json*
-        rm /var/elog/elog.db/effort.json*
-        rm /var/elog/elog.db/usergear.json*
         rm /var/elog/elog.db/user.json*
         rm /var/elog/elog.db/trip.json*
         rm /var/elog/elog.db/gearpreset.json*
+        rm /var/elog/elog.db/session.json*
+        rm /var/elog/elog.db/package.json*
         systemctl restart elog-server.service
 }
 

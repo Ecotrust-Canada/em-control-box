@@ -80,6 +80,8 @@ typedef struct {
 	string SYS_targetDisk;
 	string SYS_dataDiskLabel;
 	string SYS_fishingArea;
+	string SYS_RFID;
+	string SYS_videoType;
 	unsigned short SYS_numCams;
 	string SYS_uptime;
 	string SYS_load;

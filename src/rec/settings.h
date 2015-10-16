@@ -45,14 +45,16 @@
 #define DIGITAL_OUTPUT_FPS_SLOW     1
 
 #define DEFAULT_fishing_area		"A"
-#define DEFAULT_vessel 				"NOT_CONFIGURED"
-#define DEFAULT_vrn					"00000"
-#define DEFAULT_arduino 			"5V"
-#define DEFAULT_psi_vmin			"0.95"
+#define DEFAULT_rfid          "yes"
+#define DEFAULT_video         "digital"
+#define DEFAULT_vessel        "NOT_CONFIGURED"
+#define DEFAULT_vrn         "00000"
+#define DEFAULT_arduino       "5V"
+#define DEFAULT_psi_vmin      "0.95"
 #define DEFAULT_psi_low_threshold   "50"
 #define DEFAULT_psi_high_threshold  "650"
 #define DEFAULT_fps_low_delay       "120"
-#define DEFAULT_cam 				"1"
+#define DEFAULT_cam         "1"
 
 #define DEFAULT_EM_DIR				"/var/em"
 #define DEFAULT_OS_DISK				"/var/em/data"
