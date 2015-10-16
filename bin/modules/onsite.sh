@@ -1,9 +1,16 @@
-NAME="clear flashard format monitor play resetgps start stop upgrade updategrub fixethernet resetelog mountusb savetousb screenres"
+NAME="clear flashard format monitor play resetgps start stop upgrade updategrub fixethernet resetelog mountusb savetousb screenres kill"
 
 stop_description="Stops all EM services"
 stop_start() {
 	echo -ne "      ${STAR} Stopping all EM services ... " &&
 	/bin/systemctl stop copy-to-data-disk.timer smartctl.timer sensors.timer startx.service web-server.service elog-server.service em-rec.service capture-bttv.service gpsd.service
+	echo -e ${OK}
+}
+
+kill_description="Forcibly stops all EM services"
+kill_start() {
+	echo -ne "      ${STAR} Stopping all EM services ... " &&
+	/bin/systemctl kill copy-to-data-disk.timer smartctl.timer sensors.timer startx.service web-server.service elog-server.service em-rec.service capture-bttv.service gpsd.service
 	echo -e ${OK}
 }
 
