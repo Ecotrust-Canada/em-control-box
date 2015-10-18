@@ -422,7 +422,7 @@ void *thr_auxiliaryLoop(void *arg) {
             D(intToString(G_CONFIG.psi_low_threshold) + " < " + intToString(last_psi) + " < " + intToString(G_CONFIG.psi_high_threshold) )
             
             // should check if we are even using the AD
-            if(last_psi >= G_CONFIG.psi_high_threshold //||
+            if(last_psi >= G_CONFIG.psi_high_threshold ||
                 iADSensor.GetState() & AD_NO_CONNECTION ||
                 iADSensor.GetState() & AD_NO_DATA ||
                 iADSensor.GetState() & AD_PSI_LOW_OR_ZERO
