@@ -31,6 +31,8 @@ std::string intToString(int);
 #define W(s) msgOut(moduleName, string("") + s, OUTPUT_WARN);
 #define E(s) msgOut(moduleName, string("") + s, OUTPUT_ERROR);
 
+//define DEBUG 1
+
 #ifdef DEBUG
     #define D(s) msgOut(moduleName, string("") + s, OUTPUT_DEBUG);
     #define OVERRIDE_SILENCE        true

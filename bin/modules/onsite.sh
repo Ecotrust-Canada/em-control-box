@@ -9,7 +9,7 @@ stop_start() {
 
 kill_description="Forcibly stops all EM services"
 kill_start() {
-	echo -ne "      ${STAR} Stopping all EM services ... " &&
+	echo -ne "      ${STAR} Killing all EM services ... " &&
 	/bin/systemctl kill copy-to-data-disk.timer smartctl.timer sensors.timer startx.service web-server.service elog-server.service em-rec.service capture-bttv.service gpsd.service
 	echo -e ${OK}
 }

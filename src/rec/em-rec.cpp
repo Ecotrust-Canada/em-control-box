@@ -416,12 +416,15 @@ void *thr_auxiliaryLoop(void *arg) {
             pthread_mutex_lock(&G_EM_DATA.mtx);
                 last_psi = G_EM_DATA.AD_psi;
             pthread_mutex_unlock(&G_EM_DATA.mtx);
-
+            
+            D(intToString(G_CONFIG.psi_low_threshold) + " < " + intToString(last_psi) + " < " + intToString(G_CONFIG.psi_high_threshold) )
+            
             // should check if we are even using the AD
-            if(last_psi >= G_CONFIG.psi_high_threshold ||
+            if(last_psi >= G_CONFIG.psi_high_threshold //||
                 iADSensor.GetState() & AD_NO_CONNECTION ||
                 iADSensor.GetState() & AD_NO_DATA ||
-                iADSensor.GetState() & AD_PSI_LOW_OR_ZERO) {
+                iADSensor.GetState() & AD_PSI_LOW_OR_ZERO
+                  ) {
                 smSystem.UnsetState(SYS_REDUCED_VIDEO_BITRATE);
                 D("Unset SYS_REDUCED_VIDEO_BITRATE");
             } else if(last_psi < G_CONFIG.psi_low_threshold) {
@@ -455,7 +458,7 @@ void *thr_auxiliaryLoop(void *arg) {
                     execle("/usr/bin/scrot", "scrot", "-q5", (targetDisk + "/screenshots/%Y%m%d-%H%M%S.jpg").c_str(), NULL, scrot_envp);
                 } else if(pid_scrot > 0) {
                     waitpid(pid_scrot, NULL, 0);
-                    //smTakeScreenshot.UnsetAllStates();
+                    smTakeScreenshot.UnsetAllStates();
                     D("Took screenshot");
                 } else {
                     E("/usr/bin/scrot fork() failed");

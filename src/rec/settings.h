@@ -18,14 +18,14 @@
 #define SCREENSHOT_STATE_DELAY      120     // screenshot state has to be around continuously for this many seconds before it is exposed
 #define DISK_USAGE_SAMPLES          12
 #define MAX_CLIP_LENGTH             1800    // force new movie file every x seconds
-//#define MAX_CLIP_LENGTH             20    // force new movie file every x seconds
+//#define MAX_CLIP_LENGTH             20    // short clips for debugging. TODO: make this a runtime config.
 
 #define FFMPEG_BINARY               "/usr/bin/ffmpeg"
 #define FFMPEG_MAX_ARGS             48
 #define FFMPEG_ARGS_LINE            "-loglevel warning -y -an -f rawvideo -c:v rawvideo -s %s -r %s -i %s -an -c:v libx264 -profile:v high -movflags faststart -threads 2 -level 42 -vf fps=%s -x264opts %s -maxrate %s -bufsize %s -t" // -t HAS to be the last parameter
 
 #define ANALOG_MAX_CAMS             4
-#define ANALOG_INPUT_RESOLUTION     "640x480"
+#define ANALOG_INPUT_RESOLUTION     "640x480" // TODO: make this a runtime config.
 #define ANALOG_INPUT_FPS            "30000/1001" // 29.97
 #define ANALOG_INPUT_DEVICE         "/dev/cam0"
 #define ANALOG_OUTPUT_FPS_NORMAL    "30000/3003" // 1/3 of 29.97 (~10)
@@ -39,20 +39,20 @@
 #define DIGITAL_HTTP_API_COMMAND    "/usr/bin/wget -q -O - \"$@\" \"%s\""
 #define DIGITAL_HTTP_API_URL        "http://1.1.1.%d/cgi-bin/encoder?USER=Admin&PWD=123456%s"
 #define DIGITAL_HTTP_API_FPS        "&VIDEO_FPS_NUM="
-#define DIGITAL_OUTPUT_WIDTH        1280
-#define DIGITAL_OUTPUT_HEIGHT       720
-#define DIGITAL_OUTPUT_FPS_NORMAL   15   // On Acti cameras, choices are 1, 3, 5, 10, 15, 30
-#define DIGITAL_OUTPUT_FPS_SLOW     1
+#define DIGITAL_OUTPUT_WIDTH        640 //1280
+#define DIGITAL_OUTPUT_HEIGHT       480 //720
+#define DIGITAL_OUTPUT_FPS_NORMAL   5   // On Acti cameras, choices are 1, 3, 5, 10, 15, 30
+#define DIGITAL_OUTPUT_FPS_SLOW     5
 
-#define DEFAULT_fishing_area		"A"
+#define DEFAULT_fishing_area		""
 #define DEFAULT_rfid          "yes"
-#define DEFAULT_video         "digital"
+#define DEFAULT_video_type         "digital"
 #define DEFAULT_vessel        "NOT_CONFIGURED"
 #define DEFAULT_vrn         "00000"
 #define DEFAULT_arduino       "5V"
 #define DEFAULT_psi_vmin      "0.95"
 #define DEFAULT_psi_low_threshold   "50"
-#define DEFAULT_psi_high_threshold  "650"
+#define DEFAULT_psi_high_threshold  "100"
 #define DEFAULT_fps_low_delay       "120"
 #define DEFAULT_cam         "1"
 
