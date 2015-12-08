@@ -159,6 +159,7 @@
 ./etc/systemd/system/default.target.wants/smartctl.timer
 ./etc/systemd/system/elog-server.service
 ./etc/systemd/system/fake-hwclock.service
+./etc/systemd/system/fake-hwclock.timer
 ./etc/systemd/system/em-rec.service
 ./etc/systemd/system/getty.target.wants/getty@tty1.service
 ./etc/systemd/system/gpsd.service
