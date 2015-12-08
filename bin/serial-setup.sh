@@ -5,6 +5,9 @@ eval "`/opt/em/bin/em-rec --dump-config`"
 
 chmod +x /tmp/user/.mozilla/plugins/mozplugger0.so
 
+# load last good time.
+fake-hwclock load
+
 /usr/bin/setserial -z ${RFID_DEV} low_latency
 /usr/bin/setserial -z ${GPS_DEV} low_latency
 
