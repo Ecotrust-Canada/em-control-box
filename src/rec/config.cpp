@@ -36,7 +36,7 @@ using namespace std;
 extern bool G_ARG_DUMP_CONFIG;
 
 char NOTFOUND[] = "\0"; ///< The value returned by the getter function when the required configuration is found.
-char config[32][2][255]; ///< Hold all the configurations.
+char config[35][2][255]; ///< Hold all the configurations.
 int config_length = 0;
 const string moduleName = "CONF";
 

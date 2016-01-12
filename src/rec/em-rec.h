@@ -82,6 +82,9 @@ typedef struct {
 	string SYS_fishingArea;
 	string SYS_RFID;
 	string SYS_videoType;
+        string SYS_video_resolution;
+	unsigned short SYS_video_fps_normal;
+	unsigned short SYS_video_fps_slow;
 	unsigned short SYS_numCams;
 	string SYS_uptime;
 	string SYS_load;

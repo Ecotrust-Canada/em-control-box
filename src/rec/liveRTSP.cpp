@@ -140,7 +140,10 @@ void createOutputFiles(RTSPClient *rtspClient, char const *datePrefix) {
   StreamClientState& scs = ((MultiRTSPClient*)rtspClient)->scs; // alias
   EM_DATA_TYPE *em_data = ((MultiRTSPClient*)rtspClient)->em_data;
   unsigned short camIndex = ((MultiRTSPClient*)rtspClient)->camIndex;
+
   char fileName[128];
+  unsigned short output_width, output_height;
+  sscanf ((em_data->SYS_video_resolution).c_str(), "%hux%hu", &output_width, &output_height);
 
   pthread_mutex_lock(&(em_data->mtx));
     snprintf(fileName, sizeof(fileName), "%s/%s-cam%d.mp4", (em_data->SYS_targetDisk + ((MultiRTSPClient*)rtspClient)->videoDirectory).c_str(), datePrefix, camIndex + 1);
@@ -150,8 +153,8 @@ void createOutputFiles(RTSPClient *rtspClient, char const *datePrefix) {
     //(string(fileName) + ".current").c_str(),
     fileName,
     SOCKET_FILE_BUFFER_SIZE,
-    DIGITAL_OUTPUT_WIDTH,
-    DIGITAL_OUTPUT_HEIGHT,
+    output_width,     //DIGITAL_OUTPUT_WIDTH,
+    output_height,    //DIGITAL_OUTPUT_HEIGHT,
     ((MultiRTSPClient*)rtspClient)->frameRate, /*movieframeRate*/
     false, /*packetLossCompensate*/
     false, /*syncStreams*/
@@ -177,9 +180,9 @@ void createPeriodicOutputFiles(RTSPClient* rtspClient) {
 
   if(__SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
     if(__SYS_GET_STATE & SYS_REDUCED_VIDEO_BITRATE) {
-      frameRate = DIGITAL_OUTPUT_FPS_SLOW;
+      frameRate = em_data->SYS_video_fps_slow;     //DIGITAL_OUTPUT_FPS_SLOW;
     } else {
-      frameRate = DIGITAL_OUTPUT_FPS_NORMAL;
+      frameRate = em_data->SYS_video_fps_normal;   //DIGITAL_OUTPUT_FPS_NORMAL;
     }
     // change FPS if needed
     if(((MultiRTSPClient*)rtspClient)->frameRate != frameRate) {

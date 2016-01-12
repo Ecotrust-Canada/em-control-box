@@ -94,19 +94,24 @@ int main(int argc, char *argv[]) {
             //else if(strcmp(argv[i], "") == 0) { }
         }
     }
+    char digital_output_resolution[12];
+    snprintf(digital_output_resolution, sizeof(digital_output_resolution), "%dx%d", DIGITAL_OUTPUT_WIDTH, DIGITAL_OUTPUT_HEIGHT);
     
     if (readConfigFile(FN_CONFIG)) exit(-1);
 
     G_EM_DATA.SYS_fishingArea = getConfig("fishing_area", DEFAULT_fishing_area);
     G_EM_DATA.SYS_RFID = getConfig("rfid", DEFAULT_rfid);
     G_EM_DATA.SYS_videoType = getConfig("video_type", DEFAULT_video_type);
+    G_EM_DATA.SYS_video_resolution = getConfig("video_resolution", digital_output_resolution);
+    G_EM_DATA.SYS_video_fps_normal = atoi(getConfig("video_fps_normal", DIGITAL_OUTPUT_FPS_NORMAL).c_str());
+    G_EM_DATA.SYS_video_fps_slow   = atoi(getConfig("video_fps_slow", DIGITAL_OUTPUT_FPS_SLOW).c_str());
     G_CONFIG.vessel = getConfig("vessel", DEFAULT_vessel);
     G_CONFIG.vrn = getConfig("vrn", DEFAULT_vrn);
     G_CONFIG.arduino_type = getConfig("arduino", DEFAULT_arduino);
     G_CONFIG.psi_vmin = getConfig("psi_vmin", DEFAULT_psi_vmin);
-    G_CONFIG.psi_low_threshold = atoi(getConfig("psi_low_threshold", DEFAULT_psi_low_threshold).c_str());
     G_CONFIG.psi_high_threshold = atoi(getConfig("psi_high_threshold", DEFAULT_psi_high_threshold).c_str());
     G_CONFIG.fps_low_delay = atoi(getConfig("fps_low_delay", DEFAULT_fps_low_delay).c_str());
+    G_CONFIG.psi_low_threshold = atoi(getConfig("psi_low_threshold", DEFAULT_psi_low_threshold).c_str());
     G_EM_DATA.SYS_numCams = atoi(getConfig("cam", DEFAULT_cam).c_str());
     G_CONFIG.EM_DIR = getConfig("EM_DIR", DEFAULT_EM_DIR);
     G_CONFIG.OS_DISK = getConfig("OS_DISK", DEFAULT_OS_DISK);

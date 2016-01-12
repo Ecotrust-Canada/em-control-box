@@ -41,14 +41,14 @@
 #define DIGITAL_HTTP_API_FPS        "&VIDEO_FPS_NUM="
 #define DIGITAL_OUTPUT_WIDTH        640 //1280
 #define DIGITAL_OUTPUT_HEIGHT       480 //720
-#define DIGITAL_OUTPUT_FPS_NORMAL   5   // On Acti cameras, choices are 1, 3, 5, 10, 15, 30
-#define DIGITAL_OUTPUT_FPS_SLOW     5
+#define DIGITAL_OUTPUT_FPS_NORMAL   "5"   // On Acti cameras, choices are 1, 3, 5, 10, 15, 30
+#define DIGITAL_OUTPUT_FPS_SLOW     "5"
 
 #define DEFAULT_fishing_area		""
-#define DEFAULT_rfid          "yes"
-#define DEFAULT_video_type         "digital"
-#define DEFAULT_vessel        "NOT_CONFIGURED"
-#define DEFAULT_vrn         "00000"
+#define DEFAULT_rfid              "yes"
+#define DEFAULT_video_type        "digital"
+#define DEFAULT_vessel            "NOT_CONFIGURED"
+#define DEFAULT_vrn               "00000"
 #define DEFAULT_arduino       "5V"
 #define DEFAULT_psi_vmin      "0.95"
 #define DEFAULT_psi_low_threshold   "50"
