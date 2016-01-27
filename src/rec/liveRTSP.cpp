@@ -144,6 +144,7 @@ void createOutputFiles(RTSPClient *rtspClient, char const *datePrefix) {
   char fileName[128];
   unsigned short output_width, output_height;
   sscanf ((em_data->SYS_video_resolution).c_str(), "%hux%hu", &output_width, &output_height);
+  I("createOutputFiles:   output_width= " + to_string(output_width) + ", output_height= " + to_string(output_height) );
 
   pthread_mutex_lock(&(em_data->mtx));
     snprintf(fileName, sizeof(fileName), "%s/%s-cam%d.mp4", (em_data->SYS_targetDisk + ((MultiRTSPClient*)rtspClient)->videoDirectory).c_str(), datePrefix, camIndex + 1);

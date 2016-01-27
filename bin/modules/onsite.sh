@@ -1,4 +1,4 @@
-NAME="clear flashard format monitor play resetgps start stop upgrade updategrub fixethernet resetelog mountusb savetousb screenres kill"
+NAME="clear flashard format monitor play resetgps start stop upgrade updategrub fixethernet resetelog mountusb savetousb screenres kill resetcam"
 
 stop_description="Stops all EM services"
 stop_start() {
@@ -494,4 +494,31 @@ screenres_start() {
 	fi
 
 	echo -e "\nSwitch back to the UI (usually CTRL+ALT+F2), then hit CTRL+ALT+BACKSPACE to restart the graphics system"
+}
+
+
+resetcam_description="Sets camera output resolution to value specified in config file"
+resetcam_usage="
+Usage:\t${bldwht}em resetcam${txtrst}
+\tex: em resetcam
+"
+resetcam_start() {
+
+	# Applies settings to digital camera.
+        echo "sending config to $cam cameras."
+        for index in $(seq 1 $cam)
+	do
+		base_url=http://1.1.1.$index/cgi-bin
+		auth_url=?USER=Admin\&PWD=123456\&
+		encoder_url=${base_url}/encoder${auth_url}
+		system_url=${base_url}/system${auth_url}
+		channel_url=${encoder_url}CHANNEL=1\&
+                echo "configuring camera $index to res:$video_resolution framerate:$video_fps_slow"
+		wget -q -O - "$@" "${system_url}RTSP_AUTHEN=1\&RTP_B2=2"
+		wget -q -O - "$@" "${channel_url}VIDEO_RESOLUTION=N$video_resolution"
+		wget -q -O - "$@" "${channel_url}VIDEO_FPS_NUM=$video_fps_slow"
+		wget -q -O - "$@" "${channel_url}H264_PROFILE=HIGH"
+		wget -q -O - "$@" "${channel_url}VIDEO_H264_QUALITY=HIGH"
+	done;
+
 }
