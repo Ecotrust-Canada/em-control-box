@@ -604,6 +604,7 @@
 ./opt/xorg/lib/libSM.so.6.0.1
 ./opt/xorg/lib/libX11-xcb.so.1.0.0
 ./opt/xorg/lib/libX11.so.6.3.0
+./opt/xorg/lib/libX11.so.6
 ./opt/xorg/lib/libXau.so.6.0.0
 ./opt/xorg/lib/libXcomposite.so.1.0.0
 ./opt/xorg/lib/libXcursor.so.1.0.2
