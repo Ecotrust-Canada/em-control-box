@@ -28,7 +28,9 @@
 #define ANALOG_INPUT_RESOLUTION     "640x480" // TODO: make this a runtime config.
 #define ANALOG_INPUT_FPS            "30000/1001" // 29.97
 #define ANALOG_INPUT_DEVICE         "/dev/cam0"
-#define ANALOG_OUTPUT_FPS_NORMAL    "30000/3003" // 1/3 of 29.97 (~10)
+// #define ANALOG_OUTPUT_FPS_NORMAL    "30000/3003" // 1/3 of 29.97 (~10)
+// #define ANALOG_OUTPUT_FPS_SLOW      "30000/15015" // 1/15 of 29.97 (~2)
+#define ANALOG_OUTPUT_FPS_NORMAL    "30000/15015" // 1/3 of 29.97 (~10)
 #define ANALOG_OUTPUT_FPS_SLOW      "30000/15015" // 1/15 of 29.97 (~2)
 #define ANALOG_H264_OPTS            "crf=24:subq=2:weightp=2:keyint=60:frameref=1:rc-lookahead=10:trellis=0:me=hex:merange=8"
 #define ANALOG_MAX_RATE             "1200000"
