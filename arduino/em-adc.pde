@@ -4,11 +4,13 @@
 
 #define HORN_PIN1 11 // original
 #define HORN_PIN2 10 // maine first year prototypes
+#define AMP_CONTROL_PIN 12 // maine first year prototypes
 
 #define ANALOG_SAMPLES 15
 #define SAMPLE_DELAY 700
 #define MAX_DUR 5000
 #define MAX_FRQ 6000
+#define AMP_MUTE_DELAY 100
 
 int i, drval, fqval, ch, bufcnt, state = 0;
 char drbuf[20];
@@ -29,12 +31,14 @@ void setup() {
 
   pinMode(HORN_PIN1, OUTPUT);
   pinMode(HORN_PIN2, OUTPUT);
+  pinMode(AMP_CONTROL_PIN, OUTPUT);
 
   digitalWrite(PSI_PIN, LOW);
   digitalWrite(BAT_PIN, LOW);
   digitalWrite(AUX_PIN, LOW);
   digitalWrite(HORN_PIN1, LOW);
   digitalWrite(HORN_PIN2, LOW);
+  digitalWrite(AMP_CONTROL_PIN, LOW);
   delay(1000);
 }
 
@@ -125,9 +129,15 @@ void loop() {
       Serial.print(" ");
       Serial.println(drval);
 
+      // unmute speaker
+      digitalWrite(AMP_CONTROL_PIN, HIGH);
+      delay(AMP_MUTE_DELAY);
       // play some music
       tone(HORN_PIN1, fqval, drval); // what the signal should look like: FFF1000DDD200EEE
       tone(HORN_PIN2, fqval, drval);
+      // wait until horn is done sounding, then turn off amp
+      delay(drval);
+      digitalWrite(AMP_CONTROL_PIN, LOW);
     } else { // main data
       if(state == 1) {
         fqbuf[bufcnt] = ch; 
