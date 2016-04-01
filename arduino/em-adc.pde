@@ -4,13 +4,13 @@
 
 #define HORN_PIN1 11 // original
 #define HORN_PIN2 10 // maine first year prototypes
-#define AMP_CONTROL_PIN 12 // maine first year prototypes
+#define AMP_CONTROL_PIN 12 // signal to turn amp on and off
 
 #define ANALOG_SAMPLES 15
 #define SAMPLE_DELAY 700
 #define MAX_DUR 5000
 #define MAX_FRQ 6000
-#define AMP_MUTE_DELAY 100
+#define AMP_MUTE_DELAY 100 // delay before amp will work after setting control pin
 
 int i, drval, fqval, ch, bufcnt, state = 0;
 char drbuf[20];
