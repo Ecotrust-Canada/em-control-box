@@ -79,6 +79,7 @@ server.post('/report',              routes.report);
 server.post('/reset_trip',          routes.resetTrip);
 server.post('/reset_string',        routes.resetString);
 server.post('/search_rfid',         routes.searchRFID);
+server.post('/presystem_check',     routes.presystemCheck);
 
 server.listen(port);
 

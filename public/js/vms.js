@@ -346,11 +346,13 @@ $(function (undef) {
             $('#sensors').hide();
             $('#night-mode').hide();
             //$('#reload-video').hide();
-        } else if($(e.target).text() == "Search") {
+        } else if($(e.target).text() == "Search" || $(e.target).text() == "Pre-System Check") {
             $('#sensors').show();
             $('#night-mode').show();
             $('#system-info').hide();
             $('#system-info-button').show();
+            $('button.submit_presystem_check').show();
+            $('#presystem_check_response').hide();
 
             if(!isSet("OPTIONS_USING_RFID")) {
                 $('.tab-search').hide();
@@ -422,6 +424,14 @@ $(function (undef) {
             } else {
                 alert("Failed to save report.");
             }
+        });
+    });
+
+    $('button.submit_presystem_check').click(function () {
+        $.post("/presystem_check", {}, function (rsp) {
+        $('#presystem_check_response').text(rsp.message);
+          $('button.submit_presystem_check').hide();
+          $('#presystem_check_response').show();
         });
     });
 

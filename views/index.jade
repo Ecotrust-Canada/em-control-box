@@ -5,6 +5,7 @@ block content
     ul
       li.active Cams
       li Report
+      li Pre-System Check
       li Search
       li ELog
       
@@ -122,6 +123,16 @@ block content
           textarea(name='description', cols='65', rows='8')
 
       button.submit_report Submit Report
+
+    .tab-body.tab-presystem-check
+      ul
+       li The video is clear
+       li GPS is green 
+       li PSI is green 
+       li RFID scanner is working
+      button.submit_presystem_check I agree
+      p#presystem_check_response
+       Thank You for your System Check on "2016-04-29"
 
     .tab-body.tab-search
       form.search_rfid
