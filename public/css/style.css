@@ -283,7 +283,7 @@ nav p.datetime {
 button#night-mode {
   position: absolute;
   top: 5px;
-  left: 520px;
+  right: 570px;
   /*float: left; margin: 6px 0 0 8px;*/
 }
 
