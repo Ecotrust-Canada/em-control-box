@@ -5,7 +5,6 @@ block content
     ul
       li.active Cams
       li Report
-      li Pre-System Check
       li Search
       li ELog
       
@@ -124,16 +123,6 @@ block content
 
       button.submit_report Submit Report
 
-    .tab-body.tab-presystem-check
-      ul
-       li The video is clear
-       li GPS is green 
-       li PSI is green 
-       li RFID scanner is working
-      button.submit_presystem_check I agree
-      pre#presystem_check_response
-       Thank You for your System Check on "2016-04-29"
-
     .tab-body.tab-search
       form.search_rfid
         h1 Search for RFID
@@ -209,7 +198,20 @@ block content
       span.value
         !=versions
 
+  #precheck-popup
+    a.close
+      img.btn_close(src="close_pop.png", alt="Close")
+    ul
+     li The video is clear
+     li GPS is green 
+     li PSI is green 
+     li RFID scanner is working
+    button.submit_presystem_check I agree
+    pre#presystem_check_response
+     Thank You for your System Check on "2016-04-29"
+
   //button#reload-video(type='button') Reload Video
+  button#pre-check(type='button') Pre-System Check
   button#night-mode(type='button') Night Mode
 
   script(src='/js/jquery-1.4.2.min.js')

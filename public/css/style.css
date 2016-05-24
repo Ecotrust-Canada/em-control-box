@@ -172,15 +172,13 @@ nav p.datetime {
     text-shadow: #000000 0 0 3px;
 }
 
-#main .tab-report, #main .tab-search, #main .tab-presystem-check { padding: 10px; }
+#main .tab-report, #main .tab-search { padding: 10px; }
 #main .tab-report p { margin-top: 4px; margin-bottom: 12px; }
 #main .tab-report label { display: block; margin: 6px 0 0 4px; }
 #main .tab-report textarea { margin-top: 3px; }
 #main .tab-search td, #main .tab-search th { border: 1px dotted #EEE; padding: 4px; }
 #main .tab-search table { font-size: 14px; text-align: center; }
 #main .tab-elog {position: absolute; top:36px; left:0; right:282px; bottom:0; }
-#main .tab-presystem-check button, #presystem_check_response  { margin-top: 10px; }
-.tab-presystem-check p#presystem_check_response { display: none; }
 
 #sensors {
   background-color: #404040;
@@ -237,6 +235,27 @@ nav p.datetime {
 #sensors div#no_response,
 #sensors div#no_recorder,
 #system-info { display: none; }
+#precheck-popup { 
+  display: none; 
+  background-color: #446B71;
+  padding: 15px;
+  box-shadow: 0px 0px 20px #999;
+  position: absolute;
+  right: 271px;
+  /*
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 99999;
+  */
+}
+#precheck-popup button, #presystem_check_response  { margin-top: 10px; }
+#precheck-popup p#presystem_check_response { display: none; }
+#precheck-popup ul { list-style-type: none; }
+img.btn_close {
+  float: right;
+  margin: -28px -28px 0 0;
+}
 
 #sensors .infobox-right { 
   position: absolute;
@@ -285,6 +304,11 @@ button#night-mode {
   top: 5px;
   right: 570px;
   /*float: left; margin: 6px 0 0 8px;*/
+}
+button#pre-check {
+  position: absolute;
+  top: 5px;
+  right: 664px;
 }
 
 button#reload-video {

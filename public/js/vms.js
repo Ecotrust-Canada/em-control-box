@@ -227,7 +227,16 @@ $(function (undef) {
 
                 content = content + '<embed class="thumbnail" src="rtsp://1.1.1.' + i + ':7070/track1" type="video/mp4" width="' + thumbDims[0] + '" height="' + thumbDims[1] + '" loop=999 id=' + i + ' />';
             }
-            
+            /*
+            // Marina: temporary dummies
+            var content = '<embed src="test0.mp4" type="video/mp4" width="' + viewportDims[0] + '" height="' + viewportDims[1] + '" loop=999 id=' + zoomedCam + ' />';
+
+            for (var i = 1; i <= VMS.SYS.numCams; i++) {
+                if(i == zoomedCam) continue;
+
+                content = content + '<embed class="thumbnail" src="test' + i + '.mp4" type="video/mp4" width="' + thumbDims[0] + '" height="' + thumbDims[1] + '" loop=999 id=' + i + ' />';
+            }
+            */
             // hack to give us two more cams b/c we don't have 4 in the lab
             /*
             content = content + '<embed class="thumbnail" src="rtsp://1.1.1.1:7070/track1" type="video/mp4" width="' + thumbDims[0] + '" height="' + thumbDims[1] + '" loop=999 id=' + i + ' />';
@@ -380,6 +389,14 @@ $(function (undef) {
         }
     });
 
+    $('#pre-check').click(function () {
+        $('#precheck-popup').show();  
+        $('#system-info').show();
+        $('#precheck-popup ul').show();
+        $('button.submit_presystem_check').show();
+        $('#presystem_check_response').hide();
+    });
+
     $('.tab-cam').click(function (e) {
         if (VMS.haveCameras
 ) {
@@ -430,9 +447,14 @@ $(function (undef) {
     $('button.submit_presystem_check').click(function () {
         $.post("/presystem_check", {}, function (rsp) {
         $('#presystem_check_response').text(rsp.message);
+          $('#precheck-popup ul').hide();
           $('button.submit_presystem_check').hide();
           $('#presystem_check_response').show();
+          $('#system-info').hide();
         });
+    });
+    $('a.close').live('click', function() { 
+        $('#precheck-popup').fadeOut(300);
     });
 
     $('button.submit_rfid').click(function () {
