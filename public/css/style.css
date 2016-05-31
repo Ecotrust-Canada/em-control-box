@@ -251,7 +251,16 @@ nav p.datetime {
 }
 #precheck-popup button, #presystem_check_response  { margin-top: 10px; }
 #precheck-popup p#presystem_check_response { display: none; }
-#precheck-popup ul { list-style-type: none; }
+#precheck-popup p.instructions { color: wheat; }
+#precheck-popup h3 { 
+  position: absolute;
+  top: 7px;
+  color: lemonchiffon; 
+}
+#precheck-popup ul { 
+  list-style-type: none;
+  margin-top: 10px; 
+}
 a.close {
   display: inline-block;
   position: relative;

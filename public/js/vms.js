@@ -393,8 +393,11 @@ $(function (undef) {
         $('#precheck-popup').show();  
         $('#system-info').show();
         $('#precheck-popup ul').show();
+        $('#precheck-popup p.instructions').show();
         $('button.submit_presystem_check').show();
         $('#presystem_check_response').hide();
+        $("#precheck-popup input[type='checkbox']").attr("checked", false);
+        $("button.submit_presystem_check").attr('disabled', true);
     });
 
     $('.tab-cam').click(function (e) {
@@ -448,11 +451,24 @@ $(function (undef) {
         $.post("/presystem_check", {}, function (rsp) {
         $('#presystem_check_response').text(rsp.message);
           $('#precheck-popup ul').hide();
+          $('#precheck-popup p.instructions').hide();
           $('button.submit_presystem_check').hide();
           $('#presystem_check_response').show();
           $('#system-info').hide();
         });
     });
+
+    $("#precheck-popup input[type='checkbox']").click(function () {
+        var pretrip_cb =  $("#precheck-popup input[type='checkbox']");
+        var checkedcb = $("#precheck-popup input[type='checkbox']:checked");
+
+        if (checkedcb && checkedcb.length == pretrip_cb.length){
+          $("button.submit_presystem_check").attr('disabled', false);
+        } else {
+          $("button.submit_presystem_check").attr('disabled', true);
+        }
+    });
+
     $('a.close').live('click', function() { 
         $('#precheck-popup').fadeOut(300);
     });
