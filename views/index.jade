@@ -199,20 +199,30 @@ block content
         !=versions
 
   #precheck-popup
-    a.close
+    a.close.clickable
       //img.btn_close(src="close_pop.gif", alt="Close")
       span Close (x)
+    h3 Pre-trip Check
+    p.instructions Please verify the following items and click "I Approve" to log a successful pre-trip system check
     ul
-     li The video is clear
-     li GPS is green 
-     li PSI is green 
-     li RFID scanner is working
-    button.submit_presystem_check I agree
+     li 
+       input(type="checkbox", name="pretrip_check_video", value="video") 
+       | The video is clear
+     li 
+       input(type="checkbox", name="pretrip_check_gps", value="gps") 
+       | GPS is green 
+     li 
+       input(type="checkbox", name="pretrip_check_psi", value="psi") 
+       | PSI is green 
+     li 
+       input(type="checkbox", name="pretrip_check_rfid", value="rfid") 
+       | RFID scanner is working
+    button.submit_presystem_check(disabled="true") I agree
     pre#presystem_check_response
      Thank You for your System Check on "2016-04-29"
 
   //button#reload-video(type='button') Reload Video
-  button#pre-check(type='button') Pre-System Check
+  button#pre-check(type='button') Pre-trip System Check
   button#night-mode(type='button') Night Mode
 
   script(src='/js/jquery-1.4.2.min.js')
