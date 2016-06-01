@@ -355,3 +355,7 @@ button#reload-video {
   #sensors div.GPS .speed { margin-left: 2px; }
   #sensors div.GPS .heading { margin-left: 40px; }
 }
+
+button[disabled] {
+  opacity: 0.5;
+}
