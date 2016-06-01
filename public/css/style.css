@@ -178,7 +178,7 @@ nav p.datetime {
 #main .tab-report textarea { margin-top: 3px; }
 #main .tab-search td, #main .tab-search th { border: 1px dotted #EEE; padding: 4px; }
 #main .tab-search table { font-size: 14px; text-align: center; }
-#main .tab-elog {position: absolute; top:36px; left:0; right:282px; bottom:0; }
+#main .tab-elog {position: absolute; top:36px; left:0; right:270px; bottom:0; }
 
 #sensors {
   background-color: #404040;
