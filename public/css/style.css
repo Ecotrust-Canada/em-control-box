@@ -70,7 +70,7 @@ pre {
 input[type="radio"] { vertical-align: text-bottom; }
 input[type="checkbox"] { vertical-align: bottom; *vertical-align: baseline; }
 /* hand cursor on clickable input elements */
-label, input[type=button], input[type=submit], button, ul li, .clickable { cursor: pointer; }
+label, input[type=button], input[type=submit], button, .clickable { cursor: pointer; }
 
 /* These selection declarations have to be separate.
    No text-shadow: twitter.com/miketaylr/status/12228805301 
@@ -242,6 +242,8 @@ nav p.datetime {
   box-shadow: 0px 0px 20px #999;
   position: absolute;
   right: 271px;
+  font-size: 16px;
+  line-height: 1.22;
   /*
   position: fixed;
   top: 50%;
@@ -251,11 +253,15 @@ nav p.datetime {
 }
 #precheck-popup button, #presystem_check_response  { margin-top: 10px; }
 #precheck-popup p#presystem_check_response { display: none; }
-#precheck-popup p.instructions { color: wheat; }
+#precheck-popup p.instructions { 
+  color: wheat; 
+  white-space:pre;
+}
 #precheck-popup h3 { 
   position: absolute;
   top: 7px;
   color: lemonchiffon; 
+  font-size: 17px;
 }
 #precheck-popup ul { 
   list-style-type: none;

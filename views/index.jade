@@ -203,21 +203,22 @@ block content
       //img.btn_close(src="close_pop.gif", alt="Close")
       span Close (x)
     h3 Pre-trip Check
-    p.instructions Please verify the following items and click "I Approve" to log a successful pre-trip system check
+    p.instructions Please verify the following items and click 
+      | "I Approve" to log a successful pre-trip system check
     ul
      li 
-       input(type="checkbox", name="pretrip_check_video", value="video") 
-       | The video is clear
+       input(type="checkbox", id="pretrip_check_video", value="video") 
+       label(for="pretrip_check_video") The video is clear
      li 
-       input(type="checkbox", name="pretrip_check_gps", value="gps") 
-       | GPS is green 
+       input(type="checkbox", id="pretrip_check_gps", value="gps") 
+       label(for="pretrip_check_gps") GPS is green 
      li 
-       input(type="checkbox", name="pretrip_check_psi", value="psi") 
-       | PSI is green 
+       input(type="checkbox", id="pretrip_check_psi", value="psi") 
+       label(for="pretrip_check_psi") PSI is green 
      if rfid && rfid == 'yes'
        li 
-         input(type="checkbox", name="pretrip_check_rfid", value="rfid") 
-         | RFID scanner is working
+         input(type="checkbox", id="pretrip_check_rfid", value="rfid") 
+         label(for="pretrip_check_rfid") RFID scanner is working
     button.submit_presystem_check(disabled="true") I agree
     pre#presystem_check_response
      Thank You for your System Check on "2016-04-29"
