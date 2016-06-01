@@ -214,9 +214,10 @@ block content
      li 
        input(type="checkbox", name="pretrip_check_psi", value="psi") 
        | PSI is green 
-     li 
-       input(type="checkbox", name="pretrip_check_rfid", value="rfid") 
-       | RFID scanner is working
+     if rfid && rfid == 'yes'
+       li 
+         input(type="checkbox", name="pretrip_check_rfid", value="rfid") 
+         | RFID scanner is working
     button.submit_presystem_check(disabled="true") I agree
     pre#presystem_check_response
      Thank You for your System Check on "2016-04-29"
