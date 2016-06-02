@@ -424,13 +424,13 @@ mountusb_start() {
 
 savetousb_description="Dumps specified file to USB flash drive in a forceful way"
 savetousb_usage="
-Usage:\t${bldwht}em savetousb <path/to/file>${txtrst}\n
+Usage:\t${bldwht}em savetousb <path/to/file>...${txtrst}\n
 \tex: em savetousb /tmp/12345678.csv"
 savetousb_start() {
-	if [ ${#} -ne 1 ]; then
-		echo -e ${savetousb_usage}
-		exit 1
-	fi
+	# if [ ${#} -ne 1 ]; then
+	# 	echo -e ${savetousb_usage}
+	# 	exit 1
+	# fi
 
 	mountusb_start
 
@@ -457,7 +457,14 @@ savetousb_start() {
 	fi
 
 	echo -e "  ${STAR} Copying and unmounting ... " &&
-	cp -av ${1} /tmp/usb/ &&
+	rm -rf /tmp/elog_export &&
+	mkdir -p /tmp/elog_export &&
+	for items in "$@"
+	do
+		cp -a $items /tmp/elog_export/
+	done &&
+	cd /tmp &&
+	tar -zcv elog_export > /tmp/usb/$(date +"%Y-%m-%d-%H-%M-%S").tar.gz &&
 	sync &&
 	umount /dev/${DEV}1
 
