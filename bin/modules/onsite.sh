@@ -457,7 +457,7 @@ savetousb_start() {
 	fi
 
 	echo -e "  ${STAR} Copying and unmounting ... " &&
-	cp -av ${1} /tmp/usb/ &&
+	tar -zcvf  /tmp/usb/$(date --rfc-3339=ns|tr ' ' '_').tar.gz ${@:2} &&
 	sync &&
 	umount /dev/${DEV}1
 
