@@ -424,13 +424,13 @@ mountusb_start() {
 
 savetousb_description="Dumps specified file to USB flash drive in a forceful way"
 savetousb_usage="
-Usage:\t${bldwht}em savetousb <path/to/file>${txtrst}\n
+Usage:\t${bldwht}em savetousb <path/to/file>...${txtrst}\n
 \tex: em savetousb /tmp/12345678.csv"
 savetousb_start() {
-	if [ ${#} -ne 1 ]; then
-		echo -e ${savetousb_usage}
-		exit 1
-	fi
+	# if [ ${#} -ne 1 ]; then
+	# 	echo -e ${savetousb_usage}
+	# 	exit 1
+	# fi
 
 	mountusb_start
 
