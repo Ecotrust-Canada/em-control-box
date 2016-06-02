@@ -459,7 +459,7 @@ savetousb_start() {
 	echo -e "  ${STAR} Copying and unmounting ... " &&
 	rm -rf /tmp/elog_export &&
 	mkdir -p /tmp/elog_export &&
-	for items in ${@:1}
+	for items in "$@"
 	do
 		cp -a $item /tmp/elog_export/
 	done &&
