@@ -461,7 +461,7 @@ savetousb_start() {
 	mkdir -p /tmp/elog_export &&
 	for items in "$@"
 	do
-		cp -a $item /tmp/elog_export/
+		cp -a $items /tmp/elog_export/
 	done &&
 	cd /tmp &&
 	tar -zcv elog_export > /tmp/usb/$(date +"%Y-%m-%d-%H-%M-%S").tar.gz &&
