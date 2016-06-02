@@ -457,7 +457,14 @@ savetousb_start() {
 	fi
 
 	echo -e "  ${STAR} Copying and unmounting ... " &&
-	tar -zcv ${@:1} > /tmp/usb/$(date +"%Y-%m-%d-%H-%M-%S").tar.gz &&
+	rm -rf /tmp/elog_export &&
+	mkdir -p /tmp/elog_export &&
+	for items in ${@:1}
+	do
+		cp -a $item /tmp/elog_export/
+	done &&
+	cd /tmp &&
+	tar -zcv elog_export > /tmp/usb/$(date +"%Y-%m-%d-%H-%M-%S").tar.gz &&
 	sync &&
 	umount /dev/${DEV}1
 
