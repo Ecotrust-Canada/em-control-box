@@ -1,4 +1,4 @@
-NAME="clear flashard format monitor play resetgps start stop upgrade updategrub fixethernet resetelog mountusb savetousb screenres kill resetcam"
+NAME="clear flashard format monitor play resetgps start stop upgrade updategrub fixethernet resetelog mountusb savetousb ziptousb screenres kill resetcam"
 
 stop_description="Stops all EM services"
 stop_start() {
@@ -424,9 +424,58 @@ mountusb_start() {
 
 savetousb_description="Dumps specified file to USB flash drive in a forceful way"
 savetousb_usage="
-Usage:\t${bldwht}em savetousb <path/to/file>...${txtrst}\n
+Usage:\t${bldwht}em savetousb <path/to/file>${txtrst}\n
 \tex: em savetousb /tmp/12345678.csv"
 savetousb_start() {
+	if [ ${#} -ne 1 ]; then
+		echo -e ${savetousb_usage}
+		exit 1
+	fi
+
+	mountusb_start
+
+	if [ "${FOUND_FAT_PARTITION}" = "false" ]; then
+		echo -ne "	${STAR} Clearing partition table ... " &&
+		dd if=/dev/zero of=/dev/${DEV} bs=4096 count=1 > /dev/null 2>&1 &&
+		echo -e ${OK} && sleep 1 &&
+		sfdisk -R /dev/${DEV} &&
+
+		echo -ne "	${STAR} Creating new partition ... " &&
+		echo -e "2048,,C" | sfdisk -uS -qL /dev/${DEV} > /dev/null 2>&1 &&
+		echo -e ${OK} &&
+
+		echo -ne "	${STAR} Formatting partition ... " &&
+		mkfs.vfat /dev/${DEV}1 > /dev/null 2>&1 &&
+		echo -e ${OK} &&
+
+		mount /dev/${DEV}1 /tmp/usb &&
+		echo "${DEV}1 mounted"
+
+		if [ ${?} -ne 0 ]; then
+			exit 1
+		fi
+	fi
+
+	echo -e "  ${STAR} Copying and unmounting ... " &&
+	cp -av ${1} /tmp/usb/ &&
+	sync &&
+	umount /dev/${DEV}1
+
+	if [ ${?} -ne 0 ]; then
+		echo Failed!
+		exit 1
+	fi
+
+	umount -f /tmp/usb > /dev/null 2>&1
+
+	exit 0
+}
+
+ziptousb_description="Dumps specified files to USB flash drive as a tar.gz archive in a forceful way"
+ziptousb_usage="
+Usage:\t${bldwht}em ziptousb <path/to/file>...${txtrst}\n
+\tex: em ziptousb /tmp/12345678.csv"
+ziptousb_start() {
 	# if [ ${#} -ne 1 ]; then
 	# 	echo -e ${savetousb_usage}
 	# 	exit 1
