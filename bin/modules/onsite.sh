@@ -513,7 +513,7 @@ ziptousb_start() {
 		cp -a $items /tmp/elog_export/
 	done &&
 	cd /tmp &&
-	tar -zcv elog_export > /tmp/usb/$(date +"%Y-%m-%d-%H-%M-%S").tar.gz &&
+	tar -zc elog_export > /tmp/usb/$(date +"%Y-%m-%d-%H-%M-%S").tar.gz &&
 	sync &&
 	umount /dev/${DEV}1
 
