@@ -190,7 +190,8 @@ int main(int argc, char *argv[]) {
     G_EM_DATA.sm_system = &smSystem;
     G_EM_DATA.sm_aux = &smAuxThread;
 
-    smSystem.UnsetState(SYS_VIDEO_RECORDING); // for completeness
+    //smSystem.UnsetState(SYS_VIDEO_RECORDING); // for completeness
+    smSystem.SetState(SYS_VIDEO_RECORDING); // for completeness
     smRecorder.SetState(STATE_RUNNING);
 
     if(_AD) {
@@ -236,8 +237,9 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, exit_handler);
     signal(SIGHUP, exit_handler);
     signal(SIGTERM, exit_handler);
-    signal(SIGUSR1, reset_string_scans_handler);
-    signal(SIGUSR2, reset_trip_scans_handler);
+    signal(SIGUSR1, process_command_handler);
+    //signal(SIGUSR1, reset_string_scans_handler);
+    //signal(SIGUSR2, reset_trip_scans_handler);
 
     O("Beginning main recording loop");
     while(_EM_RUNNING) { // only G_EM_DATA.runState == STATE_NOT_RUNNING can stop this
@@ -411,6 +413,7 @@ void *thr_auxiliaryLoop(void *arg) {
 
             videoCapture.Stop();
         } else {
+          if( smSystem.GetState() & SYS_VIDEO_RECORDING ){
             if(videoCapture.GetState() & STATE_NOT_RUNNING) { // resume
                 pthread_mutex_lock(&G_EM_DATA.mtx);
                     latitude = G_EM_DATA.GPS_latitude;
@@ -446,6 +449,9 @@ void *thr_auxiliaryLoop(void *arg) {
             }
 
             videoCapture.Start(); // what this app is really all about =)
+          } else {
+            videoCapture.Stop();
+          }
         }
 
         // checks for errors that are screenshot-worthy
@@ -941,13 +947,45 @@ string updateSystemStats() {
 
     return string(buf);
 }
-
+/*
 void reset_string_scans_handler(int s) { D("Resetting stringScans");
     iRFIDSensor.resetStringScans();
 }
 
 void reset_trip_scans_handler(int s) { D("Resetting tripScans");
     iRFIDSensor.resetTripScans();
+}
+*/
+
+void process_command_handler(int s) {
+    const char* runConfigFile = "/tmp/em_command.conf";
+    char command[1024];
+
+    I("Within  process_command_handler");   
+
+    FILE *fp = fopen(runConfigFile, "r");
+    if (fp == NULL) {
+      D("Failed to open "+runConfigFile+" file");
+    } else {
+      fscanf(fp,"%[^\n]",command);    
+      I(command);
+
+      if ( strcmp(command,"stop_video_recording") == 0){
+        D("Attempt to stop video recording");
+        //video_recording = 0;
+        smSystem.UnsetState(SYS_VIDEO_RECORDING); 
+      } else if (strcmp(command,"start_video_recording") == 0){
+        D("Attempt to start video recording");
+        //video_recording = 1;
+        smSystem.SetState(SYS_VIDEO_RECORDING); 
+      } else if (strcmp(command,"reset_trip") == 0){
+        D("Resetting tripScans");
+        iRFIDSensor.resetTripScans();
+      } else if (strcmp(command,"reset_string") == 0){
+        D("Resetting stringScans");
+        iRFIDSensor.resetStringScans();
+      }
+    }
 }
 
 void exit_handler(int s) {

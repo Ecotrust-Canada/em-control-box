@@ -139,8 +139,9 @@ void writeLog(string, string, bool);
 string writeLog(string, string, string);
 void writeJSONState();
 string updateSystemStats();
-void reset_string_scans_handler(int);
-void reset_trip_scans_handler(int);
+//void reset_string_scans_handler(int);
+//void reset_trip_scans_handler(int);
+void process_command_handler(int s) {
 void exit_handler(int);
 
 #endif
