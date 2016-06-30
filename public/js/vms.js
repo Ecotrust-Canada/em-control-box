@@ -197,7 +197,8 @@ $(function (undef) {
         });
     });
 
-    $('.tab-elog').append("<iframe src=\"" + eLogURL + "\" frameborder=\"0\" style='overflow:auto;height:100%;width:100%' height=\"100%\" width=\"100%\"></iframe>");
+    $('.tab-elog').append("<iframe src=\"" + eLogURL + 
+            "\" frameborder=\"0\" style='overflow:auto;height:100%;width:100%' height=\"100%\" width=\"100%\"></iframe>");
 
     function getAvailableDimensions(start_width, start_height) {
         var videoWidthMax = start_width || $(window).width() - 270;
@@ -400,9 +401,24 @@ $(function (undef) {
         $("button.submit_presystem_check").attr('disabled', true);
     });
 
+    $('#non-em').click(function () {
+        if ($('#non-em').hasClass('active')){
+            $.post("/start_video_recording", {}, function(rsp) {
+                //if(rsp.success) {
+                  $('#non-em').removeClass('active');
+                //}
+            });
+        } else {
+            $.post("/stop_video_recording", {}, function(rsp) {
+                //if(rsp.success){
+                  $('#non-em').addClass('active');
+                //}
+            });
+        }
+    });
+
     $('.tab-cam').click(function (e) {
-        if (VMS.haveCameras
-) {
+        if (VMS.haveCameras) {
             zoomedCam = e.target.id; 
             $('.tab-cam .cameras').replaceWith(getCameraEmbeds());
             skippedFirstVideoCheck = false;
@@ -449,7 +465,7 @@ $(function (undef) {
 
     $('button.submit_presystem_check').click(function () {
         $.post("/presystem_check", {}, function (rsp) {
-        $('#presystem_check_response').text(rsp.message);
+          $('#presystem_check_response').text(rsp.message);
           $('#precheck-popup ul').hide();
           $('#precheck-popup p.instructions').hide();
           $('button.submit_presystem_check').hide();

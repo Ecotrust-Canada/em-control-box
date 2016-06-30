@@ -773,7 +773,7 @@ string updateSystemStats() {
 
         // SYS_cpuPercent
         ps = fopen("/proc/stat", "r");
-        fscanf(ps, "cpu %Ld %Ld %Ld %Ld %Ld %Ld %Ld", &jiffies[0], &jiffies[1], &jiffies[2], &jiffies[3], &jiffies[4], &jiffies[5], &jiffies[6]);
+        if (fscanf(ps, "cpu %Ld %Ld %Ld %Ld %Ld %Ld %Ld", &jiffies[0], &jiffies[1], &jiffies[2], &jiffies[3], &jiffies[4], &jiffies[5], &jiffies[6])){};
         fclose(ps);
 
         for(int i = 0; i < PROC_STAT_VALS; i++) {
@@ -795,13 +795,13 @@ string updateSystemStats() {
         
         // SYS_tempCore0
         ct = fopen("/sys/devices/platform/coretemp.0/temp2_input", "r");
-        fscanf(ct, "%llu", &temp);
+        if(fscanf(ct, "%llu", &temp)){};
         fclose(ct);
         G_EM_DATA.SYS_tempCore0 = temp / 1000;
 
         // SYS_tempCore1
         ct = fopen("/sys/devices/platform/coretemp.0/temp3_input", "r");
-        fscanf(ct, "%llu", &temp);
+        if(fscanf(ct, "%llu", &temp)){};
         fclose(ct);
         G_EM_DATA.SYS_tempCore1 = temp / 1000;
     pthread_mutex_unlock(&G_EM_DATA.mtx);
@@ -967,7 +967,7 @@ void process_command_handler(int s) {
     if (fp == NULL) {
       D("Failed to open "+runConfigFile+" file");
     } else {
-      fscanf(fp,"%[^\n]",command);    
+      if(fscanf(fp,"%[^\n]",command)){};    
       I(command);
 
       if ( strcmp(command,"stop_video_recording") == 0){

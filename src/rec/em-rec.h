@@ -20,7 +20,7 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
-
+#include <cstdlib>
 using namespace std; 
 
 #ifndef EM_REC_H
@@ -141,7 +141,7 @@ void writeJSONState();
 string updateSystemStats();
 //void reset_string_scans_handler(int);
 //void reset_trip_scans_handler(int);
-void process_command_handler(int s) {
+void process_command_handler(int s);
 void exit_handler(int);
 
 #endif

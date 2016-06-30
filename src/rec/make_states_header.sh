@@ -5,7 +5,8 @@ HEADER="states.h"
 echo "Making states files ..."
 
 # python inline
-echo -e "`/usr/bin/python - <<END
+#echo -e "`/usr/bin/python - <<END
+echo "`/usr/bin/python - <<END
 import json
 states = json.loads(open("../../public/states.json","r").read())
 states.update(json.loads(open("../../public/options.json","r").read()))

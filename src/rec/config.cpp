@@ -80,9 +80,9 @@ int readConfigFile(const char *file) {
         }
 
         // scan away blank lines and comments.
-        fscanf(config_fd, "%[\n]", dummy);
-        fscanf(config_fd, "#%[^\n]\n", dummy);
-        fscanf(config_fd, "%[\n]", dummy);
+        if (fscanf(config_fd, "%[\n]", dummy) != 1){};
+        if (fscanf(config_fd, "#%[^\n]\n", dummy) != 1){};
+        if (fscanf(config_fd, "%[\n]", dummy) != 1){};
 
         config[config_length][1][0] = '\0';  // used to detect whether a line was read
     }
