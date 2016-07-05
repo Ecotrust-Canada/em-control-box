@@ -322,24 +322,25 @@ img.btn_close {
 }*/
 .warn { background-color: #aa6800;}
 .inactive { background-color: #404040; }
-
 button#night-mode {
   position: absolute;
   top: 5px;
-  right: 560px;
-  padding: 3px;
+  right: 555px;
+  /*float: left; margin: 6px 0 0 8px;*/
 }
 button#pre-check {
   position: absolute;
-  top: 5px;
-  right: 670px;
+  bottom: 5px;
+  right: 5px;
   padding: 3px;
+  z-index: -1;
 }
 button#non-em {
   position: absolute;
-  top: 5px;
-  right: 800px;
+  bottom: 5px;
+  right: 115px;
   padding: 3px;
+  z-index: -1;
 }
 button#non-em.active {
   background-color: red;
