@@ -75,11 +75,13 @@ server.get('/states.json',          routes.states);
 server.get('/options.json',         routes.options);
 server.get('/500',                  function(req, res) { throw new Error("500 - Internal server error"); });
 
-server.post('/report',              routes.report);
-server.post('/reset_trip',          routes.resetTrip);
-server.post('/reset_string',        routes.resetString);
-server.post('/search_rfid',         routes.searchRFID);
-server.post('/presystem_check',     routes.presystemCheck);
+server.post('/report',                routes.report);
+server.post('/reset_trip',            routes.resetTrip);
+server.post('/reset_string',          routes.resetString);
+server.post('/stop_video_recording',  routes.stopVideoRecording);
+server.post('/start_video_recording', routes.startVideoRecording);
+server.post('/search_rfid',           routes.searchRFID);
+server.post('/presystem_check',       routes.presystemCheck);
 
 server.listen(port);
 

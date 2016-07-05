@@ -326,13 +326,24 @@ img.btn_close {
 button#night-mode {
   position: absolute;
   top: 5px;
-  right: 570px;
-  /*float: left; margin: 6px 0 0 8px;*/
+  right: 560px;
+  padding: 3px;
 }
 button#pre-check {
   position: absolute;
   top: 5px;
-  right: 664px;
+  right: 670px;
+  padding: 3px;
+}
+button#non-em {
+  position: absolute;
+  top: 5px;
+  right: 800px;
+  padding: 3px;
+}
+button#non-em.active {
+  background-color: red;
+  color: white;
 }
 
 button#reload-video {
