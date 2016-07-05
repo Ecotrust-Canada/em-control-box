@@ -325,21 +325,21 @@ img.btn_close {
 button#night-mode {
   position: absolute;
   top: 5px;
-  right: 555px;
+  right: 560px;
   /*float: left; margin: 6px 0 0 8px;*/
 }
 button#pre-check {
   position: absolute;
   bottom: 5px;
   right: 5px;
-  padding: 3px;
+  padding: 10px;
   z-index: -1;
 }
 button#non-em {
   position: absolute;
   bottom: 5px;
-  right: 115px;
-  padding: 3px;
+  right: 125px;
+  padding: 10px;
   z-index: -1;
 }
 button#non-em.active {
