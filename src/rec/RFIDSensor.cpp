@@ -70,10 +70,10 @@ int RFIDSensor::Receive() {
     if(bytesRead >= RFID_BYTES_MIN) {
         char *ch = &RFID_BUF[0];
 
-        // eat bytes until RFID_START_BYTE (:) or no more buffer left
-        while(*ch != RFID_START_BYTE && ch < &RFID_BUF[bytesRead]) ch++;
+        // eat bytes until RFID_START_BYTES (: or \x02) or no more buffer left
+        while(!checkStartByte(*ch) && ch < &RFID_BUF[bytesRead]) ch++;
 
-        if(*ch == RFID_START_BYTE) {
+        if(checkStartByte(*ch)) {
         	char tagData[RFID_DATA_BYTES + RFID_CHK_BYTES] = { '\0' };
             unsigned int currentByte = 0, runningSum = 0;
             unsigned int scannedTotal = 0, scannedCorrupt = 0;
@@ -166,6 +166,16 @@ unsigned long long int RFIDSensor::hexToInt(char* hexStr) {
     ss >> dec >> tmp;
 
     return tmp;
+}
+
+bool RFIDSensor::checkStartByte(char byte) {
+    // loop through the RFID_START_BYTES string return true if it includes byte
+    for (unsigned int i = 0; RFID_START_BYTES[i]; ++i) {
+        if (byte == RFID_START_BYTES[i]) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void RFIDSensor::resetStringScans() {

@@ -36,6 +36,9 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define RFID_STOP_BYTE		0x0D
 #define RFID_DATA_BYTES		10
 #define RFID_CHK_BYTES		2
+/* Multiple possible start bytes stored together as a string */
+#define RFID_START_BYTES    "\x3A\x02"
+
 
 /**
  * @class RFIDSensor
@@ -50,6 +53,7 @@ class RFIDSensor: public Sensor {
         unsigned int ASCIIToHex(char);
         unsigned int DecodeChecksum(char, char);
         unsigned long long int hexToInt(char*);
+        bool checkStartByte(char);
 
     public:
         RFIDSensor(EM_DATA_TYPE*);
