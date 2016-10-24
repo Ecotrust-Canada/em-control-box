@@ -39,7 +39,7 @@ RFIDSensor::RFIDSensor(EM_DATA_TYPE* _em_data):Sensor("RFID", RFID_NO_CONNECTION
 int RFIDSensor::Connect() {
     /* Experiment; we don't use this anymore
     
-	unsigned long long int tag;
+    unsigned long long int tag;
     ifstream in("/mnt/data/TAG_LIST");
 
     if (in.is_open()) {
@@ -63,7 +63,7 @@ void RFIDSensor::GetScanCounts(string file) {
 }
 
 int RFIDSensor::Receive() {
-	char RFID_BUF[RFID_BUF_SIZE] = { '\0' };
+    char RFID_BUF[RFID_BUF_SIZE] = { '\0' };
 
     int bytesRead = Sensor::Receive(RFID_BUF, RFID_BYTES_MIN, RFID_BUF_SIZE, false);
 
@@ -74,31 +74,35 @@ int RFIDSensor::Receive() {
         while(!checkStartByte(*ch) && ch < &RFID_BUF[bytesRead]) ch++;
 
         if(checkStartByte(*ch)) {
-        	char tagData[RFID_DATA_BYTES + RFID_CHK_BYTES] = { '\0' };
+            char tagData[RFID_DATA_BYTES + RFID_CHK_BYTES] = { '\0' };
             unsigned int currentByte = 0, runningSum = 0;
             unsigned int scannedTotal = 0, scannedCorrupt = 0;
 
             // go through buffer and process all the tags
             while(++ch < &RFID_BUF[bytesRead]) {
-            	if(*ch == RFID_STOP_BYTE || currentByte == RFID_DATA_BYTES + RFID_CHK_BYTES) {
-            		if (runningSum % 256 == DecodeChecksum(tagData[RFID_DATA_BYTES], tagData[RFID_DATA_BYTES + 1])) {	
-            			tagData[RFID_DATA_BYTES] = '\0';
-            			em_data->RFID_lastScannedTag = hexToInt(tagData);
-            		} else {
-            			scannedCorrupt++;
-            		}
+                if(*ch == RFID_STOP_BYTE || currentByte == RFID_DATA_BYTES + RFID_CHK_BYTES) {
+                    if (runningSum % 256 == DecodeChecksum(tagData[RFID_DATA_BYTES], tagData[RFID_DATA_BYTES + 1])) {    
+                        tagData[RFID_DATA_BYTES] = '\0'; // terminate string after last data character
+                        em_data->RFID_lastScannedTag = hexToInt(tagData);
+                    } else if (alternateChecksum(tagData, RFID_DATA_BYTES + RFID_CHK_BYTES)) {
+                        // if alternate checksum works out continue as if valid scan
+                        tagData[RFID_DATA_BYTES] = '\0'; // terminate string after last data character
+                        em_data->RFID_lastScannedTag = hexToInt(tagData);
+                    } else {
+                        scannedCorrupt++;
+                    }
 
-            		scannedTotal++;
-            		currentByte = 0;
-            		runningSum = 0;
+                    scannedTotal++;
+                    currentByte = 0;
+                    runningSum = 0;
 
-            		ch++; // advance to next START_BYTE
-            	} else {
-            		tagData[currentByte] = *ch;
-            		if(currentByte < RFID_DATA_BYTES) runningSum += *ch;
+                    while(!checkStartByte(*ch) && ch < &RFID_BUF[bytesRead]) ch++; // advance to next START_BYTE
+                } else {
+                    tagData[currentByte] = *ch;
+                    if(currentByte < RFID_DATA_BYTES) runningSum += *ch;
 
-            		currentByte++;
-            	}
+                    currentByte++;
+                }
             }
 
             if (scannedCorrupt > 0) {
@@ -106,14 +110,14 @@ int RFIDSensor::Receive() {
             }
 
             if (scannedCorrupt >= scannedTotal) {
-            	SetState(RFID_CHECKSUM_FAILED);
-            	em_data->RFID_saveFlag = false;
+                SetState(RFID_CHECKSUM_FAILED);
+                em_data->RFID_saveFlag = false;
             } else {
-            	UnsetState(RFID_CHECKSUM_FAILED);
+                UnsetState(RFID_CHECKSUM_FAILED);
 
                 // only save if RECORD_SCAN_INTERVAL time has gone by since the last scan, or the tag is different from the last one saved
                 if(em_data->runIterations - em_data->RFID_lastSaveIteration >= RECORD_SCAN_INTERVAL || em_data->RFID_lastScannedTag != em_data->RFID_lastSavedTag) {
-            	   em_data->RFID_saveFlag = true;
+                   em_data->RFID_saveFlag = true;
                    em_data->RFID_stringScans++;
                    em_data->RFID_tripScans++;
                 }
@@ -129,10 +133,10 @@ int RFIDSensor::Receive() {
                     }
                 }
             }
-		}
+        }
 
-		return bytesRead;
-	}
+        return bytesRead;
+    }
 
     return 0;
 }
@@ -176,6 +180,22 @@ bool RFIDSensor::checkStartByte(char byte) {
         }
     }
     return false;
+}
+
+// this checksum treats pairs of characters as bytes rather than individual characters
+bool RFIDSensor::alternateChecksum(char* tagData, unsigned int length) {
+    unsigned int runningSum = 0;
+    // if length is odd bad checksum return false (this should never happen)
+    if (length%2 == 1) {
+        return false;
+    }
+    // loop through tagdata to compute checksum
+    for (unsigned int i = 0; i < (length - RFID_CHK_BYTES); i+=2) {
+        runningSum += DecodeChecksum(tagData[i], tagData[i+1]);
+    }
+    // test checksum
+    return runningSum==DecodeChecksum(tagData[length-RFID_CHK_BYTES], tagData[length-RFID_CHK_BYTES+1]);
+
 }
 
 void RFIDSensor::resetStringScans() {
