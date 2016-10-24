@@ -193,8 +193,8 @@ bool RFIDSensor::alternateChecksum(char* tagData, unsigned int length) {
     for (unsigned int i = 0; i < (length - RFID_CHK_BYTES); i+=2) {
         runningSum += DecodeChecksum(tagData[i], tagData[i+1]);
     }
-    // test checksum
-    return runningSum==DecodeChecksum(tagData[length-RFID_CHK_BYTES], tagData[length-RFID_CHK_BYTES+1]);
+    // test checksum mod 256 since we are comparing byte value
+    return runningSum%256 == DecodeChecksum(tagData[length-RFID_CHK_BYTES], tagData[length-RFID_CHK_BYTES+1]);
 
 }
 
