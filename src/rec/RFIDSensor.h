@@ -54,7 +54,8 @@ class RFIDSensor: public Sensor {
         int DecodeChecksum(char, char);
         unsigned long long int hexToInt(char*);
         bool checkStartByte(char);
-        bool alternateChecksum(char*);
+        bool primaryChecksumTest(char*);
+        bool alternateChecksumTest(char*);
 
     public:
         RFIDSensor(EM_DATA_TYPE*);
