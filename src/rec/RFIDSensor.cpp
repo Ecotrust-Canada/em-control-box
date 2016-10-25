@@ -75,16 +75,17 @@ int RFIDSensor::Receive() {
 
         if(checkStartByte(*ch)) {
             char tagData[RFID_DATA_BYTES + RFID_CHK_BYTES] = { '\0' };
-            unsigned int currentByte = 0, runningSum = 0;
+            unsigned int currentByte = 0;
             unsigned int scannedTotal = 0, scannedCorrupt = 0;
-
+            int runningSum = 0;
             // go through buffer and process all the tags
             while(++ch < &RFID_BUF[bytesRead]) {
                 if(*ch == RFID_STOP_BYTE || currentByte == RFID_DATA_BYTES + RFID_CHK_BYTES) {
+                    
                     if (runningSum % 256 == DecodeChecksum(tagData[RFID_DATA_BYTES], tagData[RFID_DATA_BYTES + 1])) {    
                         tagData[RFID_DATA_BYTES] = '\0'; // terminate string after last data character
                         em_data->RFID_lastScannedTag = hexToInt(tagData);
-                    } else if (alternateChecksum(tagData, RFID_DATA_BYTES + RFID_CHK_BYTES)) {
+                    } else if (alternateChecksum(tagData)) {
                         // if alternate checksum works out continue as if valid scan
                         tagData[RFID_DATA_BYTES] = '\0'; // terminate string after last data character
                         em_data->RFID_lastScannedTag = hexToInt(tagData);
@@ -142,7 +143,7 @@ int RFIDSensor::Receive() {
 }
 
 // given an ASCII char c that represents a hex (0-f) value, return the value
-unsigned int RFIDSensor::ASCIIToHex(char c) {
+int RFIDSensor::ASCIIToHex(char c) {
   if (c >= '0' && c <= '9')      return c - '0';
   else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
   else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -150,9 +151,9 @@ unsigned int RFIDSensor::ASCIIToHex(char c) {
 }
 
 // given two ASCII-encoded hex chars, return the full byte
-unsigned int RFIDSensor::DecodeChecksum(char a1, char a2) {
-  unsigned int a = ASCIIToHex(a1);
-  unsigned int b = ASCIIToHex(a2);
+int RFIDSensor::DecodeChecksum(char a1, char a2) {
+  int a = ASCIIToHex(a1);
+  int b = ASCIIToHex(a2);
 
   if (a<0 || b<0) return -1;  // an invalid hex character was encountered
   else return (a*16) + b;
@@ -182,19 +183,36 @@ bool RFIDSensor::checkStartByte(char byte) {
     return false;
 }
 
-// this checksum treats pairs of characters as bytes rather than individual characters
-bool RFIDSensor::alternateChecksum(char* tagData, unsigned int length) {
-    unsigned int runningSum = 0;
-    // if length is odd bad checksum return false (this should never happen)
-    if (length%2 == 1) {
+
+// Returns true if tagdata contains a properly encoded rfid tag with a vild checksum, otherwise returns false
+bool RFIDSensor::alternateChecksum(char* tagData) {
+    int runningSum = 0; // stores running total for checksum
+    int checksum; // stores the decoded checksum
+
+    // if length is odd bad checksum return false (this should should compile away to nothing)
+    if ((RFID_DATA_BYTES + RFID_CHK_BYTES)%2 == 1) {
         return false;
     }
+
     // loop through tagdata to compute checksum
-    for (unsigned int i = 0; i < (length - RFID_CHK_BYTES); i+=2) {
-        runningSum += DecodeChecksum(tagData[i], tagData[i+1]);
+    for (unsigned int i = 0; i < (RFID_DATA_BYTES); i+=2) {
+        int b = DecodeChecksum(tagData[i], tagData[i+1]); //decoded byte
+        // If we got a bad decode value, the checksum has failed so we return false.
+        if (b<0) {
+            return false;
+        } else {
+            runningSum += b;
+        }
     }
-    // test checksum mod 256 since we are comparing byte value
-    return runningSum%256 == DecodeChecksum(tagData[length-RFID_CHK_BYTES], tagData[length-RFID_CHK_BYTES+1]);
+
+    // calculate numeric value of checksum
+    checksum = DecodeChecksum(tagData[RFID_DATA_BYTES], tagData[RFID_DATA_BYTES+1]);
+    // if checksum is a bad value return false otherwise test if equal to running total
+    if (checksum<0) {
+        return false;
+    } else {
+        return runningSum%256 == checksum;
+    }
 
 }
 

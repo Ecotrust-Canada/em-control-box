@@ -50,11 +50,11 @@ class RFIDSensor: public Sensor {
         EM_DATA_TYPE *em_data;
         string scanCountsFile;
         //set<unsigned long long int> MY_TAGS;
-        unsigned int ASCIIToHex(char);
-        unsigned int DecodeChecksum(char, char);
+        int ASCIIToHex(char);
+        int DecodeChecksum(char, char);
         unsigned long long int hexToInt(char*);
         bool checkStartByte(char);
-        bool alternateChecksum(char*, unsigned int);
+        bool alternateChecksum(char*);
 
     public:
         RFIDSensor(EM_DATA_TYPE*);
