@@ -52,7 +52,6 @@ class RFIDSensor: public Sensor {
         //set<unsigned long long int> MY_TAGS;
         int ASCIIToHex(char);
         int DecodeChecksum(char, char);
-        unsigned long long int hexToInt(char*);
         bool checkStartByte(char);
         bool primaryChecksumTest(char*);
         bool alternateChecksumTest(char*);
