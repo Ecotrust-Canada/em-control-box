@@ -20,7 +20,8 @@ along with EM. If not, see <http://www.gnu.org/licenses/>.
 
 You may contact Ecotrust Canada via our website http://ecotrust.ca
 */
-
+#include <cstdlib>
+using namespace std; 
 
 #ifndef EM_REC_H
 #define EM_REC_H
@@ -65,8 +66,6 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define __SYS_UNSET_STATE(s)  ((StateMachine *)em_data->sm_system)->UnsetState(s)
 
 #include <string>
-
-using namespace std; 
 
 typedef struct {
 	// program state data
