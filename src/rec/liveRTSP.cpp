@@ -247,7 +247,14 @@ void setOutputFrameRate(RTSPClient* rtspClient, unsigned short frameRate) {
     snprintf(url, sizeof(url), DIGITAL_HTTP_API_URL, camIndex + 1, api_call.c_str());
     snprintf(command, sizeof(command), DIGITAL_HTTP_API_COMMAND, url);
     D("Executing: " + command);
-    system(command);
+    int res = system(command);
+
+    // if command fails to execute, log an error
+    if (res) {
+      E("Command: '" + command + "' returned with nonzero exit code: " + to_string(res));
+    } else {
+      D("Command: '" + command + "' executed successfully: " + to_string(res));
+    }
 }
 
 void continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString) {

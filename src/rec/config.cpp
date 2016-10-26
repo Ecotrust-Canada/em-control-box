@@ -24,6 +24,7 @@ You may contact Ecotrust Canada via our website http://ecotrust.ca
 #define INIT_CONFIG
 #include "config.h"
 #include "output.h"
+#include "ignore-value.h"
 
 #include <cstring>
 #include <iostream>
@@ -80,9 +81,9 @@ int readConfigFile(const char *file) {
         }
 
         // scan away blank lines and comments.
-        fscanf(config_fd, "%[\n]", dummy);
-        fscanf(config_fd, "#%[^\n]\n", dummy);
-        fscanf(config_fd, "%[\n]", dummy);
+        ignore_value(fscanf(config_fd, "%[\n]", dummy));
+        ignore_value(fscanf(config_fd, "#%[^\n]\n", dummy));
+        ignore_value(fscanf(config_fd, "%[\n]", dummy));
 
         config[config_length][1][0] = '\0';  // used to detect whether a line was read
     }
