@@ -1098,6 +1098,7 @@
 ./usr/bin/mozplugger-update
 ./usr/bin/mplayer
 ./usr/bin/namei
+./usr/bin/nano
 ./usr/bin/nc
 ./usr/bin/ncursesw5-config
 ./usr/bin/netcat
