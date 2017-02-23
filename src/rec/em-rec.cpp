@@ -123,6 +123,8 @@ int main(int argc, char *argv[]) {
     G_CONFIG.GPS_DEV = getConfig("GPS_DEV", DEFAULT_GPS_DEV);
     G_EM_DATA.GPS_homePortDataFile = getConfig("HOME_PORT_DATA", DEFAULT_HOME_PORT_DATA);
     G_EM_DATA.GPS_ferryDataFile = getConfig("FERRY_DATA", DEFAULT_FERRY_DATA);
+    G_EM_DATA.AD_alert_type = getConfig("alert_type", DEFAULT_alert_type);
+
     
     if(G_ARG_DUMP_CONFIG) exit(0);
 

@@ -166,18 +166,35 @@ int ADSensor::Receive() {
 }
 
 void ADSensor::HonkMyHorn() {
-    switch(em_data->AD_honkSound) {
-        case HONK_SCAN_SUCCESS:
-            Send("F600D500E\n");
-            break;
+    if (em_data->AD_alert_type == "strobe") {
+        switch(em_data->AD_honkSound) {
+            case HONK_SCAN_SUCCESS:
+                Send("F35D500E\n");
+                break;
 
-        case HONK_SCAN_DUPLICATE:
-            Send("F600D300E\n"); usleep(400000); Send("F600D300E\n");
-            break;
+            case HONK_SCAN_DUPLICATE:
+                Send("F35D300E\n"); usleep(400000); Send("F35D300E\n");
+                break;
 
-        case HONK_SCAN_WARNING:
-            Send("F300D500E\n");
-            break;
+            case HONK_SCAN_WARNING:
+                Send("F35D500E\n");
+                break;
+        }
+    } else {
+        switch(em_data->AD_honkSound) {
+            case HONK_SCAN_SUCCESS:
+                Send("F600D500E\n");
+                break;
+
+            case HONK_SCAN_DUPLICATE:
+                Send("F600D300E\n"); usleep(400000); Send("F600D300E\n");
+                break;
+
+            case HONK_SCAN_WARNING:
+                Send("F300D500E\n");
+                break;
+        }
+    
     }
 
     em_data->AD_honkSound = 0;

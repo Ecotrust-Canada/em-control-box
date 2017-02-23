@@ -128,6 +128,7 @@ typedef struct {
 	float AD_battery;
 	unsigned short AD_honkSound;
 	unsigned long AD_lastHonkIteration;
+	string AD_alert_type;
 
 	pthread_mutex_t mtx;
 } EM_DATA_TYPE;
