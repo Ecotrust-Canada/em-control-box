@@ -4,13 +4,17 @@
 
 #define HORN_PIN1 11 // original
 #define HORN_PIN2 10 // maine first year prototypes
+#define LED_PIN 13 // maine first year prototypes
 #define AMP_CONTROL_PIN 12 // signal to turn amp on and off
+#define RELAY_CONTROL_PIN 9 // signal to turn relay on and off
 
+#define LED_INTERVAL 500
 #define ANALOG_SAMPLES 15
 #define SAMPLE_DELAY 700
 #define MAX_DUR 5000
 #define MAX_FRQ 6000
 #define AMP_MUTE_DELAY 100 // delay before amp will work after setting control pin
+#define LED_PERIOD 65536
 
 int i, drval, fqval, ch, bufcnt, state = 0;
 char drbuf[20];
@@ -22,16 +26,21 @@ int analogcount_psi = 0, analogcount_bat = 0, analogcount_aux;
 int analogsum_psi, analogsum_bat, analogsum_aux;
 int analogsumfinal_psi, analogsumfinal_bat, analogsumfinal_aux;
 int sample_delay_cnt = 0;
+unsigned long last_pass = 0;
+int led_state = 0;
+uint32_t led_toggle_counter = 0;
 
 void setup() {
   Serial.begin(9600);
   pinMode(PSI_PIN, INPUT);
   pinMode(BAT_PIN, INPUT);
   pinMode(AUX_PIN, INPUT);
-
+  
+  pinMode(LED_PIN, OUTPUT);
   pinMode(HORN_PIN1, OUTPUT);
   pinMode(HORN_PIN2, OUTPUT);
   pinMode(AMP_CONTROL_PIN, OUTPUT);
+  pinMode(RELAY_CONTROL_PIN, OUTPUT);
 
   digitalWrite(PSI_PIN, LOW);
   digitalWrite(BAT_PIN, LOW);
@@ -39,10 +48,27 @@ void setup() {
   digitalWrite(HORN_PIN1, LOW);
   digitalWrite(HORN_PIN2, LOW);
   digitalWrite(AMP_CONTROL_PIN, LOW);
+  digitalWrite(RELAY_CONTROL_PIN, HIGH);
+  
   delay(1000);
 }
 
 void loop() {
+
+  //  Toggle LED if sufficient time has elapsed 
+  if ( ++led_toggle_counter % LED_PERIOD == 0 ) {
+    digitalWrite(LED_PIN, led_state ? HIGH : LOW);
+    led_state = !led_state;
+    led_toggle_counter = 0;
+  }
+
+    //  Toggle LED if sufficient time has elapsed (absolute time version)
+//  if (millis() - last_pass > LED_INTERVAL ) {
+//    digitalWrite(LED_PIN, led_state ? HIGH : LOW);
+//    led_state = !led_state;
+//    last_pass = millis();
+//  }
+
   sample_delay_cnt++;
   
   if(sample_delay_cnt > (int)SAMPLE_DELAY) {

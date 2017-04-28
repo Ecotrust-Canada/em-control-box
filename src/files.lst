@@ -187,6 +187,7 @@
 ./etc/systemd/system/web-server.service
 ./etc/systemd/user.conf
 ./etc/udev/hwdb.bin
+./etc/udev/rules.d/49-teensy.rules
 ./etc/udev/rules.d/51-fanout.rules
 ./etc/udev/rules.d/52-arduino.rules
 ./etc/udev/rules.d/61-disk.rules
@@ -490,6 +491,7 @@
 ./opt/em/arduino/pro328.hex
 ./opt/em/arduino/pro5v328.hex
 ./opt/em/arduino/promicro16.hex
+./opt/em/arduino/teensylc.hex
 ./opt/em/bin/check-browser-video.sh
 ./opt/em/bin/copy-to-data-disk.sh
 ./opt/em/bin/create-fanout-devs.sh
@@ -1201,6 +1203,7 @@
 ./usr/bin/talk
 ./usr/bin/taskset
 ./usr/bin/tee
+./usr/bin/teensy_loader_cli
 ./usr/bin/test
 ./usr/bin/testRTSPClient
 ./usr/bin/timedatectl
@@ -1394,6 +1397,7 @@
 ./usr/lib/libswresample.so.0.18.100
 ./usr/lib/libswscale.so.2.5.102
 ./usr/lib/libusb-1.0.so.0.1.0
+./usr/lib/libusb-0.1.so.4.4.4
 ./usr/lib/libv4l1.so.0.0.0
 ./usr/lib/libv4l2.so.0.0.0
 ./usr/lib/libv4l2rds.so.0.0.0
