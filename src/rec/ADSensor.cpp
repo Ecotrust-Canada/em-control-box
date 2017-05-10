@@ -68,7 +68,7 @@ void ADSensor::SetADCType(const char *_arduino_type, const char *_psi_vmin) {
         bat_max = BATTERY_MAX;
         bat_raw_max = BATTERY_RAW_MAX;
         I("Setting " + to_string(arduino_vmax) + "V Arduino WITH voltage divider");
-    } else if(divider == 'P') { // Pro Micro, Maine
+    } else if(divider == 'P' || divider == 'T' ) { // Pro Micro, Maine or Teensy LC
         psi_vmin = psi_vmin * ((double)10 / 49);
         psi_vmax = psi_vmax * ((double)10 / 49);
         bat_max = NG_BAT_MAX;

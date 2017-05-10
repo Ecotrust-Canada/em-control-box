@@ -40,12 +40,20 @@ check_var_safety() {
 	fi
 }
 
-flashard_description="Flashes Arduino with analog data collector image"
+flashard_description="Flashes Arduino or Teensey with analog data collector image"
 flashard_start() {
 	if [ ${#} -eq 1 ]; then
 		arduino=${1}
 	fi
-
+	
+	# If teensy LC use Teensyloader instead and skip normal arduiono flassh procedure 
+	if [ "${arduino}" == "3.3VTLC" ]; then
+		BOARD="Teensey LC"
+		echo -e "	${STAR} Flashing Arduino ${BOARD} ... " &&
+		teensy_loader_cli -mmcu=mkl26z64 -w /opt/em/arduino/teensylc.hex -vs
+		exit $?
+	fi
+		
 	if [ "${arduino}" == "3.3V" -o "${arduino}" == "3.3VD" ]; then
 		BOARD="pro328"
 		AVRDUDE_OPTS="-p atmega328p -c arduino"
