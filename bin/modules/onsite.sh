@@ -28,6 +28,12 @@ start_start() {
 	echo -e " ${OK}"
 }
 
+restart_desription="Restart all EM services"
+restart_start() {
+			stop_start
+			start_start
+		}
+
 check_var_safety() {
 	if [ -z "${DATA_DISK}" ]; then
 		echo -e "${bldred}DATA_DISK not properly set in em.conf${txtrst}"
