@@ -338,6 +338,9 @@ int main(int argc, char *argv[]) {
             G_EM_DATA.runIterations++;
         pthread_mutex_unlock(&G_EM_DATA.mtx);
 
+        //Writing RFID data to file. No gaurantee of safe shutdown happening
+        if(_RFID) iRFIDSensor.Close();
+
         // try to make "exactly" 1 second elapse each loop
         gettimeofday(&tv, NULL);
         tdiff = tv.tv_sec * 1000000 + tv.tv_usec - tstart; D("Main loop run time was " + to_string((double)tdiff/1000) + " ms");
