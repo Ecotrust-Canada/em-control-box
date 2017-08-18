@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     }
     char digital_output_resolution[12];
     snprintf(digital_output_resolution, sizeof(digital_output_resolution), "%dx%d", DIGITAL_OUTPUT_WIDTH, DIGITAL_OUTPUT_HEIGHT);
-    
+
     if (readConfigFile(FN_CONFIG)) exit(-1);
 
     G_EM_DATA.SYS_fishingArea = getConfig("fishing_area", DEFAULT_fishing_area);
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
     G_EM_DATA.GPS_ferryDataFile = getConfig("FERRY_DATA", DEFAULT_FERRY_DATA);
     G_EM_DATA.AD_alert_type = getConfig("alert_type", DEFAULT_alert_type);
 
-    
+
     if(G_ARG_DUMP_CONFIG) exit(0);
 
     __threadId = THREAD_MAIN;
@@ -226,12 +226,12 @@ int main(int argc, char *argv[]) {
     G_timeinfo = localtime(&rawtime);
     snprintf(buf, sizeof(buf), "*** EM-REC VERSION %s, OPTIONS %lu ***", VERSION, smOptions.GetState());
     writeLog(G_EM_DATA.SYS_targetDisk + "/" + FN_SYSTEM_LOG, buf, true /*forceWrite*/);
-    
+
     // spawn auxiliary thread
     if((retVal = pthread_create(&pt_aux, NULL, &thr_auxiliaryLoop, NULL)) != 0) {
         E("Couldn't spawn auxiliary thread");
     } O("Spawned auxiliary thread");
-    
+
     // AFTER THIS POINT
     // there are threads that may write to G_EM_DATA, so we should always use mutexes when accessing
     // this data struct from now on
@@ -262,12 +262,12 @@ int main(int argc, char *argv[]) {
             iGPSSensor.Receive(); // a separate thread now consumes GPS data, kick it into gear if it's dead
             allStates = allStates | iGPSSensor.GetState();
         }
-        
+
         if(_RFID) {
             iRFIDSensor.Receive();
             allStates = allStates | iRFIDSensor.GetState();
         }
-        
+
         if(_AD) {
             iADSensor.Receive();
             allStates = allStates | iADSensor.GetState();
@@ -337,7 +337,7 @@ int main(int argc, char *argv[]) {
         pthread_mutex_lock(&G_EM_DATA.mtx);
             G_EM_DATA.runIterations++;
         pthread_mutex_unlock(&G_EM_DATA.mtx);
-        
+
         // try to make "exactly" 1 second elapse each loop
         gettimeofday(&tv, NULL);
         tdiff = tv.tv_sec * 1000000 + tv.tv_usec - tstart; D("Main loop run time was " + to_string((double)tdiff/1000) + " ms");
@@ -366,7 +366,7 @@ int main(int argc, char *argv[]) {
 
     pthread_mutex_destroy(&G_EM_DATA.mtx);
     pthread_mutex_destroy(&G_mtxOut);
-    
+
     return 0;
 }
 
@@ -399,9 +399,9 @@ void *thr_auxiliaryLoop(void *arg) {
         pthread_mutex_lock(&G_EM_DATA.mtx);
             targetDisk = G_EM_DATA.SYS_targetDisk;
         pthread_mutex_unlock(&G_EM_DATA.mtx);
-        
+
         writeLog(targetDisk + "/" + FN_SYSTEM_LOG, buf);
-        
+
         // process position, set special area states, and if we're in the home port ...
         if(iGPSSensor.InSpecialArea() && iGPSSensor.GetState() & GPS_IN_HOME_PORT) { // pause
             if(videoCapture.GetState() & STATE_RUNNING) {
@@ -409,10 +409,11 @@ void *thr_auxiliaryLoop(void *arg) {
                     latitude = G_EM_DATA.GPS_latitude;
                     longitude = G_EM_DATA.GPS_longitude;
                 pthread_mutex_unlock(&G_EM_DATA.mtx);
-                I("Entered home port (" + to_string(latitude) + "," + to_string(longitude) + "), pausing video capture");
+                I("Entered home port (" + to_string(latitude) + "," + to_string(longitude) + "), pausing video capture, taking screenshots");
             }
 
             videoCapture.Stop();
+            videoCapture.TakeScreenShots();
         } else {
             if(videoCapture.GetState() & STATE_NOT_RUNNING) { // resume
                 pthread_mutex_lock(&G_EM_DATA.mtx);
@@ -426,9 +427,9 @@ void *thr_auxiliaryLoop(void *arg) {
             pthread_mutex_lock(&G_EM_DATA.mtx);
                 last_psi = G_EM_DATA.AD_psi;
             pthread_mutex_unlock(&G_EM_DATA.mtx);
-            
+
             D(intToString(G_CONFIG.psi_low_threshold) + " < " + intToString(last_psi) + " < " + intToString(G_CONFIG.psi_high_threshold) )
-            
+
             // should check if we are even using the AD
             if(last_psi >= G_CONFIG.psi_high_threshold ||
                 iADSensor.GetState() & AD_NO_CONNECTION ||
@@ -449,6 +450,7 @@ void *thr_auxiliaryLoop(void *arg) {
             }
 
             videoCapture.Start(); // what this app is really all about =)
+            
         }
 
         // checks for errors that are screenshot-worthy
@@ -459,11 +461,11 @@ void *thr_auxiliaryLoop(void *arg) {
             // a single interruption clears the state
             smTakeScreenshot.UnsetAllStates();
         }
-        
+
         if(smTakeScreenshot.GetState() == true) {
             if(smSystem.GetState() & SYS_TARGET_DISK_WRITABLE) {
                 pid_scrot = fork();
-                
+
                 if(pid_scrot == 0) {
                     execle("/usr/bin/scrot", "scrot", "-q5", (targetDisk + "/screenshots/%Y%m%d-%H%M%S.jpg").c_str(), NULL, scrot_envp);
                 } else if(pid_scrot > 0) {
@@ -475,7 +477,7 @@ void *thr_auxiliaryLoop(void *arg) {
                 }
             } else {
                 E("No writable disks; not taking screenshot");
-            }    
+            }
         }
 
         if(!gotRecCount) {
@@ -501,7 +503,7 @@ void *thr_auxiliaryLoop(void *arg) {
             }
         }
     } D("Broke out of auxiliary thread loop; stopping video capture ...");
-    
+
     videoCapture.Stop();
     smAuxThread.SetState(STATE_CLOSING);
 
@@ -527,7 +529,7 @@ void writeLog(string prefix, string buf, bool forceWrite) {
         } else {
             if(fwrite(buf.c_str(), buf.length(), 1, fp) < 1 && errno == ENOSPC) {
                 D("fwrite() error");
-            } 
+            }
             fclose(fp);
         }
     }
@@ -705,7 +707,7 @@ string updateSystemStats() {
                 pthread_mutex_lock(&G_EM_DATA.mtx);
                     G_EM_DATA.SYS_dataDiskLabel = blkid_get_tag_value(blkid_cache, "LABEL", blkid_devno_to_devname(st.st_dev));
                 pthread_mutex_unlock(&G_EM_DATA.mtx);
-                
+
                 mkdir(((string)G_CONFIG.DATA_DISK + FN_VIDEO_DIR).c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 
                 I("Data disk PRESENT, label = " + G_EM_DATA.SYS_dataDiskLabel);
@@ -758,11 +760,11 @@ string updateSystemStats() {
             mins = (si.uptime / 60) - (days * 1440) - (hours * 60);
             snprintf(buf, sizeof(buf), "%dd%dh%dm", days, hours, mins);
             G_EM_DATA.SYS_uptime = buf;
-            
+
             // SYS_ramFree/Total
             G_EM_DATA.SYS_ramFreeKB = si.freeram * (unsigned long long)si.mem_unit / 1024;
             G_EM_DATA.SYS_ramTotalKB = si.totalram * (unsigned long long)si.mem_unit / 1024;
-            
+
             // SYS_load
             snprintf(buf, sizeof(buf), "%0.02f %0.02f %0.02f", (float)si.loads[0] / (float)(1<<SI_LOAD_SHIFT), (float)si.loads[1] / (float)(1<<SI_LOAD_SHIFT), (float)si.loads[2] / (float)(1<<SI_LOAD_SHIFT));
             G_EM_DATA.SYS_load = buf;
@@ -789,7 +791,7 @@ string updateSystemStats() {
         }
 
         for(int i = 0; i < PROC_STAT_VALS; i++) { lastJiffies[i] = jiffies[i]; }
-        
+
         // SYS_tempCore0
         ct = fopen("/sys/devices/platform/coretemp.0/temp2_input", "r");
         ignore_value( fscanf(ct, "%llu", &temp) );
@@ -816,7 +818,7 @@ string updateSystemStats() {
             }
 
             osDiskMinutesLeft_total += osDiskMinutesLeft[osDiskMinutesLeft_index];
-            
+
             osDiskMinutesLeft_index++;
             if(osDiskMinutesLeft_index >= DISK_USAGE_SAMPLES) osDiskMinutesLeft_index = 0;
 
@@ -863,7 +865,7 @@ string updateSystemStats() {
                 }
 
                 dataDiskMinutesLeft_total += dataDiskMinutesLeft[dataDiskMinutesLeft_index];
-                
+
                 dataDiskMinutesLeft_index++;
                 if(dataDiskMinutesLeft_index >= DISK_USAGE_SAMPLES) {
                     dataDiskMinutesLeft_index = 0;

@@ -46,16 +46,21 @@ class CaptureManager: public StateMachine {
 
         // IP
         pthread_t pt_capture;
+        pthread_t pt_threads[5];
         char captureLoopWatchVar;
         //MultiRTSPClient* rtspClients[DIGITAL_MAX_CAMS];
         //unsigned long startedAtIteration[IP_MAX_CAMS]; // ? needed?
         //off_t lastFileSize[IP_MAX_CAMS]; /// ? needed?
-        
+
         static void *thr_IPCaptureLoopLauncher(void*);
         void thr_IPCaptureLoop();
         void JoinIPCaptureThreadBlocking();
         void JoinIPCaptureThreadNonBlocking();
+        static void *thr_ScreenshotsLoop(void*);
         //void SetIPOutputFrameRate(unsigned short);
+
+        struct tm *waitingtime;
+        time_t rawwaittime;
 
     public:
         CaptureManager(EM_DATA_TYPE*, string);
@@ -68,6 +73,7 @@ class CaptureManager: public StateMachine {
         void ReapZombieChildrenNonBlocking();
         void GetRecCount();
         void WriteRecCount();
+        void TakeScreenShots();
 };
 
 #endif
