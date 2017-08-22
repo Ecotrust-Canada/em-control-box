@@ -490,32 +490,38 @@ void CaptureManager::TakeScreenShots() {
   time_t rawtime;
   struct tm *timeinfo;
   char date[32];
-  char url[165];
+  char url[180];
+  char dir[120];
 
   //Get time for filename
   time(&rawtime);
   timeinfo = localtime(&rawtime);
-  strftime(date, sizeof(date), "%Y%m%d-%H%M%S", timeinfo);
+  strftime(date, sizeof(date), "%Y-%m-%d_%H-%M.%S", timeinfo);
+
+  //Set the directory to save
+  strftime(dir,sizeof(dir),"/%Y-%m-%d/%H", timeinfo);
+  D(dir);
 
   int err_no;
 
   if(difftime(rawwaittime,rawtime) <= 0.0){
+
+    system(("mkdir -p " + em_data->SYS_targetDisk + dir).c_str()); //make the directories to save screenshots
         for(_ACTIVE_CAMS) {
             snprintf(url,
                 sizeof(url),
                 DIGITAL_HTTP_API_SCREESHOTS,
-                (em_data->SYS_targetDisk + videoDirectory).c_str(),
+                (em_data->SYS_targetDisk + dir).c_str(),
                 date,i+1,i+1);
 
             err_no = pthread_create(&pt_threads[i],NULL,&thr_ScreenshotsLoop,(void *)&url);
             if(err_no == 0){
                 rawwaittime = rawtime + SCREENSHOT_STATE_WAIT;
+                D(url);
 
                 waitingtime = localtime(&rawwaittime);
                 D("Created screenshots thread on:" + date);
 
-                strftime(date, sizeof(date), "%Y%m%d-%H%M%S", waitingtime);
-                D("Next screenshots at: " + date);
             }else{
 
             E("Couldn't create screenshots thread: " + to_string(err_no));
@@ -531,6 +537,7 @@ void *CaptureManager::thr_ScreenshotsLoop(void *cmd){
   char *out;
 
   out = (char *)cmd;
+  //printf(out);
   system(out); 
   pthread_exit(NULL);
 

@@ -453,7 +453,6 @@ void *thr_auxiliaryLoop(void *arg) {
             }
 
             videoCapture.Start(); // what this app is really all about =)
-            
         }
 
         // checks for errors that are screenshot-worthy

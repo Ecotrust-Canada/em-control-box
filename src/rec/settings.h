@@ -43,7 +43,7 @@
 #define DIGITAL_RTSP_URL            "rtsp://1.1.1.%d:7070/track1"
 #define DIGITAL_HTTP_API_COMMAND    "/usr/bin/wget -q -O - \"$@\" \"%s\""
 #define DIGITAL_HTTP_API_URL        "http://1.1.1.%d/cgi-bin/encoder?USER=Admin&PWD=123456%s"
-#define DIGITAL_HTTP_API_SCREESHOTS "/usr/bin/wget -q -O %s/%s_screenshot%d.jpg \'http://1.1.1.%d/cgi-bin/encoder?USER=Admin&PWD=123456&SNAPSHOT=N640x480,100&DUMMY=3'"
+#define DIGITAL_HTTP_API_SCREESHOTS "/usr/bin/wget -q -O %s/%s.000000.I%d.jpg \'http://1.1.1.%d/cgi-bin/encoder?USER=Admin&PWD=123456&SNAPSHOT=N640x480,100&DUMMY=3\'"
 #define DIGITAL_HTTP_API_FPS        "&VIDEO_FPS_NUM="
 #define DIGITAL_OUTPUT_WIDTH        640 //1280
 #define DIGITAL_OUTPUT_HEIGHT       480 //720
