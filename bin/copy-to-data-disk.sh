@@ -89,6 +89,21 @@ if [ -n "${SCREENSHOT_FILES}" ]; then
     fi
 fi
 
+#Copy all the home port screenshots
+echo copy homeport screenshots
+TODAY_DATE=`date +%Y-%m-%d`
+YEST_DATE=`date -d "yesterday 13:00" +%Y-%m-%d`
+echo "todays date: ${TODAY_DATE} Yesterdays: ${YEST_DATE}"
+SCREENSHT_FOLDERS=`find ${OS_DISK} -name "${TODAY_DATE}" -o -name "${YEST_DATE}"`
+if [ -n "${SCREENSHT_FOLDERS}" ]; then
+    cp -p -r --remove-destination ${SCREENSHT_FOLDERS} ${DATA_DISK}
+    if [ ${?} -eq 0 ]; then
+        rm -rf ${SCREENSHT_FOLDERS}
+    else
+        echo "Copying homeport screenshots failed"
+    fi
+fi
+
 echo copy videos
 function copy_videos {
 	# finally videos
