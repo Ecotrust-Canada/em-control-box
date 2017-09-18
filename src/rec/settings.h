@@ -20,6 +20,8 @@
 #define MAX_CLIP_LENGTH             1800    // force new movie file every x seconds
 //#define MAX_CLIP_LENGTH             20    // short clips for debugging. TODO: make this a runtime config.
 
+#define SCREENSHOT_STATE_WAIT       900     //New screenshot wait period since SCREENSHOT_STATE_DELAY use is unknown. Set to 15 minutes, in seconds
+
 #define FFMPEG_BINARY               "/usr/bin/ffmpeg"
 #define FFMPEG_MAX_ARGS             48
 #define FFMPEG_ARGS_LINE            "-loglevel warning -y -an -f rawvideo -c:v rawvideo -s %s -r %s -i %s -an -c:v libx264 -profile:v high -movflags faststart -threads 2 -level 42 -vf fps=%s -x264opts %s -maxrate %s -bufsize %s -t" // -t HAS to be the last parameter
@@ -41,6 +43,7 @@
 #define DIGITAL_RTSP_URL            "rtsp://1.1.1.%d:7070/track1"
 #define DIGITAL_HTTP_API_COMMAND    "/usr/bin/wget -q -O - \"$@\" \"%s\""
 #define DIGITAL_HTTP_API_URL        "http://1.1.1.%d/cgi-bin/encoder?USER=Admin&PWD=123456%s"
+#define DIGITAL_HTTP_API_SCREESHOTS "/usr/bin/wget -q -O %s/%s.000000.I%d.jpg \'http://1.1.1.%d/cgi-bin/encoder?USER=Admin&PWD=123456&SNAPSHOT=N640x480,100&DUMMY=3\'"
 #define DIGITAL_HTTP_API_FPS        "&VIDEO_FPS_NUM="
 #define DIGITAL_OUTPUT_WIDTH        640 //1280
 #define DIGITAL_OUTPUT_HEIGHT       480 //720

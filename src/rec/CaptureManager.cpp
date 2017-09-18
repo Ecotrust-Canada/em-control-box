@@ -53,6 +53,10 @@ CaptureManager::CaptureManager(EM_DATA_TYPE* _em_data, string _videoDirectory):S
     moduleName = "CAP";
     wasInReducedBitrateMode = false;
 
+    //Set time for screenshots waiting
+    time(&rawwaittime);
+    waitingtime = localtime(&rawwaittime);
+
     if(__ANALOG) {
         I("Using *" + to_string(em_data->SYS_numCams) + "* ANALOG cameras");
 
@@ -169,7 +173,7 @@ unsigned long CaptureManager::Start() {
 
         if(__EM_RUNNING && __SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
             pid_encoder[HARDCODED_CAM_INDEX] = fork();
-        
+
             // CHILD
             if(pid_encoder[HARDCODED_CAM_INDEX] == 0) {
                 time_t rawtime;
@@ -183,13 +187,13 @@ unsigned long CaptureManager::Start() {
                 string token;
                 int argIndex = 1;
                 stringstream ssin;
-                
+
                 if(__SYS_GET_STATE & SYS_REDUCED_VIDEO_BITRATE) {
                     ssin << encoderArgsSlow;
                 } else {
                     ssin << encoderArgs;
                 }
-                
+
                 while(ssin >> token) {
                     //cout << "Found token: '" << token << "' size: " << token.size() << endl;
                     argv[argIndex] = new char[token.size() + 1];
@@ -253,7 +257,7 @@ unsigned long CaptureManager::Start() {
             }
         }*/
     }
-    
+
     return initialState;
 }
 
@@ -278,7 +282,7 @@ unsigned long CaptureManager::Stop() {
                 shutdownStream(G_rtspClients[i], LIVERTSP_EXIT_CLEAN);
             }
         }
-        
+
         JoinIPCaptureThreadBlocking(); // this one sets STATE_NOT_RUNNING
     }
 
@@ -360,10 +364,10 @@ void CaptureManager::thr_IPCaptureLoop() {
     bool madeProgress = false;
     char url[64];
     //unsigned short frameRate;
-    
+
     if(__EM_RUNNING && __SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
         SetState(STATE_STARTING);
-        
+
         /*if(nextRecordMode == RECORDING_NORMAL) {
             frameRate = DIGITAL_OUTPUT_FPS_NORMAL;
         } else {
@@ -405,14 +409,14 @@ void CaptureManager::thr_IPCaptureLoop() {
         }
         D("Finished Live555 init");
     }
-    
+
     if(madeProgress && GetState() & STATE_STARTING && __EM_RUNNING && __SYS_GET_STATE & SYS_TARGET_DISK_WRITABLE) {
         D("Beginning Live555 doEventLoop() ...");
 
         captureLoopWatchVar = LOOP_WATCH_VAR_RUNNING;
         SetState(STATE_RUNNING);
         //__SYS_SET_STATE(SYS_VIDEO_RECORDING);
-        
+
         // does not return unless captureLoopWatchVar set to non-zero
         G_env->taskScheduler().doEventLoop(&captureLoopWatchVar);
         D("Broke out of Live555 doEventLoop()");
@@ -423,7 +427,7 @@ void CaptureManager::thr_IPCaptureLoop() {
     // Stop(); // ABSOLUTELY NOT
     // this is here so no one ever thinks to do it ... Stop()/Start() should only be called from a controlling thread
     // and never this capture thread
-    
+
     D("Capture thread stopped, waiting for join ...");
     SetState(STATE_CLOSING);
     pthread_exit(NULL);
@@ -479,4 +483,62 @@ void CaptureManager::WriteRecCount() {
             D("Wrote out videoSecondsRecorded = " + to_string(videoSecondsRecorded) + " for disk " + dataDiskLabel);
         }
     //}
+}
+
+void CaptureManager::TakeScreenShots() {
+
+  time_t rawtime;
+  struct tm *timeinfo;
+  char date[32];
+  char url[180];
+  char dir[120];
+
+  //Get time for filename
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+  strftime(date, sizeof(date), "%Y-%m-%d_%H-%M.%S", timeinfo);
+
+  //Set the directory to save
+  strftime(dir,sizeof(dir),"/%Y-%m-%d/%H", timeinfo);
+  D(dir);
+
+  int err_no;
+
+  if(difftime(rawwaittime,rawtime) <= 0.0){
+
+    system(("mkdir -p " + em_data->SYS_targetDisk + dir).c_str()); //make the directories to save screenshots
+        for(_ACTIVE_CAMS) {
+            snprintf(url,
+                sizeof(url),
+                DIGITAL_HTTP_API_SCREESHOTS,
+                (em_data->SYS_targetDisk + dir).c_str(),
+                date,i+1,i+1);
+
+            err_no = pthread_create(&pt_threads[i],NULL,&thr_ScreenshotsLoop,(void *)&url);
+            if(err_no == 0){
+                rawwaittime = rawtime + SCREENSHOT_STATE_WAIT;
+                D(url);
+
+                waitingtime = localtime(&rawwaittime);
+                D("Created screenshots thread on:" + date);
+
+            }else{
+
+            E("Couldn't create screenshots thread: " + to_string(err_no));
+            }
+        }
+    }else{
+        D("Waiting " + to_string(difftime(rawwaittime,rawtime)) + " seconds before next screenshot")
+    }
+
+}
+
+void *CaptureManager::thr_ScreenshotsLoop(void *cmd){
+  char *out;
+
+  out = (char *)cmd;
+  //printf(out);
+  system(out); 
+  pthread_exit(NULL);
+
 }
