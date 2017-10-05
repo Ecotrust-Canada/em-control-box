@@ -64,6 +64,7 @@ class RFIDSensor: public Sensor {
         void resetStringScans();
         void resetTripScans();
         void Close();
+        void saveToFile();
 };
 
 #endif

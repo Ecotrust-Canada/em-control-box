@@ -241,3 +241,15 @@ void RFIDSensor::Close() {
 
     Sensor::Close();
 }
+
+void RFIDSensor::saveToFile() {
+    if(!scanCountsFile.empty() && !(__OS_DISK_FULL)) {
+        ofstream fout(scanCountsFile.c_str());
+
+        if(!fout.fail()) {
+            fout << em_data->RFID_stringScans << ' ' << em_data->RFID_tripScans;
+            fout.close();
+            I("Wrote out scan counts to " + scanCountsFile);
+        }
+    }
+}

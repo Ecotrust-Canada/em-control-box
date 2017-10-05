@@ -339,7 +339,7 @@ int main(int argc, char *argv[]) {
         pthread_mutex_unlock(&G_EM_DATA.mtx);
 
         //Writing RFID data to file. No gaurantee of safe shutdown happening
-        if(_RFID) iRFIDSensor.Close();
+        if(_RFID) iRFIDSensor.saveToFile();
 
         // try to make "exactly" 1 second elapse each loop
         gettimeofday(&tv, NULL);
