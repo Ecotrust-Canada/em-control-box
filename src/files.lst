@@ -1435,10 +1435,10 @@
 ./usr/lib/tmpfiles.d/systemd.conf
 ./usr/lib/tmpfiles.d/tmp.conf
 ./usr/lib/tmpfiles.d/x11.conf
-./usr/lib/libBasicUsageEnvironment.so.0.0.2
-./usr/lib/libUsageEnvironment.so.1.0.0
-./usr/lib/libgroupsock.so.1.1.0
-./usr/lib/libliveMedia.so.34.1.0
+./usr/lib/libBasicUsageEnvironment.so.1.0.0
+./usr/lib/libUsageEnvironment.so.3.1.0
+./usr/lib/libgroupsock.so.8.1.1
+./usr/lib/libliveMedia.so.61.0.0
 ./usr/lib64
 ./usr/libexec/dbus-daemon-launch-helper
 ./usr/libexec/sftp-server
