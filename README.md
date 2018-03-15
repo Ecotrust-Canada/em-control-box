@@ -5,7 +5,7 @@ Electronic monitoring control box for commercial fisheries.
 
 # How To Contribute
 
-On a development system, the project source code is saved in /opt/em. First get a fresh version of the code in your dev environment:
+On a development system (you must choose this in grub, when booting, rather than a production image), the project source code is saved in /opt/em. First get a fresh version of the code in your dev environment:
 
 ```
 cd /opt/em
