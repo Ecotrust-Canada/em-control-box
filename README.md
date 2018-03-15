@@ -5,7 +5,7 @@ Electronic monitoring control box for commercial fisheries.
 
 # How To Contribute
 
-On a development system (you must choose this in grub, when booting, rather than a production image), the project source code is saved in /opt/em. First get a fresh version of the code in your dev environment:
+On a development system (you must choose this in grub, when booting, rather than a production image), the project source code is saved in /opt/em. To access a terminal, type `ctrl-alt-f1` and log in. First get a fresh version of the code in your dev environment:
 
 ```
 cd /opt/em
@@ -33,6 +33,18 @@ And then share them with the world!
 ```
 git push origin master
 ```
+# To Run Your Custom Build
+
+To Build locally, just
+
+```
+em stop
+cd /opt/em/src
+make
+em start
+```
+
+You're now running your own build of the EM software.
 
 # How Build a New Image
 
